@@ -544,7 +544,7 @@ abstract class Record extends Object {
 				} else {
 					// Zoek naar een class met de naam van de property en extend van Record.
 					$class = ucfirst($property);
-					$classInfo = $GLOBALS['Library']->class_info($class, true);
+					$classInfo = $GLOBALS['AutoLoader']->getInfo($class, true);
 					if (!$classInfo || value($classInfo['extends']) != 'Record') { // Bestaat de class niet, of is het geen subclass van Record
 						// @todo: extends van de extends controleren.
 						$class = false;
