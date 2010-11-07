@@ -97,8 +97,8 @@ class RecordTest extends DatabaseTestCase {
 		$record = $this->getRecord(1);
 		$record->delete();
 		$this->assertLastQuery('DELETE FROM klant WHERE id = "1"');
+		$this->expectError('A deleted Record has no properties');
 		$record->occupation = 'DELETED?';
-		//$this->expectError('A deleted Record has no properties');
 		try {
 			$record->save();
 			$this->fail('Expecting an exception');
