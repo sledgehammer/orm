@@ -16,9 +16,8 @@ class RecordSelection extends SQL implements Countable, Iterator {
 	public $keyColumn = null;
 
 	private
-		$iterator,
-		$isDirty = true; // Geeft aan of het eisenpakket is aangepast en dat er opnieuw een query gegenereerd moet worden
-
+		$isDirty = true, // Geeft aan of het eisenpakket is aangepast en dat er opnieuw een query gegenereerd moet worden
+		$iterator;
 	/**
 	 * @param Record $record  Een record (in STATIC mode)
 	 */
@@ -45,8 +44,7 @@ class RecordSelection extends SQL implements Countable, Iterator {
 	}
 	
 	function rewind() {
-		$this->validateIterator();
-		$this->iterator->rewind();
+		$this->getValidIterator()->rewind();
 	}
 	function next() {
 		return $this->iterator->next();
@@ -66,16 +64,20 @@ class RecordSelection extends SQL implements Countable, Iterator {
 	 * return int
 	 */
 	function count() {
-		$this->validateIterator();
-		return count($this->iterator);
+		return count($this->getValidIterator());
 	}
 
-	private function validateIterator() {
+	// 
+	private function getValidIterator() {
 		if ($this->isDirty) {
 			$db = getDatabase($this->recordOptions['dbLink']);
 			$this->iterator = $db->query($this, $this->keyColumn);
+			if ($this->iterator == false) {
+				throw new Exception('Invalid results for query "'.$this.'"');
+			}
 			$this->isDirty = false;
 		}
+		return $this->iterator;
 	}
 }
 ?>
