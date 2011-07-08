@@ -4,8 +4,8 @@
  *
  * @package Record
  */
-
-class RecordSelection extends SQL implements Countable, Iterator {
+namespace SledgeHammer;
+class RecordSelection extends SQL implements \Countable, \Iterator {
 
 	/**
 	 * @var string $record
@@ -73,7 +73,7 @@ class RecordSelection extends SQL implements Countable, Iterator {
 			$db = getDatabase($this->recordOptions['dbLink']);
 			$this->iterator = $db->query($this, $this->keyColumn);
 			if ($this->iterator == false) {
-				throw new Exception('Invalid results for query "'.$this.'"');
+				throw new \Exception('Invalid results for query "'.$this.'"');
 			}
 			$this->isDirty = false;
 		}

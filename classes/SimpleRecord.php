@@ -4,7 +4,7 @@
  *
  * @package Record
  */
-
+namespace SledgeHammer;
 class SimpleRecord extends Record {
 	
 	function __construct($table, $id = '__STATIC__', $options = array()) {
@@ -20,7 +20,7 @@ class SimpleRecord extends Record {
 		// @todo $options[??] setting bedenken voor het gebruik inladen van alle kolommen uit de query (ipv de tabel)
 		if (array_value($options, 'propertiesByValues') && $id === '__INSTANCE__') {
 			if (empty($options['values'])) {
-				throw new Exception('Can\'t create an Instance without $options["values"]');
+				throw new \Exception('Can\'t create an Instance without $options["values"]');
 			}
 			$properties =  array_keys($options['values']);
 		} else {

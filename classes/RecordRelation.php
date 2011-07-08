@@ -5,8 +5,8 @@
  *
  * @package Record
  */
-
-class RecordRelation extends Object implements ArrayAccess, Countable, Iterator {
+namespace SledgeHammer;
+class RecordRelation extends Object implements \ArrayAccess, \Countable, \Iterator {
 
 	
 	private 
@@ -40,7 +40,7 @@ class RecordRelation extends Object implements ArrayAccess, Countable, Iterator 
 		$relationOptions = array('keyColumn', 'valueProperty', 'dbLink', 'columns', 'recordClass');
 		foreach ($options as $property => $value) {
 			if (in_array($property, $invalidOptions)) {
-				throw new Exception('Unexpected option: "'.$property.'", use '.implode(', ', $relationOptions).' or recordOptions');
+				throw new \Exception('Unexpected option: "'.$property.'", use '.implode(', ', $relationOptions).' or recordOptions');
 			} elseif (in_array($property, $relationOptions)) {
 				$this->$property = $value; //
 				if (in_array($property, array('dbLink', 'columns'))) {
@@ -58,7 +58,7 @@ class RecordRelation extends Object implements ArrayAccess, Countable, Iterator 
 	 */
 	function init($foreignId) {
 		if ($this->foreignId !== null) {
-			throw new Exception('Relation is already initialized');
+			throw new \Exception('Relation is already initialized');
 		}
 		$this->foreignId = $foreignId;
 	}
@@ -70,7 +70,7 @@ class RecordRelation extends Object implements ArrayAccess, Countable, Iterator 
 	 */
 	function import($data) {
 		if (!is_array($data)) {
-			throw new Exception('Only arrays are supported');
+			throw new \Exception('Only arrays are supported');
 		}
 		if (count($this->deletions) > 0) { // Mist previousValues array een aantal rijen?
 			$this->previousValues = null; // forceer het opnieuw inladen van de previousValues.
@@ -180,11 +180,11 @@ class RecordRelation extends Object implements ArrayAccess, Countable, Iterator 
 		$keyValue = $record->{$this->keyColumn};
 
 		if ($keyValue === null) {
-			throw new Exception('Unable to determine the keyColumn value');
+			throw new \Exception('Unable to determine the keyColumn value');
 		}
 		if ($key !== null && equals($key, $keyValue) == false) { // Is er een andere key opgegeven dan dat er ingesteld zal worden?
 			// Dan is de keyColumn overschreven door de valueProperty (Komt voor bij N-M relaties)
-			throw new Exception('Offset "'.$key.'" doesn\'t match the '.$this->keyColumn.': "'.$keyValue.'"'); // The $key and the $keyColumn have diverged
+			throw new \Exception('Offset "'.$key.'" doesn\'t match the '.$this->keyColumn.': "'.$keyValue.'"'); // The $key and the $keyColumn have diverged
 		}
 		$this->additions[$keyValue] = $record;
 	}
@@ -206,7 +206,7 @@ class RecordRelation extends Object implements ArrayAccess, Countable, Iterator 
 			} elseif (isset($this->additions[$key])) { //
 				unset($this->additions[$key]);
 			} else {
-				throw new Exception('Unable to remove $record, $record isn\'t related');
+				throw new \Exception('Unable to remove $record, $record isn\'t related');
 			}
 		}
 	}
@@ -297,14 +297,14 @@ class RecordRelation extends Object implements ArrayAccess, Countable, Iterator 
 	 */
 	private function setRecord($record, $key = null) {
 		if (get_class($record) != $this->recordClass) {
-			throw new Exception('Unexpected class "'.get_class($record).'", expection an '.$this->recordClass);
+			throw new \Exception('Unexpected class "'.get_class($record).'", expection an '.$this->recordClass);
 		}
 		$keyColumnValue = $record->{$this->keyColumn};
 		if ($key !== null) {
 			if ($keyColumnValue === null) { // Is er een $id/offset opgegeven, maar heeft de $record (nog) geen keyValue?
 				$record->{$this->keyColumn} = $key;
 			} elseif (equals($key, $keyColumnValue) == false) {
-				throw new Exception('Key: "'.$key.'" doesn\'t match the keyColumn: "'.$keyColumnValue.'"');
+				throw new \Exception('Key: "'.$key.'" doesn\'t match the keyColumn: "'.$keyColumnValue.'"');
 			}
        	} else {
 			$key = $record->{$this->keyColumn};
@@ -325,7 +325,7 @@ class RecordRelation extends Object implements ArrayAccess, Countable, Iterator 
 				$this->additions[$key] = $record;
 			}
 		} else {
-			throw new Exception('Record->'.$this->keyColumn.' has no value');
+			throw new \Exception('Record->'.$this->keyColumn.' has no value');
        	}
 	}
 
@@ -339,7 +339,7 @@ class RecordRelation extends Object implements ArrayAccess, Countable, Iterator 
 			return;
 		}
 		if ($this->foreignId === null) {
-			throw new Exception('Invalid foreignId');
+			throw new \Exception('Invalid foreignId');
 		}
 		$db = getDatabase($this->dbLink);
 		$where = $db->quoteIdentifier($this->foreignKey).' = '.$db->quote($this->foreignId);
@@ -354,12 +354,12 @@ class RecordRelation extends Object implements ArrayAccess, Countable, Iterator 
 				reset($keys);
 				$this->keyColumn = current($keys);
 			} else {
-				throw new Exception('Unable to detect a keyColumn, set the $options[keyColumn] to "'.human_implode('" or "', $keys, '", "').' for example');
+				throw new \Exception('Unable to detect a keyColumn, set the $options[keyColumn] to "'.human_implode('" or "', $keys, '", "').' for example');
            	}
 		}
 		$result = $db->query($sql, $this->keyColumn);
 		if (!$result) {
-			throw new Exception('Unable to load relation data');
+			throw new \Exception('Unable to load relation data');
        	}
 		// @todo Controleer op duplicate keys
 		$this->previousValues = iterator_to_array($result);

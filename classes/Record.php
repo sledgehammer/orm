@@ -16,7 +16,7 @@
  * @todo Veranderingen in de $_foreignKeys array opslaan/weergeven in getChanges().
  * @package Record
  */
-
+namespace SledgeHammer;
 abstract class Record extends Object {
 
 	protected
@@ -76,14 +76,14 @@ abstract class Record extends Object {
 		if (isset($options['excludeColumns'])) {
 			// Zijn er kolommen geblacklist, deze velden dan niet opvragen uit de database.
 			if ($this->_columns !== '*') {
-				throw new Exception('Use $option[excludeColumns](blacklist) or $option[columns](whitelist + dynamic columns)');
+				throw new \Exception('Use $option[excludeColumns](blacklist) or $option[columns](whitelist + dynamic columns)');
 			}
 			$info = getDatabase($this->_dbLink)->tableInfo($this->_table);
 			$this->_columns = $info['columns'];
 			foreach ($options['excludeColumns'] as $column) {
 				$index = array_search($column, $this->_columns);
 				if ($index === false) {
-					throw new Exception('Column "'.$column.'" not found in the "'.$this->_table.'" table');
+					throw new \Exception('Column "'.$column.'" not found in the "'.$this->_table.'" table');
 				}
 				unset($this->_columns[$index]);
 			}
@@ -120,7 +120,7 @@ abstract class Record extends Object {
 		}
 		if ($id === '__INSTANCE__') { // Zijn er gegevens (uit de database) meegegeven?
 			if (empty($options['values'])) {
-				throw new Exception('Can\'t create an Instance without $options["values"]');
+				throw new \Exception('Can\'t create an Instance without $options["values"]');
 			}
 			$values = $options['values'];
 		} else {
@@ -129,7 +129,7 @@ abstract class Record extends Object {
 			$db = getDatabase($this->_dbLink);
 			$values = $db->fetch_row($this->buildSelect($id), true);
 			if (!$values) {
-				throw new Exception(get_class($this).'('.$db->quote($id).') bestaat niet (meer)');
+				throw new \Exception(get_class($this).'('.$db->quote($id).') bestaat niet (meer)');
 			}
 		}
 		// Relaties waarvan de foreignKey in de "values" zitten.
@@ -191,7 +191,7 @@ abstract class Record extends Object {
 					if ($relation instanceof RecordRelation) {
 						$relation->init($idValue);
 					} else {
-						throw new Exception('Unexpected value for $options["hasMany"]["'.$property.'"], expecting an RecordRelation object');
+						throw new \Exception('Unexpected value for $options["hasMany"]["'.$property.'"], expecting an RecordRelation object');
 					}
 				}
 			}
@@ -249,11 +249,11 @@ abstract class Record extends Object {
 		$options['values'] = $db->fetch_row($sql, true);
 		if (!$options['values']) {
 			if (is_array($restriction)) {
-				throw new Exception(get_class($this).' niet gevonden'); // Sprintf of ofPrimary key restriction
+				throw new \Exception(get_class($this).' niet gevonden'); // Sprintf of ofPrimary key restriction
 			} elseif (func_num_args() != 1) {
-				throw new Exception(get_class($this).' niet gevonden'); // Sprintf of ofPrimary key restriction
+				throw new \Exception(get_class($this).' niet gevonden'); // Sprintf of ofPrimary key restriction
 			} else {// Primary key restriction
-				throw new Exception(get_class($this).': '.$db->quote($restriction).' niet gevonden'); 
+				throw new \Exception(get_class($this).': '.$db->quote($restriction).' niet gevonden'); 
 			}
 			
 		}
@@ -334,7 +334,7 @@ abstract class Record extends Object {
 	 */
 	function getChanges() {
 		if (!in_array($this->_mode, array('UPDATE', 'INSERT')) ) {
-			throw new Exception('getChanges() not allowed in "'.$this->_mode.'" mode, "UPDATE" or "INSERT" mode required');
+			throw new \Exception('getChanges() not allowed in "'.$this->_mode.'" mode, "UPDATE" or "INSERT" mode required');
 		}
 		$changes = array();
 		foreach ($this->_previousValues as $property => $value) {
@@ -397,7 +397,7 @@ abstract class Record extends Object {
 	 */
 	function save() {
 		if (!in_array($this->_mode, array('UPDATE', 'INSERT')) ) {
-			throw new Exception('save() not allowed in "'.$this->_mode.'" mode, "UPDATE" or "INSERT" mode required');
+			throw new \Exception('save() not allowed in "'.$this->_mode.'" mode, "UPDATE" or "INSERT" mode required');
 		}
 		// Alle gewijzigde hasOne relaties opslaan
 		foreach ($this->_hasOne as $relation) {
@@ -434,7 +434,7 @@ abstract class Record extends Object {
 		}
 		
 		if (!$result) {
-			throw new Exception('Het opslaan van een '.get_class($this).' in "'.$this->_table.'" is mislukt');
+			throw new \Exception('Het opslaan van een '.get_class($this).' in "'.$this->_table.'" is mislukt');
 		}
 		// INSERT met auto_increment?
 		if ($this->_mode == 'INSERT' && count($primaryKeys) == 1 && !array_key_exists($primaryKeys[0], $changes)) {
@@ -473,10 +473,10 @@ abstract class Record extends Object {
 			$this->requireStaticMode();
 		} else {
 			if ($this->_mode === 'STATIC') {
-				throw new Exception('Parameter $id is required');
+				throw new \Exception('Parameter $id is required');
 			}
 			if ($this->_mode !== 'UPDATE') {
-				throw new Exception('Unexpected mode: "'.$this->_mode.'", expecting "UPDATE"');
+				throw new \Exception('Unexpected mode: "'.$this->_mode.'", expecting "UPDATE"');
 			}
 			$id = $this->getId();
 		}
@@ -498,7 +498,7 @@ abstract class Record extends Object {
 			$valid = false;
 		}
 		if (!$valid) {
-			throw new Exception('Invalid $id parameter, expecting array("'.implode('" => ?, "', $primaryKeys).'" => ?)');
+			throw new \Exception('Invalid $id parameter, expecting array("'.implode('" => ?, "', $primaryKeys).'" => ?)');
 		}
 		$where = array();
 		foreach ($primaryKeys as $primaryKey) {
@@ -506,7 +506,7 @@ abstract class Record extends Object {
 		}
 		$sql = 'DELETE FROM '.$db->quoteIdentifier($this->_table).' WHERE '.implode(' AND ', $where);
 		if (!$db->query($sql)) {
-			throw new Exception('Verwijderen van '.get_class($this).' "'.implode(' - ', $id).'" is mislukt');
+			throw new \Exception('Verwijderen van '.get_class($this).' "'.implode(' - ', $id).'" is mislukt');
 		}
 		if ($db->affected_rows != 1) {
 			notice('No records verwijderd', array('affected_rows' => $db->affected_rows));
@@ -536,7 +536,7 @@ abstract class Record extends Object {
 			$relation = $this->_hasOne[$property];
 			$id = $this->_foreignKeys[$relation['foreignKey']];
 			if ($id === null) {
-				throw new Exception('Property "'.$property.'" needs a ID value');
+				throw new \Exception('Property "'.$property.'" needs a ID value');
 			}
 			if (empty($relation['record'])) { // record en recordClass onbekend?
 				if (isset($relation['recordClass'])) {
@@ -647,7 +647,7 @@ abstract class Record extends Object {
 			if (count($primaryKeys) ==  1) {
 				$sql->where = $db->quoteIdentifier($primaryKeys[0]).' = '.$db->quote($restriction);
 			} else {
-				throw new Exception('Invalid restriction, expecting array("'.implode('" => ?, "', $primaryKeys).'" => ?)'); // $this->_table has a complex primarykey
+				throw new \Exception('Invalid restriction, expecting array("'.implode('" => ?, "', $primaryKeys).'" => ?)'); // $this->_table has a complex primarykey
 			}
 		} else { // Array of Sprintf restriction
 			$arguments = func_get_args();
@@ -667,7 +667,7 @@ abstract class Record extends Object {
 		$trace = debug_backtrace();
 		$function = $trace[1]['function'];
 		$params = 	(count($trace[1]['args']) == '0') ? '' : '...';
-		throw new Exception(get_class($this).'->'.$function.'('.$params.') not allowed for instances. $people->'.$function.'(), not $bob->'.$function.'()');
+		throw new \Exception(get_class($this).'->'.$function.'('.$params.') not allowed for instances. $people->'.$function.'(), not $bob->'.$function.'()');
 	}
 
 	/**
@@ -681,7 +681,7 @@ abstract class Record extends Object {
 		$trace = debug_backtrace();
 		$function = $trace[1]['function'];
 		$params = 	(count($trace[1]['args']) == '0') ? '' : '...';
-		throw new Exception(get_class($this).'->'.$function.'('.$params.') requires an instance. $bob->'.$function.'(), not $people->'.$function.'()');
+		throw new \Exception(get_class($this).'->'.$function.'('.$params.') requires an instance. $bob->'.$function.'(), not $people->'.$function.'()');
 	}
 
 	/**
@@ -699,12 +699,12 @@ abstract class Record extends Object {
 	 */
 	private function buildRestriction($restriction, $args = null) {
 		if (func_num_args() == 1 && is_array($restriction) == false) {
-			throw new Exception('2 or more parameters required for a sprintf restriction');
+			throw new \Exception('2 or more parameters required for a sprintf restriction');
 		}
 		$db = getDatabase($this->_dbLink);
 		if (is_array($restriction)) { // Het is een array restrictie? Bv: array('name' => 'Bob')
 			if (count($restriction) == 0) {
-				throw new Exception('Parameter $restriction should be an array with 1 or more elements');
+				throw new \Exception('Parameter $restriction should be an array with 1 or more elements');
 	       	}
 			$sqlParts = array();
 			foreach ($restriction as $column => $value) {
@@ -719,7 +719,7 @@ abstract class Record extends Object {
 		$sql = str_replace("%", "%%", $restriction); // de % escapen voor sprintf.
 		$sql = preg_replace(array('/\?/'), array('%s'), $sql, -1, $count); // De "?" omzetten naar "%s"
 		if ($count != count($arguments)) {
-			throw new Exception('Number of parameters doesn\'t match number of "?" in statement');
+			throw new \Exception('Number of parameters doesn\'t match number of "?" in statement');
 		}
 
 		$arguments  = array_map(array($db, 'quote'), $arguments); // De parameters escapen
