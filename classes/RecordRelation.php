@@ -1,6 +1,6 @@
 <?php
 /**
- * Verzorgt het itereren door de database records op een OOP manier.
+ * Lets the related records behave like an array.
  *
  *
  * @package Record

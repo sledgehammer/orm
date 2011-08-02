@@ -27,14 +27,14 @@ abstract class Record extends Object {
 		$_foreignKeys = array();
 		
 	/**
-	 * @var array $_hasOne
+	 * @var array $_belongsTo
 	 *  array('property' => array(
 	 *    'record' => Static Record,
 	 *    'foreignKey' => string, // Naam van een foreignKey kolom. (Wordt gedetecteerd als de property overeenkomt met de kolomnaam (excl. "_id")
 	 *    'instance' => Record instance (wordt gegeneerd/geupdate door __get() & __set())
 	 *   )
 	 */	
-	protected $_hasOne = array();
+	protected $_belongsTo = array();
 	
 	/**
 	 * @var array $_hasMany  array('items' => RecordRelation);
@@ -114,7 +114,7 @@ abstract class Record extends Object {
 		// Controleer of er een onbekende opties zijn meegegeven
 		foreach ($options as $option => $value) {
 			
-			if (!in_array($option, array('dbLink', 'table', 'columns', 'hasOne', 'hasMany', 'excludeColumns', 'excludeProperties', 'skipValidation', 'values', 'skipUnknownColumns'))) {
+			if (!in_array($option, array('dbLink', 'table', 'columns', 'belongsTo', 'hasMany', 'excludeColumns', 'excludeProperties', 'skipValidation', 'values', 'skipUnknownColumns'))) {
 				notice('Invalid option: "'.$option.'" with value: "'.$value.'"');
 			}
 		}
@@ -133,8 +133,8 @@ abstract class Record extends Object {
 			}
 		}
 		// Relaties waarvan de foreignKey in de "values" zitten.
-		if (isset($options['hasOne'])) {
-			$this->_hasOne = $options['hasOne'];
+		if (isset($options['belongsTo'])) {
+			$this->_belongsTo = $options['belongsTo'];
 		}
 		// Waardes inladen.
 		$this->_previousValues = $values;
@@ -148,22 +148,22 @@ abstract class Record extends Object {
 					$this->_foreignKeys[$column] = $value;
 				}
 				$property = $match[1];
-				if (isset($this->_hasOne[$property]) == false) {
+				if (isset($this->_belongsTo[$property]) == false) {
 					// Controleer of er een andere property gemapt in op deze foreignKey
 					$relationNotDefined = true;
-					foreach ($this->_hasOne as $relation) {
+					foreach ($this->_belongsTo as $relation) {
 						if (array_value($relation, 'foreignKey') == $column) {
 							$relationNotDefined = false;
 							break;
 						}
 					}
 					if ($relationNotDefined) {
-						$this->_hasOne[$property] = array(
+						$this->_belongsTo[$property] = array(
 							'foreignKey' => $column,
 						);
 					}
-				} elseif (isset($this->_hasOne[$property]['foreignKey']) == false) {
-					$this->_hasOne[$property]['foreignKey'] = $column;
+				} elseif (isset($this->_belongsTo[$property]['foreignKey']) == false) {
+					$this->_belongsTo[$property]['foreignKey'] = $column;
 				}
 			} else {
 				if (value($options['skipUnknownColumns'])) {
@@ -178,9 +178,9 @@ abstract class Record extends Object {
 		//------------------
 		// Relaties
 		//------------------
-		foreach ($this->_hasOne as $property => $relation) {
+		foreach ($this->_belongsTo as $property => $relation) {
 			if (empty($relation['foreignKey'])) {
-				warning('Unable to detect foreignKey for hasOne["'.$property.'"] relation');
+				warning('Unable to detect foreignKey for belongsTo["'.$property.'"] relation');
 			}
 		}
 		if (isset($options['hasMany'])) {
@@ -399,8 +399,8 @@ abstract class Record extends Object {
 		if (!in_array($this->_mode, array('UPDATE', 'INSERT')) ) {
 			throw new \Exception('save() not allowed in "'.$this->_mode.'" mode, "UPDATE" or "INSERT" mode required');
 		}
-		// Alle gewijzigde hasOne relaties opslaan
-		foreach ($this->_hasOne as $relation) {
+		// Alle gewijzigde belongsTo relaties opslaan
+		foreach ($this->_belongsTo as $relation) {
 			if (isset($relation['instance'])) {
 				$relation['instance']->save();
 				if ($this->_foreignKeys[$relation['foreignKey']] === null) { // Was het ID nog niet bekend? (INSERT)
@@ -532,8 +532,8 @@ abstract class Record extends Object {
 			notice('A deleted Record has no properties');
 			return;
 		}
-		if (array_key_exists($property, $this->_hasOne)) {
-			$relation = $this->_hasOne[$property];
+		if (array_key_exists($property, $this->_belongsTo)) {
+			$relation = $this->_belongsTo[$property];
 			$id = $this->_foreignKeys[$relation['foreignKey']];
 			if ($id === null) {
 				throw new \Exception('Property "'.$property.'" needs a ID value');
@@ -557,18 +557,18 @@ abstract class Record extends Object {
 					$record = new SimpleRecord($property, '__STATIC__', array('dbLink' => $this->_dbLink));
 				}
 
-				$this->_hasOne[$property]['record'] = $record;
+				$this->_belongsTo[$property]['record'] = $record;
 			} elseif (empty($relation['record'])) { // record is onbekend, maar de recordClass is wel bekend
 				$class = $relation['recordClass'];
 				$record = new $class('__STATIC__', array('dbLink' => $this->_dbLink));
-				$this->_hasOne[$property]['record'] = $record;
+				$this->_belongsTo[$property]['record'] = $record;
 			} else {
 				$record = $relation['record'];
 			}
 			if (empty($relation['instance']) || $relation['instance']->getId() != $id) { // Is er nog een instantie ingeladen of is het ID veranderd?
-				$this->_hasOne[$property]['instance'] = $record->find($id);
+				$this->_belongsTo[$property]['instance'] = $record->find($id);
 			}
-			return $this->_hasOne[$property]['instance'];
+			return $this->_belongsTo[$property]['instance'];
 		}
 		if (array_key_exists($property, $this->_hasMany)) {
 			return $this->_hasMany[$property];
@@ -589,8 +589,8 @@ abstract class Record extends Object {
 			notice('A deleted Record has no properties');
 			return;
 		}
-		if (array_key_exists($property, $this->_hasOne)) {
-			$relation = $this->_hasOne[$property];
+		if (array_key_exists($property, $this->_belongsTo)) {
+			$relation = $this->_belongsTo[$property];
 			if (!is_object($value)) {
 				notice('Invalid type: "'.gettype($value).'" expecting a '.get_class($relation['record']));
 				return;
@@ -600,7 +600,7 @@ abstract class Record extends Object {
 				return;
 			}
 			$this->_foreignKeys[$relation['foreignKey']] = $value->getId();
-			$this->_hasOne[$property]['instance'] = $value;
+			$this->_belongsTo[$property]['instance'] = $value;
 			return;
 		}
 		if (array_key_exists($property, $this->_hasMany)) {

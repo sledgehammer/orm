@@ -103,11 +103,11 @@ foreach ($collection as $c) {
  Relaties
 ----------
 
-= hasOne =
+= belongsTo =
 
  Kolommen die eindigen op "_id" worden "gemarkeerd" als foreignkey en zijn niet verplicht als class-eigenschap.
- Deze relaties maken kunnen geconfigureerd worden in de "hasOne" array.
- hasOne['klant'] = array('record' => new Klant());
+ Deze relaties maken kunnen geconfigureerd worden in de "belongsTo" array.
+ belongsTo['klant'] = array('record' => new Klant());
 
  Lezen:
    echo $bestelling->klant->lastname
