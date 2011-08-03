@@ -15,11 +15,16 @@ class RepositoryTest extends DatabaseTestCase {
 	}
 	
 	function test_getWildcard() {
+		restore_error_handler();
 		$repo = new Repository($this->dbLink);
-		dump($repo);
-		$customer1 = $repo->getCustomer(1);
-		dump($customer1);
+//		dump($repo);
+//		$customer1 = $repo->getCustomer(1);
+//		dump($customer1);
 		
+		$order1 = $repo->getOrder(1);
+		dump($order1);
+		
+		dump($repo);
 	}
 	
 }

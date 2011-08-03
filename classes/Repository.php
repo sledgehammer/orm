@@ -5,6 +5,8 @@
 namespace SledgeHammer;
 class Repository extends Object {
 	
+	private $id;
+	
 	private $namespaces = array('', 'SledgeHammer\\');
 
 	private $configs = array();
@@ -16,22 +18,81 @@ class Repository extends Object {
 
 
 	function __construct($dbLink = 'default') {
+		$this->id = uniqid(__CLASS__);
 		$this->dbLink = $dbLink;
 	}
 	
 	function __call($method, $arguments) {
-		restore_error_handler();
-		dump($method);
 		if (preg_match('/^get(.*)$/', $method, $matches)) {
-			$action = 'findById';
-			$class = $matches[1];
-			dump($arguments);
-			$config = $this->getConfig($class);
-			dump($config);
+			if (count($arguments) > 1) {
+				notice('Too many arguments, expecting 1', $arguments);
+			}
+			return $this->loadInstance($matches[1], $arguments[0]);
 		}
+		dump($method);
+		error('todo');
+
 	}
 	
-	private function find($database, $table, $id) {
+	private function loadInstance($class, $id) {
+		$config = $this->getConfig($class);
+		$record = $this->loadRecord($config['dbLink'], $config['table'], $id);
+		$definition = $config['class'];
+		$instance = new $definition();
+
+		if (count($config['belongsTo']) > 0) {
+			foreach ($config['belongsTo'] as $property => $belongsToConfig) {
+				$foreignKey = $belongsToConfig['foreignKey'];
+				if (isset($record[$foreignKey])) {
+					// @todo lazy loading
+					if (isset($belongsToConfig['class'])) {
+						$belongsToClass = $belongsToConfig['class'];
+					} else {
+						$belongsToClass = $this->toClass($belongsToConfig['table']);
+					}
+					$record[$property] = $this->loadInstance($belongsToClass, $record[$foreignKey]);
+					unset($record[$foreignKey]);
+				} else {
+					notice('todo belongs to');
+
+				}
+			}
+		}
+		if (count($config['hasMany']) > 0) {
+			foreach ($config['hasMany'] as $propery => $config) {
+				//			@todo hasMany;
+				$record[$propery] = array('TODO','INPLEMENT', 'hasMany');
+			}
+		}
+		set_object_vars($instance, $record);
+
+		return $instance;
+	}
+	
+	/**
+	 * Load the record from the db
+	 * 
+	 * @param string $dbLink
+	 * @param string $table
+	 * @param mixed $id
+	 * @return array 
+	 */
+	private function loadRecord($dbLink, $table, $id) {
+		$tableInfo = $this->tables[$dbLink][$table];
+		if (!is_array($id) && count($tableInfo['primaryKeys']) == 1) {
+			$id = array(
+				$tableInfo['primaryKeys'][0] => $id,
+			);
+		} else {
+			// @todo check if columns are the ids
+		}
+		$db = getDatabase($dbLink);
+		$sql = new SQL();
+		$sql->select('*')->from($table);
+		foreach ($id as $column => $value) {
+			$sql->where($db->quoteIdentifier($column) .' = '.$db->quote($value));
+		}
+		return $db->fetch_row($sql);
 		
 	}
 	
@@ -57,23 +118,23 @@ class Repository extends Object {
 		}
 		// @todo Make it "backend/database" angnostic
 		if (empty ($config['plural'])) {
-			$config['plural'] = $this->getPlural($class);
+			$config['plural'] = $this->toPlural($class);
 		}
-
 		if (empty($config['table'])) {
-			$config['table'] = lcfirst($config['plural']);
+			$config['table'] = $this->toTable($class);
 		}
 		if (empty($config['dbLink'])) {
 			$config['dbLink'] = $this->dbLink;
 		}
-		$tables = $this->getTables($config['dbLink']);
+		$tables = $this->dbTables($config['dbLink']);
 		if (empty($tables[$config['table']])) {
 			throw new \Exception('Table "'.$config['table'].'" not found for "'.$class.'"');
 		}
 		$tableInfo = $tables[$config['table']];
 		if (empty($config['hasMany'])) {
 			$config['hasMany'] = array();
-			foreach ($tableInfo['hasMany'] as $table) {
+			foreach ($tableInfo['hasMany'] as $info) {
+				$table = $info['table'];
 				$config['hasMany'][$table] = array(
 					'table' => $table, 
 					'dbLink' => $config['dbLink']
@@ -82,18 +143,20 @@ class Repository extends Object {
 		}
 		if (empty($config['belongsTo'])) {
 			$config['belongsTo'] = array();
-			foreach ($tableInfo['belongsTo'] as $table) {
-				$config['belongsTo'][$this->getSingular($table)] = array(
-					'table' => $table, 
-					'dbLink' => $config['dbLink']
+			foreach ($tableInfo['belongsTo'] as $info) {
+				$table = $info['table'];
+				$property = lcfirst($this->toClass($table));
+				$config['belongsTo'][$property] = array(
+					'dbLink' => $config['dbLink'],
+					'table' => $info['table'],
+					'foreignKey' => $info['foreignKey'],
 				);
 			}
 		}
-		
 		return $config;
 	}
 	
-	function getTables($dbLink) {
+	function dbTables($dbLink) {
 		$tables = @$this->tables[$dbLink];
 		if ($tables !== null) {
 			return $tables;
@@ -183,8 +246,12 @@ class Repository extends Object {
 								'table' => $foreignTable,
 								'column' => $foreignColumn
 							);
-							$config['belongsTo'][] = $foreignTable;
-							$tables[$foreignTable]['hasMany'][] = $table;
+							$config['belongsTo'][] = array(
+								'foreignKey' => $column,
+								'table' => $foreignTable,
+								'key' =>  $foreignColumn // probably 'id'
+							);
+							$tables[$foreignTable]['hasMany'][] = array('table' => $table);
 							break;
 						
 						default:
@@ -201,13 +268,22 @@ class Repository extends Object {
 		return $tables;
 	}
 	
-	private function getPlural($singular) {
+	private function toPlural($singular) {
 		return $singular.'s';
 		
 	}
 	
-	private function getSingular($plural) {
+	private function toSingular($plural) {
 		return preg_replace('/s$/', '', $plural);
+	}
+	
+	private function toClass($table) {
+		// @todo implement mapping
+		return ucfirst($this->toSingular($table));
+	}
+	private function toTable($class) {
+		// @todo implement mapping
+		return lcfirst($this->toPlural($class));
 	}
 }
 ?>
