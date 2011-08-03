@@ -2,9 +2,7 @@
 /**
  * Test de functionaliteit van Record (via de GenericRecord class)
  */
-
-require_once(dirname(__FILE__).'/../../core/tests/DatabaseTestCase.php');
-
+namespace SledgeHammer;
 class RecordRelationTest extends DatabaseTestCase {
 
 	/**
@@ -12,7 +10,7 @@ class RecordRelationTest extends DatabaseTestCase {
 	 */
 	function fillDatabase($db) {
 		$db->import(dirname(__FILE__).'/rebuild_test_database.sql', $error);
-		set_error_handler('ErrorHandler_trigger_error_callback');
+//		set_error_handler('SledgeHammer\ErrorHandler_trigger_error_callback');
 	}
 
 	function test_hasMany_iterator() {

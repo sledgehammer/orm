@@ -2,9 +2,7 @@
 /**
  * Test de functionaliteit van Record (via de GenericRecord class)
  */
-
-require_once(dirname(__FILE__).'/../../core/tests/DatabaseTestCase.php');
-
+namespace SledgeHammer;
 class RecordTest extends DatabaseTestCase {
 
 	/**
@@ -158,7 +156,8 @@ class RecordTest extends DatabaseTestCase {
 		$this->assertLastQuery('SELECT * FROM klant WHERE name = "James Bond"');
 	}
 
-	function test_hasOne_detection() {
+	function test_belongsTo_detection() {
+		restore_error_handler();
 		$bestelling = new SimpleRecord('bestelling', 1, array('dbLink' => $this->dbLink));
 		$this->assertEqual($bestelling->klant_id, 1); // Sanity check
 		$this->assertQueryCount(2); // Sanity check
@@ -167,11 +166,11 @@ class RecordTest extends DatabaseTestCase {
 		$this->assertEqual($bestelling->klant->occupation, 'Software ontwikkelaar');
 		$this->assertQueryCount(4, 'Should not generate more queries'); // Als de klant eenmaal is ingeladen wordt deze gebruikt. en worden er geen query
 		$bestelling->klant_id = 2;
-		$this->assertEqual($bestelling->klant->name, 'James Bond', 'hasOne should detect a ID change');  // De klant eigenschap wordt automagisch ingeladen.
+		$this->assertEqual($bestelling->klant->name, 'James Bond', 'belongsTo should detect a ID change');  // De klant eigenschap wordt automagisch ingeladen.
 		$this->assertQueryCount(5, 'Should generate 1 SELECT query');
 	}
 
-	function test_hasOne_setter() {
+	function test_belongsTo_setter() {
 		$bestelling = new SimpleRecord('bestelling', 1, array('dbLink' => $this->dbLink));
 		$james = $this->getRecord(2);
 		$bestelling->klant = $james;
@@ -181,7 +180,7 @@ class RecordTest extends DatabaseTestCase {
 		)));
 	}
 
-	function test_hasOne_recursief_save() {
+	function test_belongsTo_recursief_save() {
 		$bestellingRecord = new SimpleRecord('bestelling', '__STATIC__', array('dbLink' => $this->dbLink));
 		$bestelling = $bestellingRecord->create(array(
 			'product' => 'New product',

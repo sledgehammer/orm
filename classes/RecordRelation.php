@@ -18,7 +18,7 @@ class RecordRelation extends Object implements \ArrayAccess, \Countable, \Iterat
 		$table, // @var string $table
 		$dbLink = 'default',
 		$columns = '*',
-		$recordClass = 'SimpleRecord',
+		$recordClass = 'SledgeHammer\SimpleRecord',
 		$recordOptions = array();
 
 	private
@@ -175,7 +175,7 @@ class RecordRelation extends Object implements \ArrayAccess, \Countable, \Iterat
 		} else {
 			$record->{$this->keyColumn} = $key;
 		}
-		// Controleren of de valueProperty een verwijst naar een hasOne, en zodoende de keyColumn waarde heeft veranderd
+		// Controleren of de valueProperty een verwijst naar een belongsTo, en zodoende de keyColumn waarde heeft veranderd
 		$record->{$this->valueProperty} = $value; 
 		$keyValue = $record->{$this->keyColumn};
 

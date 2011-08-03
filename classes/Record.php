@@ -54,7 +54,7 @@ abstract class Record extends Object {
 	 *   dbLink
 	 *   table
 	 *   columns
-	 *   hasOne
+	 *   belongsTo
 	 *   hasMany
 	 * Overige opties
 	 *   excludeColumns  array  Haal deze kolommen niet op uit de database. bv array('password')
@@ -543,11 +543,19 @@ abstract class Record extends Object {
 					$class = $relation['recordClass'];
 				} else {
 					// Zoek naar een class met de naam van de property en extend van Record.
-					$class = ucfirst($property);
-					$classInfo = $GLOBALS['AutoLoader']->getInfo($class, true);
-					if (!$classInfo || value($classInfo['extends']) != 'Record') { // Bestaat de class niet, of is het geen subclass van Record
-						// @todo: extends van de extends controleren.
-						$class = false;
+					$class = false;
+					$possibleClassnames = array(ucfirst($property), 'SledgeHammer\\'.ucfirst($property));
+					foreach ($possibleClassnames as $classname) {
+						if ($GLOBALS['AutoLoader']->getFilename($class) != null) {
+							$GLOBALS['AutoLoader']->define($class);
+							$analyzer = new PHPAnalyzer();
+							$info = $analyzer->getInfoWithReflection($classname);
+							if (value($info['extends']) == 'Record') {
+								// @todo 
+								$class = $classname;
+								break;
+							}
+						}
 					}
 				}
 				if ($class) {

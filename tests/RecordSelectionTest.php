@@ -2,15 +2,14 @@
 /**
  * Breidt de UnitTestCase class uit met assert functies voor het controleren van queries en tabellen.
  */
-require_once(dirname(__FILE__).'/../../core/tests/DatabaseTestCase.php');
-
+namespace SledgeHammer;
 class RecordSelectionTest extends DatabaseTestCase {
 
 	protected $skipRebuildDatabase = true;
 
 	function fillDatabase($db) {
 		$db->import(dirname(__FILE__).'/rebuild_test_database.sql', $error);
-		set_error_handler('ErrorHandler_trigger_error_callback');
+//		set_error_handler('SledgeHammer\ErrorHandler_trigger_error_callback');
 		$db->query('INSERT INTO klant (name, occupation) VALUES ("Mario", "Loodgieter")');
 	}
 	
