@@ -14,105 +14,105 @@ class RecordRelationTest extends DatabaseTestCase {
 	}
 
 	function test_hasMany_iterator() {
-		$klant = $this->getKlant(1);
+		$customer = $this->getCustomer(1);
        	$this->assertQueryCount(2, 'Geen queries bij het defineren van een relatie'); // Verwacht een SELECT & DESCRIBE
-       	$related = $klant->bestellingen;
+       	$related = $customer->orders;
 		$this->assertQueryCount(2, 'Geen queries voor het opvragen van de relatie');
 		//dump($related);
 		
 		$this->assertEqual($related->count(), 1);
 		$this->assertQueryCount(4, 'Zodra de gegevens nodig zijn de DECRIBE & SELECT uitvoeren');
-		$this->assertLastQuery('SELECT * FROM bestelling WHERE klant_id = "1"');
-		foreach ($related as $id => $bestelling) {
+		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = "1"');
+		foreach ($related as $id => $orders) {
 			$this->assertEqual($id, 1);
-			$this->assertEqual($bestelling->product, 'Kop koffie');
+			$this->assertEqual($orders->product, 'Kop koffie');
 		}
-		$klant->bestellingen[] = $this->createBestelling(array('product' => 'New product', 'id'=> 5));
-		$array = iterator_to_array($klant->bestellingen);
+		$customer->orders[] = $this->createBestelling(array('product' => 'New product', 'id'=> 5));
+		$array = iterator_to_array($customer->orders);
 		$this->assertEqual(value($array[5]->product), 'New product', 'The iterator should include the "additions"');
 	}
 
 	function test_hasMany_array_access() {
-		$klant = $this->getKlant(2);
-		$bestelling = clone $klant->bestellingen[2];
-		$this->assertEqual($bestelling->product, 'Walter PPK 9mm');
-		$klant->bestellingen[2]->product = 'Magnum';
-		$this->assertEqual($klant->bestellingen[2]->product, 'Magnum', 'Remember changes');
-		$klant->bestellingen[2] = $bestelling;
-		$this->assertEqual($bestelling->product, 'Walter PPK 9mm');
+		$customer = $this->getCustomer(2);
+		$orders = clone $customer->orders[2];
+		$this->assertEqual($orders->product, 'Walter PPK 9mm');
+		$customer->orders[2]->product = 'Magnum';
+		$this->assertEqual($customer->orders[2]->product, 'Magnum', 'Remember changes');
+		$customer->orders[2] = $orders;
+		$this->assertEqual($orders->product, 'Walter PPK 9mm');
 		try {
-			$klant->bestellingen[3] = $bestelling;
+			$customer->orders[3] = $orders;
 			$this->fail('Setting a relation with an ID that doesn\'t match should throw an Exception');
-		} catch (Exception $e) {
+		} catch (\Exception $e) {
 			$this->assertEqual($e->getMessage(), 'Key: "3" doesn\'t match the keyColumn: "2"');
        	}
-		if ($klant->bestellingen->count() != 2) {
+		if ($customer->orders->count() != 2) {
 			$this->fail('Sanity check failed');
 		}
-		$klant->bestellingen[] = $this->createBestelling(array('product' => 'New product')); // Product zonder ID
-		$klant->bestellingen[] = $this->createBestelling(array('id' => 7, 'product' => 'Wodka Martini'));
-		$this->assertEqual($klant->bestellingen[7]->product, 'Wodka Martini');
-		$this->assertEqual($klant->bestellingen->count(), 4, 'There should be 4 items in the relation');
-		$klant->save();
-		$this->assertQuery('INSERT INTO bestelling (id, klant_id, product) VALUES (7, "2", "Wodka Martini")');
+		$customer->orders[] = $this->createBestelling(array('product' => 'New product')); // Product zonder ID
+		$customer->orders[] = $this->createBestelling(array('id' => 7, 'product' => 'Wodka Martini'));
+		$this->assertEqual($customer->orders[7]->product, 'Wodka Martini');
+		$this->assertEqual($customer->orders->count(), 4, 'There should be 4 items in the relation');
+		$customer->save();
+		$this->assertQuery('INSERT INTO orders (id, customer_id, product) VALUES (7, "2", "Wodka Martini")');
 
-		$this->assertQuery('INSERT INTO bestelling (klant_id, product) VALUES ("2", "New product")');
-		unset($klant->bestellingen[3]);
-		$this->assertEqual($klant->bestellingen->count(), 3, '1 item removed');
-		$klant->save();
-		$this->assertLastQuery('DELETE FROM bestelling WHERE id = "3"');
-       	//dump($klant->bestellingen);
+		$this->assertQuery('INSERT INTO orders (customer_id, product) VALUES ("2", "New product")');
+		unset($customer->orders[3]);
+		$this->assertEqual($customer->orders->count(), 3, '1 item removed');
+		$customer->save();
+		$this->assertLastQuery('DELETE FROM orders WHERE id = "3"');
+       	//dump($customer->orders);
 	}
 
 	function test_hasMany_table_values() {
-		$klant = $this->getKlant(2);
-		$products = iterator_to_array($klant->products);
+		$customer = $this->getCustomer(2);
+		$products = iterator_to_array($customer->products);
 		$this->assertEqual($products, array(
 			2 => 'Walter PPK 9mm',
 			3 => 'Spycam',
 		));
-		$this->assertEqual($klant->products[2], 'Walter PPK 9mm');
-		$this->assertTrue(isset($klant->products[2]));
-		$this->assertFalse(isset($klant->products[5]));
+		$this->assertEqual($customer->products[2], 'Walter PPK 9mm');
+		$this->assertTrue(isset($customer->products[2]));
+		$this->assertFalse(isset($customer->products[5]));
 		// @todo Test add & delete
-		$klant->products[8] = 'New product';
-		//dump($klant->products);
+		$customer->products[8] = 'New product';
+		//dump($customer->products);
 		//
 		// Test import
-		$klant->products = array(
+		$customer->products = array(
 			2 => 'Walter PPK 9mm',
 			17 => 'Wodka Martini',
 		);
-		$klant->save();
-		//dump($klant->products);
+		$customer->save();
+		//dump($customer->products);
     }
 
 
 	/**
-	 * @return Record  Een klant-record in INSTANCE/INSERT mode
+	 * @return Record  Een customer-record in INSTANCE/INSERT mode
 	 */
-	private function createKlant($values = array()) {
+	private function createCustomer($values = array()) {
 		$this->getStaticRecord()->create(array());
 	}
 
 	/**
-	 * @return Record  Een klant-record in INSTANCE/UPDATE mode
+	 * @return Record  Een customer-record in INSTANCE/UPDATE mode
 	 */
-	private function getKlant($id) {
-		return $this->getStaticKlant()->find($id);
+	private function getCustomer($id) {
+		return $this->getStaticCustomer()->find($id);
    	}
 
 	/**
-	 * @return Record  Een klant-record in STATIC mode
+	 * @return Record  Een customer-record in STATIC mode
 	 */
-	private function getStaticKlant() {
-		return new SimpleRecord('klant', '__STATIC__', array(
+	private function getStaticCustomer() {
+		return new SimpleRecord('customers', '__STATIC__', array(
 			'dbLink' => $this->dbLink,
 			'hasMany' => array(
-				'bestellingen' => new RecordRelation('bestelling', 'klant_id', array(
+				'orders' => new RecordRelation('orders', 'customer_id', array(
 					'dbLink' => $this->dbLink,
 				)),
-				'products' => new RecordRelation('bestelling', 'klant_id', array(
+				'products' => new RecordRelation('orders', 'customer_id', array(
 					'dbLink' => $this->dbLink,
 					'valueProperty' => 'product',
 				)),
@@ -128,7 +128,7 @@ class RecordRelationTest extends DatabaseTestCase {
 	}
 
 	private function getStaticBestelling() {
-		return new SimpleRecord('bestelling', '__STATIC__', array(
+		return new SimpleRecord('orders', '__STATIC__', array(
 			'dbLink' => $this->dbLink,
 		));
 	}

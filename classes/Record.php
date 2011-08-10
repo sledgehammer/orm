@@ -561,8 +561,8 @@ abstract class Record extends Object {
 				if ($class) {
 					$record = new $class('__STATIC__', array('dbLink' => $this->_dbLink));
 				} else {
-					// Geen geschikte class gevonden, probeer of er een tabel bestaat met dezelde naam als de property
-					$record = new SimpleRecord($property, '__STATIC__', array('dbLink' => $this->_dbLink));
+					// Geen geschikte class gevonden, probeer of er een tabel bestaat met dezelde naam als de property(+'s')
+					$record = new SimpleRecord($property.'s', '__STATIC__', array('dbLink' => $this->_dbLink));
 				}
 
 				$this->_belongsTo[$property]['record'] = $record;
