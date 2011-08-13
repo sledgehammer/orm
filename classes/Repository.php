@@ -9,17 +9,15 @@ class Repository extends Object {
 	
 	private $namespaces = array('', 'SledgeHammer\\');
 
+	// model => datasource
 	private $configs = array();
 
 	private $objects = array();
 	
-	private $tables = array();
-	private $dbLink;
 
-
-	function __construct($dbLink = 'default') {
-		$this->id = uniqid(__CLASS__);
-		$this->dbLink = $dbLink;
+	function __construct() {
+		$this->id = uniqid('R');
+		$GLOBALS['Repositories'][$this->id] = &$this;
 	}
 	
 	function __call($method, $arguments) {
@@ -29,78 +27,97 @@ class Repository extends Object {
 			}
 			return $this->loadInstance($matches[1], $arguments[0]);
 		}
-		dump($method);
-		error('todo');
-
+		return parent::__call($method, $arguments);
 	}
 	
-	private function loadInstance($class, $id) {
-		$config = $this->getConfig($class);
-		$record = $this->loadRecord($config['dbLink'], $config['table'], $id);
+	private function loadInstance($model, $id) {
+		$config = $this->getConfig($model);
+		$record = $this->loadRecord($config, $id);
 		$definition = $config['class'];
 		$instance = new $definition();
-
-		if (count($config['belongsTo']) > 0) {
-			foreach ($config['belongsTo'] as $property => $belongsToConfig) {
-				$foreignKey = $belongsToConfig['foreignKey'];
-				if (isset($record[$foreignKey])) {
-					// @todo lazy loading
-					if (isset($belongsToConfig['class'])) {
-						$belongsToClass = $belongsToConfig['class'];
-					} else {
-						$belongsToClass = $this->toClass($belongsToConfig['table']);
-					}
-					$record[$property] = $this->loadInstance($belongsToClass, $record[$foreignKey]);
-					unset($record[$foreignKey]);
-				} else {
-					notice('todo belongs to');
-
+		foreach ($config['mapping'] as $property => $column) {
+			if (is_string($column)) {
+				$instance->$property = $record[$column];
+			} else {
+				switch ($column['type']) {
+					case 'belongsTo':
+						$belongsToId = $record[$column['reference']];
+						if ($belongsToId != null) {
+							if (empty($column['model'])) {
+								if (empty($column['table'])) {
+									warning('Unable to determine source for property "'.$property.'"');
+									break;
+								}
+								$column['model'] = $this->toModel($column['table']);
+								$this->configs[$model]['mapping'][$property]['model'] = $column['model']; // update config
+							}
+							$instance->$property = $this->loadInstance($column['model'], $belongsToId);
+						}
+						break;
+					
+					default:
+						throw new \Exception('Invalid mapping type: "'.$column['type'].'"');
+					
 				}
 			}
 		}
-		if (count($config['hasMany']) > 0) {
-			foreach ($config['hasMany'] as $propery => $config) {
-				//			@todo hasMany;
-				$record[$propery] = array('TODO','INPLEMENT', 'hasMany');
-			}
-		}
-		set_object_vars($instance, $record);
+		/*
+		foreach ($config['belongsTo'] as $property => $belongsTo) {
+			$id = $record[$belongsTo['source']];
+			if ($id != null) {
+				notice('todo belongs to');
+							dump($belongsTo);
 
+
+			}
+//			$foreignKey = $belongsToConfig['foreignKey'];
+//			if (isset($record[$foreignKey])) {
+				// @todo lazy loading
+//				if (isset($belongsToConfig['class'])) {
+//					$belongsToClass = $belongsToConfig['class'];
+//				} else {
+//					$belongsToClass = $this->toClass($belongsToConfig['table']);
+//				}
+//				$record[$property] = $this->loadInstance($belongsToClass, $record[$foreignKey]);
+//				unset($record[$foreignKey]);
+//			} else {
+//			}
+		}
+//		foreach ($config['hasMany'] as $propery => $config) {
+			//			@todo hasMany;
+//			$record[$propery] = array('TODO','INPLEMENT', 'hasMany');
+//		}
+*/
 		return $instance;
 	}
 	
 	/**
 	 * Load the record from the db
 	 * 
-	 * @param string $dbLink
-	 * @param string $table
 	 * @param mixed $id
 	 * @return array 
 	 */
-	private function loadRecord($dbLink, $table, $id) {
-		$tableInfo = $this->tables[$dbLink][$table];
-		if (!is_array($id) && count($tableInfo['primaryKeys']) == 1) {
-			$id = array(
-				$tableInfo['primaryKeys'][0] => $id,
-			);
-		} else {
-			// @todo check if columns are the ids
-		}
-		$db = getDatabase($dbLink);
+	private function loadRecord($config, $id) {
+		$db = getDatabase($config['dbLink']);
 		$sql = new SQL();
-		$sql->select('*')->from($table);
-		foreach ($id as $column => $value) {
-			$sql->where($db->quoteIdentifier($column) .' = '.$db->quote($value));
+		$sql->select('*')->from($config['table']);
+		if (is_string($config['id'])) {
+			$sql->where($db->quoteIdentifier($config['id']) .' = '.$db->quote($id));
+		} else {
+			error('not implemented');
 		}
 		return $db->fetch_row($sql);
 		
 	}
 	
-	private function getConfig($class) {
-		$config = @$this->configs[$class];
+	function getConfig($model) {
+		$config = @$this->configs[$model];
 		if ($config !== null) {
 			return $config;
 		}
+		throw new \Exception('Model "'.$model.'" not configured');
+		/*
+		dump($model);
 		$this->configs[$class] = array(
 			'class' => 'stdClass'
 		);
@@ -123,6 +140,7 @@ class Repository extends Object {
 		if (empty($config['table'])) {
 			$config['table'] = $this->toTable($class);
 		}
+		error('oops');
 		if (empty($config['dbLink'])) {
 			$config['dbLink'] = $this->dbLink;
 		}
@@ -154,27 +172,90 @@ class Repository extends Object {
 			}
 		}
 		return $config;
+		 */
 	}
 	
-	function dbTables($dbLink) {
-		$tables = @$this->tables[$dbLink];
-		if ($tables !== null) {
-			return $tables;
+	/**
+	 * Create model configs based on the tables in the database schema
+	 * 
+	 * @param string $dbLink 
+	 */
+	function inspectDatabase($dbLink = 'default') {
+		$schema = $this->getSchema($dbLink);
+		$AutoLoader = $GLOBALS['AutoLoader'];
+
+		foreach ($schema as $tableName => $table) {
+			$model = $this->toModel($tableName);
+			
+			$config = array(
+				'plural' => $this->toPlural($model),
+				'class' => 'stdClass', // @todo Generate data classses based on \SledgeHammer\Object
+				'dbLink' => $dbLink,
+				'table' => $tableName,
+				'id' => null,
+				'mapping' => array(),
+//				'belongsTo' => array(),
+//				'hasMany' => array(),
+			);
+			if (count($table['primaryKeys']) == 1) {
+				$config['id'] = $table['primaryKeys'][0];
+			} else { // complex key
+				$config['id'] = $table['primaryKeys'];
+			}
+			foreach ($this->namespaces as $namespace) {
+				$class = $namespace.$model;
+				if (class_exists($class, false) || $AutoLoader->getFilename($class) !== null) { // Is the class known?
+	//				$reflection = new \ReflectionClass($definition);
+	//				dump($reflection);
+	//				@todo class compatibility check 
+	//				@todo import config
+					$config['class'] = $class;
+				}
+			}
+			foreach ($table['columns'] as $column => $info) {
+				if (isset($info['foreignKeys'])) {
+					if (count($info['foreignKeys']) > 1) {
+						notice('Multiple foreign-keys per column not supported');
+					}
+					$foreignKey = $info['foreignKeys'][0];
+					$property = $column;
+					if (substr($property, -3) == '_id') {
+						$property = substr($property, 0, -3);
+						if (array_key_exists($property, $table['columns'])) {
+							notice('Unable to use "'.$property.'" for relation config');
+							$property .= '_id';
+						}
+					}				
+					$config['mapping'][$property] = array(
+						'type' => 'belongsTo',
+						'reference' => $column,
+						'table' => $foreignKey['table'],
+						'id' => $foreignKey['column'],
+					);
+				} else {
+					$config['mapping'][$this->toProperty($column)] = $column;
+				}
+			}
+			
+			$this->configs[$model] = $config;
 		}
-		$this->tables[$dbLink] = array();
-		$tables = &$this->tables[$dbLink];
+	}
+	
+	private function getSchema($dbLink) {
+		$schema = array();
 
 		$db = getDatabase($dbLink);
 		$result = $db->query('SHOW TABLES');
 		foreach ($result as $row) {
 			$table = current($row);
 			
-			$tables[$table] = array(
+			$schema[$table] = array(
+				'table' => $table,
 				'columns' => array(),
-				'belongsTo' => array(),
-				'hasMany' => array(),
+				'primaryKeys' =>array(),
+				'referencedBy' => array(),
 			);
-			$config = &$tables[$table];
+			$config = &$schema[$table];
 			/*
 			$fields = $db->query('DESCRIBE '.$table, 'Field');
 
@@ -246,12 +327,7 @@ class Repository extends Object {
 								'table' => $foreignTable,
 								'column' => $foreignColumn
 							);
-							$config['belongsTo'][] = array(
-								'foreignKey' => $column,
-								'table' => $foreignTable,
-								'key' =>  $foreignColumn // probably 'id'
-							);
-							$tables[$foreignTable]['hasMany'][] = array('table' => $table);
+							$schema[$foreignTable]['referencedBy'][] = array('table' => $table, 'column' => $column);
 							break;
 						
 						default:
@@ -265,25 +341,28 @@ class Repository extends Object {
 			}
 			unset($config);
 		}
-		return $tables;
+		return $schema;
 	}
 	
 	private function toPlural($singular) {
 		return $singular.'s';
-		
 	}
 	
 	private function toSingular($plural) {
 		return preg_replace('/s$/', '', $plural);
 	}
 	
-	private function toClass($table) {
+	private function toModel($table) {
 		// @todo implement mapping
 		return ucfirst($this->toSingular($table));
 	}
-	private function toTable($class) {
+	private function toTable($model) {
 		// @todo implement mapping
-		return lcfirst($this->toPlural($class));
+		return lcfirst($this->toPlural($model));
+	}
+	private function toProperty($column) {
+		// @todo implement camelCase
+		return $column;
 	}
 }
 ?>
