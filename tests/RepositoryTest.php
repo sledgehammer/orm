@@ -57,7 +57,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->inspectDatabase($this->dbLink);
 		
 		$order1 = $repo->getOrder(1);
-		$this->assertLastQuery('SELECT * FROM orders WHERE id = "1"');
+		$this->assertLastQuery('SELECT * FROM orders WHERE id = 1');
 		$this->assertEqual($order1->product, 'Kop koffie');
 		
 		$this->assertEqual($order1->customer->name, "Bob Fanger");

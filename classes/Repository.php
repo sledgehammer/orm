@@ -1,6 +1,8 @@
 <?php
 /**
- * Repository/DataSource
+ * Repository/DataMapper
+ * 
+ * @package Record
  */
 namespace SledgeHammer;
 class Repository extends Object {
@@ -30,7 +32,7 @@ class Repository extends Object {
 		return parent::__call($method, $arguments);
 	}
 	
-	private function loadInstance($model, $id) {
+	function loadInstance($model, $id) {
 		$config = $this->getConfig($model);
 		$record = $this->loadRecord($config, $id);
 		$definition = $config['class'];
@@ -51,7 +53,14 @@ class Repository extends Object {
 								$column['model'] = $this->toModel($column['table']);
 								$this->configs[$model]['mapping'][$property]['model'] = $column['model']; // update config
 							}
-							$instance->$property = $this->loadInstance($column['model'], $belongsToId);
+							$instance->$property = new RepositoryObject(array(
+								'repository' => $this->id,
+								'model' => $column['model'],
+								'id' => $belongsToId,
+								'fields' => array(
+									$column['id'] => $belongsToId
+								)
+							));
 						}
 						break;
 					
