@@ -14,6 +14,7 @@ class Repository extends Object {
 	// model => datasource
 	private $configs = array();
 
+	// references to 
 	private $objects = array();
 	
 
@@ -32,44 +33,78 @@ class Repository extends Object {
 		return parent::__call($method, $arguments);
 	}
 	
+	/**
+	 *
+	 * @param type $model
+	 * @param mixed $id
+	 * @return stdClass 
+	 */
 	function loadInstance($model, $id) {
 		$config = $this->getConfig($model);
-		$record = $this->loadRecord($config, $id);
+		$key = $this->toKey($id, $config);
+		$instance = @$this->objects[$model][$key]['instance'];
+		if ($instance !== null) {
+			return $instance;
+		}
+		return $this->createInstance($model, $config, $id);
+	}
+	
+	private function createInstance($model, $config, $id, $data = null) {
+		if ($data === null) {
+			$data = $this->loadData($config, $id);
+		}
 		$definition = $config['class'];
 		$instance = new $definition();
-		foreach ($config['mapping'] as $property => $column) {
-			if (is_string($column)) {
-				$instance->$property = $record[$column];
+		foreach ($config['mapping'] as $property => $relation) {
+			if (is_string($relation)) {
+				$instance->$property = $data[$relation];
 			} else {
-				switch ($column['type']) {
+				switch ($relation['type']) {
 					case 'belongsTo':
-						$belongsToId = $record[$column['reference']];
+						$belongsToId = $data[$relation['reference']];
 						if ($belongsToId != null) {
-							if (empty($column['model'])) {
-								if (empty($column['table'])) {
+							if (empty($relation['model'])) {
+								if (empty($relation['table'])) {
 									warning('Unable to determine source for property "'.$property.'"');
 									break;
 								}
-								$column['model'] = $this->toModel($column['table']);
-								$this->configs[$model]['mapping'][$property]['model'] = $column['model']; // update config
+								$relation['model'] = $this->toModel($relation['table']);
+								$this->configs[$model]['mapping'][$property]['model'] = $relation['model']; // update config
 							}
-							$instance->$property = new RepositoryObject(array(
-								'repository' => $this->id,
-								'model' => $column['model'],
-								'id' => $belongsToId,
-								'fields' => array(
-									$column['id'] => $belongsToId
-								)
-							));
+							$belongsToInstance = @$this->objects[$relation['model']][$belongsToId]['instance'];
+							if ($belongsToInstance !== null) {
+								$instance->$property = $belongsToInstance;
+							} else {
+								$instance->$property = new ModelPlaceholder(array(
+									'repository' => $this->id,
+									'model' => $relation['model'],
+									'id' => $belongsToId,
+									'properties' => array(
+										$relation['id'] => $belongsToId
+									),
+									'container' => array(
+										'model' => $model,
+										'id' => $id,
+										'property' => $property,
+									),
+								));
+							}
 						}
 						break;
 					
 					default:
-						throw new \Exception('Invalid mapping type: "'.$column['type'].'"');
+						throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
 					
 				}
 			}
 		}
+		$key = $this->toKey($id, $config);
+		$this->objects[$model][$key] = array(
+			'instance' => $instance,
+			'data' => $data,
+		);
+		return $instance;
+
 		/*
 		foreach ($config['belongsTo'] as $property => $belongsTo) {
 			$id = $record[$belongsTo['source']];
@@ -97,9 +132,13 @@ class Repository extends Object {
 //			$record[$propery] = array('TODO','INPLEMENT', 'hasMany');
 //		}
 */
-		return $instance;
 	}
 	
+	private function loadData($config, $id) {
+		// @todo support different backends
+		return $this->loadRecord($config, $id);
+	}
+
 	/**
 	 * Load the record from the db
 	 * 
@@ -372,6 +411,13 @@ class Repository extends Object {
 	private function toProperty($column) {
 		// @todo implement camelCase
 		return $column;
+	}
+	private function toKey($id, $config) {
+		if (is_array($id)) {
+			throw new \Exception('Todo: implement complex keys');
+		} else {
+			return $id;
+		}
 	}
 }
 ?>
