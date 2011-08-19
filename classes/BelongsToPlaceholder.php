@@ -1,12 +1,12 @@
 <?php
 /**
- * ModelPlaceholder facilitates lazy loading of belongsTo realtions.
- * A ModelPlaceholder object behaves like the object from the repository, but only retrieves the real object on access or change.
+ * This Placeholder facilitates lazy loading of belongsTo relations.
+ * A BelongsToPlaceholder object behaves like the object from the repository, but only retrieves the real object on-access or on-change.
  *
  * @package Record
  */
 namespace SledgeHammer;
-class ModelPlaceholder extends Object {
+class BelongsToPlaceholder extends Object {
 	/**
 	 * @var array
 	 */
@@ -24,23 +24,24 @@ class ModelPlaceholder extends Object {
 		if (array_key_exists($property, $this->__config['properties'])) {
 			return $this->__config['properties'][$property]; // ->id
 		}
-		return $this->__getModel()->$property;
+		return $this->__replacePlaceholder()->$property;
 	}
 	
 	public function __set($property, $value) {
-		$this->__getModel()->$property = $value;
+		$this->__replacePlaceholder()->$property = $value;
 	}
 	
 	public function __call($method, $arguments) {
-		return call_user_func_array(array($this->__getModel(), $method) , $arguments);
+		return call_user_func_array(array($this->__replacePlaceholder(), $method) , $arguments);
 	}
 
 
 	/**
 	 * Replace the placeholder and return the real object.
+	 * 
 	 * @return Object
 	 */
-	private function __getModel() {
+	private function __replacePlaceholder() {
 		$config = $this->__config;
 		$repo = getRepository($config['repository']);
 		$instance = $repo->loadInstance($config['model'], $config['id']);
@@ -50,5 +51,4 @@ class ModelPlaceholder extends Object {
 		return $instance;
 	}
 }
-
 ?>

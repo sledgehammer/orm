@@ -1,0 +1,63 @@
+
+hasMany behaves like an array and should only load data from the database on-access.
+
+(Common) use cases are:
+  Adding an object/value to the collection.
+  Removing an object/value from the colllection.
+  Retrieving a specific object/value 
+  Looping through all items 
+  Filter the items
+  Sort the items
+
+Approach
+--------------------
+1. Use placeholder and replace the placeholder with an array on-acces.
+  POCO friendly, doesnt have an api other than ArrayAccess.
+  Loads all items, even when they aren't accessed (but better performance in the "loop all" scenario?)
+  Use only 1 query for all items.
+  Uses asort() and array_filter() to sort and filter, but the call only work after the placeholder has been replaced.
+
+For hasMany relations we use Collections as the query generating backend.
+The collection will be preconfigured (by the Repository).
+The hasMany object will do the (optional) value mapping.
+
+special function to convert the placeholder into an array:
+SledgeHammer\replace_placeholder($model->items);
+    Or does "reset($model->items);" work?
+
+
+Collections
+------------
+Allow (additional) filtering.
+Are Lazy loaded (are promise to a resultset)
+Allow SQL but that issn't the primary API. (class DatabaseCollection extends Collection)
+  $collection->sql->where('RAND() > 0.5'); // inject custom SQL
+
+Fluent interface
+  Uses the Linq-extension-methods names:     @link http://msdn.microsoft.com/en-us/library/bb383977.aspx
+    $sortedCollection = $collection->orderBy('propertyname'); //an orderByDescending()
+  Copy implementation from underscore.php
+
+Optimalisations
+----------------  
+Can lambda functions be reverse engineerd?
+  converting:
+    function($model) { return ($model->property == "value"); } 
+  to 
+	WHERE property = "value"
+
+Rejected approach
+------------------
+ Use an array-like object 
+  Almost POCO
+  Tempting to write saving logic inside the hasMany class instead of the Repository class
+  Complex logic to prevent loading
+  Complex saving logic
+  Only prevents converting data into objects, because no queries are prevented
+  Harder to implement, an array has builtin errors/notices.
+  Can support filter and sorting methods.
+
+
+Because: Adds complexity with (very) little gain. 
+  If the filter and sorting methods are needed you can access the Collection directly with $repo->get***Collection()
+  

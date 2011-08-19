@@ -75,9 +75,9 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertLastQuery('SELECT * FROM orders WHERE id = 2');
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 1, 'A get*() should execute max 1 query');
 		$this->assertEqual($order2->product, 'Walter PPK 9mm');
-		$this->assertEqual(get_class($order2->customer), 'SledgeHammer\ModelPlaceholder', 'The customer property should be an placeholder');
+		$this->assertEqual(get_class($order2->customer), 'SledgeHammer\BelongsToPlaceholder', 'The customer property should be an placeholder');
 		$this->assertEqual($order2->customer->id, "2");
-		$this->assertEqual(get_class($order2->customer), 'SledgeHammer\ModelPlaceholder', 'The placeholder should handle the "id" property');
+		$this->assertEqual(get_class($order2->customer), 'SledgeHammer\BelongsToPlaceholder', 'The placeholder should handle the "id" property');
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 1, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
 		$this->assertEqual($order2->customer->name, "James Bond", 'Lazy-load the correct data');
@@ -90,6 +90,30 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEqual($order3->customer->name, "James Bond", 'Lazy-load the correct data');
 		$this->assertLastQuery('SELECT * FROM orders WHERE id = 3');
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 3, 'No customer queries'); //
+	}
+	
+	function test_getWildcardCollection() {
+		$repo = new Repository($this->dbLink);
+		$repo->inspectDatabase($this->dbLink);
+		restore_error_handler();
+
+		$customers = $repo->getCustomerCollection();
+//		$customerArray = iterator_to_array($customers);
+//		$this->assertEqual($customerArray, $compare);
+		foreach ($customers as $customer) {
+//			dump($customer);
+		}
+//		dump($customers);
+//		dump($repo);
+	}
+	
+	function test_hasMany() {
+		$repo = new Repository($this->dbLink);
+		$repo->inspectDatabase($this->dbLink);
+		
+		$c1 = $repo->getCustomer(1);
+		$orders = iterator_to_array($c1->orders);
+		dump($orders);
 	}
 }
 ?>

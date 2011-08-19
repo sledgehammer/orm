@@ -24,7 +24,13 @@ class Repository extends Object {
 	}
 	
 	function __call($method, $arguments) {
-		if (preg_match('/^get(.*)$/', $method, $matches)) {
+		if (preg_match('/^get(.+)Collection$/', $method, $matches)) {
+			if (count($arguments) > 0) {
+				notice('Too many arguments, expecting none', $arguments);
+			}
+			return $this->loadCollection($matches[1]);
+		}
+		if (preg_match('/^get(.+)$/', $method, $matches)) {
 			if (count($arguments) > 1) {
 				notice('Too many arguments, expecting 1', $arguments);
 			}
@@ -39,17 +45,13 @@ class Repository extends Object {
 	 * @param mixed $id
 	 * @return stdClass 
 	 */
-	function loadInstance($model, $id) {
+	function loadInstance($model, $id, $data = null) {
 		$config = $this->getConfig($model);
 		$key = $this->toKey($id, $config);
 		$instance = @$this->objects[$model][$key]['instance'];
 		if ($instance !== null) {
 			return $instance;
-		}
-		return $this->createInstance($model, $config, $id);
-	}
-	
-	private function createInstance($model, $config, $id, $data = null) {
+		}	
 		if ($data === null) {
 			$data = $this->loadData($config, $id);
 		}
@@ -60,6 +62,7 @@ class Repository extends Object {
 				$instance->$property = $data[$relation];
 			} else {
 				switch ($relation['type']) {
+					
 					case 'belongsTo':
 						$belongsToId = $data[$relation['reference']];
 						if ($belongsToId != null) {
@@ -75,7 +78,7 @@ class Repository extends Object {
 							if ($belongsToInstance !== null) {
 								$instance->$property = $belongsToInstance;
 							} else {
-								$instance->$property = new ModelPlaceholder(array(
+								$instance->$property = new BelongsToPlaceholder(array(
 									'repository' => $this->id,
 									'model' => $relation['model'],
 									'id' => $belongsToId,
@@ -91,6 +94,16 @@ class Repository extends Object {
 							}
 						}
 						break;
+						
+					case 'hasMany':
+						$relationConfig = $this->getConfig($relation['model']);
+						$collection = $this->loadCollection($relation['model']);
+						$collection->sql->where($relation['reference'].' = '.$id);
+						$instance->$property = $collection;
+//								new HasManyPlaceholder(array(
+//							'collection' => new DatabaseCollection($sql, $this->getConfig($relation['Model'])),
+//						));
+						break;
 					
 					default:
 						throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
@@ -104,35 +117,21 @@ class Repository extends Object {
 			'data' => $data,
 		);
 		return $instance;
-
-		/*
-		foreach ($config['belongsTo'] as $property => $belongsTo) {
-			$id = $record[$belongsTo['source']];
-			if ($id != null) {
-				notice('todo belongs to');
-							dump($belongsTo);
-
-
-			}
-//			$foreignKey = $belongsToConfig['foreignKey'];
-//			if (isset($record[$foreignKey])) {
-				// @todo lazy loading
-//				if (isset($belongsToConfig['class'])) {
-//					$belongsToClass = $belongsToConfig['class'];
-//				} else {
-//					$belongsToClass = $this->toClass($belongsToConfig['table']);
-//				}
-//				$record[$property] = $this->loadInstance($belongsToClass, $record[$foreignKey]);
-//				unset($record[$foreignKey]);
-//			} else {
-//			}
-		}
-//		foreach ($config['hasMany'] as $propery => $config) {
-			//			@todo hasMany;
-//			$record[$propery] = array('TODO','INPLEMENT', 'hasMany');
-//		}
-*/
 	}
+	
+	function loadCollection($model) {
+		$config = $this->getConfig($model);
+		$config['repository'] = $this->id;
+		// @todo reverse-map the columns
+
+		$sql = new SQL();
+		$sql->select('*')->from($config['table']);
+		$collection = new DatabaseCollection($sql, $config['dbLink'], $config['id']);
+		$collection->bind($model, $this->id);
+		// @inject mapper
+		return $collection;
+	}
+
 	
 	private function loadData($config, $id) {
 		// @todo support different backends
@@ -164,63 +163,6 @@ class Repository extends Object {
 			return $config;
 		}
 		throw new \Exception('Model "'.$model.'" not configured');
-		/*
-		dump($model);
-		$this->configs[$class] = array(
-			'class' => 'stdClass'
-		);
-		$config = &$this->configs[$class];
-		$AutoLoader = $GLOBALS['AutoLoader'];
-		foreach ($this->namespaces as $namespace) {
-			$definition = $namespace.$class;
-			if (class_exists($definition, false) || $AutoLoader->getFilename($definition) !== null) { // Is the class known?
-//				$reflection = new \ReflectionClass($definition);
-//				dump($reflection);
-//				@todo class compatibility check 
-//				@todo import config
-				$config['class'] = $definition;
-			}
-		}
-		// @todo Make it "backend/database" angnostic
-		if (empty ($config['plural'])) {
-			$config['plural'] = $this->toPlural($class);
-		}
-		if (empty($config['table'])) {
-			$config['table'] = $this->toTable($class);
-		}
-		error('oops');
-		if (empty($config['dbLink'])) {
-			$config['dbLink'] = $this->dbLink;
-		}
-		$tables = $this->dbTables($config['dbLink']);
-		if (empty($tables[$config['table']])) {
-			throw new \Exception('Table "'.$config['table'].'" not found for "'.$class.'"');
-		}
-		$tableInfo = $tables[$config['table']];
-		if (empty($config['hasMany'])) {
-			$config['hasMany'] = array();
-			foreach ($tableInfo['hasMany'] as $info) {
-				$table = $info['table'];
-				$config['hasMany'][$table] = array(
-					'table' => $table, 
-					'dbLink' => $config['dbLink']
-				);
-			}
-		}
-		if (empty($config['belongsTo'])) {
-			$config['belongsTo'] = array();
-			foreach ($tableInfo['belongsTo'] as $info) {
-				$table = $info['table'];
-				$property = lcfirst($this->toClass($table));
-				$config['belongsTo'][$property] = array(
-					'dbLink' => $config['dbLink'],
-					'table' => $info['table'],
-					'foreignKey' => $info['foreignKey'],
-				);
-			}
-		}
-		return $config;
-		 */
 	}
 	
 	/**
@@ -236,14 +178,13 @@ class Repository extends Object {
 			$model = $this->toModel($tableName);
 			
 			$config = array(
-				'plural' => $this->toPlural($model),
+				'model' => $model,
+//				'plural' => $this->toPlural($model),
 				'class' => 'stdClass', // @todo Generate data classses based on \SledgeHammer\Object
 				'dbLink' => $dbLink,
 				'table' => $tableName,
 				'id' => null,
 				'mapping' => array(),
-//				'belongsTo' => array(),
-//				'hasMany' => array(),
 			);
 			if (count($table['primaryKeys']) == 1) {
 				$config['id'] = $table['primaryKeys'][0];
@@ -284,7 +225,18 @@ class Repository extends Object {
 					$config['mapping'][$this->toProperty($column)] = $column;
 				}
 			}
-			
+			foreach ($table['referencedBy'] as $reference) {
+				$property = $this->toProperty($reference['table']);
+				if (array_key_exists($property, $table['columns'])) {
+					notice('Unable to use "'.$property.'" for relation config');
+					break;
+				}
+				$config['mapping'][$property] = array(
+					'type' => 'hasMany',
+					'model' => $this->toModel($reference['table']),
+					'reference' => $reference['column'],
+				);
+			}		
 			$this->configs[$model] = $config;
 		}
 	}
