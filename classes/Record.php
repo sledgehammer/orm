@@ -320,7 +320,8 @@ abstract class Record extends Object {
 			return $collection;
 		}
 		$arguments = func_get_args();
-		$collection->where = call_user_func_array(array($this, 'buildRestriction'), $arguments); // Roep $this->buildRestriction() aan met dezelde parameters as deze functie
+		$where = call_user_func_array(array($this, 'buildRestriction'), $arguments); // Roep $this->buildRestriction() aan met dezelde parameters as deze functie
+		$collection->where($where);
 		return $collection;
 	}
 	
@@ -647,8 +648,8 @@ abstract class Record extends Object {
 	 * @return SQL
 	 */
 	protected function buildSelect($restriction, $args = null) {
-		$sql = new SQL; // Gebruik SQL zodat columns ook een array kan zijn
-		$sql->select($this->_columns)->from($this->_table);
+		// Gebruik de SQL class zodat columns ook een array kan zijn
+		$sql = select($this->_columns)->from($this->_table);
 		if (func_num_args() == 1 && is_array($restriction) == false) { // PrimaryKey restriction
 			$db = getDatabase($this->_dbLink);
 			$primaryKeys = $db->getPrimaryKeys($this->_table);
