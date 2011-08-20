@@ -41,7 +41,7 @@ class Repository extends Object {
 	
 	/**
 	 *
-	 * @param type $model
+	 * @param string $model
 	 * @param mixed $id
 	 * @return stdClass 
 	 */
@@ -124,8 +124,7 @@ class Repository extends Object {
 		$config['repository'] = $this->id;
 		// @todo reverse-map the columns
 
-		$sql = new SQL();
-		$sql->select('*')->from($config['table']);
+		$sql = select('*')->from($config['table']);
 		$collection = new DatabaseCollection($sql, $config['dbLink'], $config['id']);
 		$collection->bind($model, $this->id);
 		// @inject mapper
@@ -146,13 +145,13 @@ class Repository extends Object {
 	 */
 	private function loadRecord($config, $id) {
 		$db = getDatabase($config['dbLink']);
-		$sql = new SQL();
-		$sql->select('*')->from($config['table']);
+		$sql = select('*')->from($config['table']);
 		if (is_string($config['id'])) {
-			$sql->where($db->quoteIdentifier($config['id']) .' = '.$db->quote($id));
+			$sql = $sql->where($db->quoteIdentifier($config['id']) .' = '.$db->quote($id));
 		} else {
 			error('not implemented');
 		}
+		dump($sql);
 		return $db->fetch_row($sql);
 		
 	}

@@ -11,11 +11,19 @@ class Collection extends Object implements \Iterator, \Countable {
 	 * @var Iterator
 	 */
 	protected $iterator;
+	
 	protected $model;
 	protected $repository;
 
+	/**
+	 * @param \Iterator|array $iterator 
+	 */
 	function __construct($iterator) {
-		$this->iterator = $iterator;
+		if (is_array($iterator)) {
+			$this->iterator = new \ArrayIterator($iterator);
+		} else {
+			$this->iterator = $iterator;
+		}
 	}
 	function bind($model, $repository = 'master') {
 		$this->model = $model;

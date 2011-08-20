@@ -28,17 +28,26 @@ SledgeHammer\replace_placeholder($model->items);
 
 Collections
 ------------
-Allow (additional) filtering.
-Are Lazy loaded (are promise to a resultset)
-Allow SQL but that issn't the primary API. (class DatabaseCollection extends Collection)
-  $collection->sql->where('RAND() > 0.5'); // inject custom SQL
+* Allow (additional) filtering.
+* Are Lazy loaded (are promise to a resultset)
+* Allow SQL but that issn't the primary API. (class DatabaseCollection extends Collection)
+    $collection->sql->where('RAND() > 0.5'); // Example of custom SQL
 
 Fluent interface
   Uses the Linq-extension-methods names:     @link http://msdn.microsoft.com/en-us/library/bb383977.aspx
     $sortedCollection = $collection->orderBy('propertyname'); //an orderByDescending()
   Copy implementation from underscore.php
+  The fluent interface works diverent than the SQL interface:
+    SQL methods modify the base object and return this.
+    Collection methods return a new collection without modifing this. 
 
-Optimalisations
+Collections can be used without an repository.
+  The collection class must be able to replace the data with an (model)instance OR don't allow additional filtering or sorting (by modifing the SQL object imposible).
+  Therefor collections work with repositories based on dependancy injection.
+  Injecting which model and reposity with the $collection->bind() method. (alt. bindModel() ? bindRepository() ?)
+ 
+
+Todo research
 ----------------  
 Can lambda functions be reverse engineerd?
   converting:
@@ -46,9 +55,9 @@ Can lambda functions be reverse engineerd?
   to 
 	WHERE property = "value"
 
-Rejected approach
+Rejected approaches
 ------------------
- Use an array-like object 
+ 1. Use an array-like object 
   Almost POCO
   Tempting to write saving logic inside the hasMany class instead of the Repository class
   Complex logic to prevent loading
@@ -57,7 +66,6 @@ Rejected approach
   Harder to implement, an array has builtin errors/notices.
   Can support filter and sorting methods.
 
-
-Because: Adds complexity with (very) little gain. 
-  If the filter and sorting methods are needed you can access the Collection directly with $repo->get***Collection()
+  Because: Adds complexity with (very) little gain. 
+    If the filter and sorting methods are needed you can access the Collection directly with $repo->get***Collection()
   

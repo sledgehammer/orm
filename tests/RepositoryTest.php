@@ -57,6 +57,7 @@ class RepositoryTest extends DatabaseTestCase {
 	} 
 	
 	function test_getWildcard() {
+		restore_error_handler();
 		$repo = new Repository($this->dbLink);
 		$repo->inspectDatabase($this->dbLink);
 
@@ -95,7 +96,6 @@ class RepositoryTest extends DatabaseTestCase {
 	function test_getWildcardCollection() {
 		$repo = new Repository($this->dbLink);
 		$repo->inspectDatabase($this->dbLink);
-		restore_error_handler();
 
 		$customers = $repo->getCustomerCollection();
 //		$customerArray = iterator_to_array($customers);
