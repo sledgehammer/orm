@@ -21,8 +21,8 @@ class BelongsToPlaceholder extends Object {
 	}
 	
 	public function __get($property) {
-		if (array_key_exists($property, $this->__config['properties'])) {
-			return $this->__config['properties'][$property]; // ->id
+		if (array_key_exists($property, $this->__config['fields'])) {
+			return $this->__config['fields'][$property]; // ->id
 		}
 		return $this->__replacePlaceholder()->$property;
 	}
@@ -44,8 +44,11 @@ class BelongsToPlaceholder extends Object {
 	private function __replacePlaceholder() {
 		$config = $this->__config;
 		$repo = getRepository($config['repository']);
-		$container = $repo->loadInstance($config['container']['model'], $config['container']['id']);
-		$property = $config['container']['property'];
+		$container = $config['container'];
+		$property = $config['property'];
+		if ($container->{$property} !== $this) {
+			throw new \Exception('The placeholder belongs to an other (cloned?) container');
+		}
 		$container->{$property} = $repo->loadInstance($config['model'], $config['id']);;
 		return $container->{$property};
 	}

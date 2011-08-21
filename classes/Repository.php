@@ -96,14 +96,11 @@ class Repository extends Object {
 									'repository' => $this->id,
 									'model' => $relation['model'],
 									'id' => $belongsToId,
-									'properties' => array(
+									'fields' => array(
 										$relation['id'] => $belongsToId
 									),
-									'container' => array(
-										'model' => $model,
-										'id' => $id,
-										'property' => $property,
-									),
+									'property' => $property,
+									'container' => $instance,
 								));
 							}
 						}
@@ -116,11 +113,8 @@ class Repository extends Object {
 						$instance->$property = new HasManyPlaceholder(array(
 							'repository' => $this->id,
 							'collection' => $collection,
-							'container' => array(
-								'model' => $model,
-								'id' => $id,
-								'property' => $property,
-							),
+							'property' => $property,
+							'container' => $instance,
 						));
 						break;
 					

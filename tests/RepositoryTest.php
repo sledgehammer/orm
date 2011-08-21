@@ -72,6 +72,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->inspectDatabase($this->dbLink);
 
 		$order2 = $repo->getOrder(2);
+		$clone = clone $order2;
 		$this->assertLastQuery('SELECT * FROM orders WHERE id = 2');
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 1, 'A get*() should execute max 1 query');
 		$this->assertEqual($order2->product, 'Walter PPK 9mm');
@@ -90,6 +91,13 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEqual($order3->customer->name, "James Bond", 'Lazy-load the correct data');
 		$this->assertLastQuery('SELECT * FROM orders WHERE id = 3');
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 3, 'No customer queries'); //
+		
+		try {
+			$this->assertEqual($clone->customer->name, 'James Bond');
+			$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
+		} catch (\Exception $e) {
+			$this->assertEqual($e->getMessage(), 'The placeholder belongs to an other (cloned?) container');
+		}
 	}
 	
 	function test_getWildcardCollection() {
@@ -166,9 +174,17 @@ class RepositoryTest extends DatabaseTestCase {
 
 		
 		$c2 = $this->getDirtyCustomer(2);
+		$clone = clone $c2;
 		unset($c2->orders[0]);
 		$this->assertEqual(count($c2->orders), 1, 'Unset by array offset');
 		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+		
+		try {
+			isset($clone->orders[1]);
+			$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
+		} catch (\Exception $e) {
+			$this->assertEqual($e->getMessage(), 'The placeholder belongs to an other (cloned?) container');
+		}
 	}
 	
 	/**

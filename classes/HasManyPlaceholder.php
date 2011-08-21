@@ -7,6 +7,7 @@
  */
 namespace SledgeHammer;
 class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Countable {
+
 	/**
 	 * @var array
 	 */
@@ -93,8 +94,11 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 	private function &replacePlaceholder() {
 		$config = $this->config;
 		$repo = getRepository($config['repository']);
-		$container = $repo->loadInstance($config['container']['model'], $config['container']['id']);
-		$property = $config['container']['property'];
+		$container = $config['container'];
+		$property = $config['property'];
+		if ($container->{$property} !== $this) {
+			throw new \Exception('The placeholder belongs to an other (cloned?) container');
+		}
 		$container->{$property} = $config['collection']->all();
 		return $container->{$property};
 	}
