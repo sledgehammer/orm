@@ -12,22 +12,28 @@ class DatabaseCollection extends Collection {
 	 */
 	public $sql;
 	protected $dbLink;
-	protected $keyColumn;
 	
-	function __construct($sql, $dbLink = 'default', $keyColumn = null) {
+	function __construct($sql, $dbLink = 'default') {
 		$this->sql = $sql;
 		$this->dbLink = $dbLink;
-		$this->keyColumn = $keyColumn;
 	}
 	
 	public function rewind() {
+		$this->validateIterator();		
+		parent::rewind();
+	}
+	public function count() {
+		$this->validateIterator();
+		return parent::count();
+	}
+	
+	private function validateIterator() {
 		if ($this->iterator == null) {
 			$db = getDatabase($this->dbLink);
-			$this->iterator = $db->query($this->sql, $this->keyColumn);
+			$this->iterator = $db->query($this->sql);
 		} else {
 			// @todo iterator isDirty check
 		}
-		parent::rewind();
 	}
 }
 ?>

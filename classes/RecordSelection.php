@@ -38,7 +38,6 @@ class RecordSelection extends Object implements \Countable, \Iterator {
 	
 	public function __call($method, $arguments) {
 		$sql = call_user_func_array(array($this->sql, $method), $arguments);
-		dump($sql);
 		$this->sql = $sql;
 		$this->isDirty = true;
 		return $this;

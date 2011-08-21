@@ -47,16 +47,30 @@ class Repository extends Object {
 	 */
 	function loadInstance($model, $id, $data = null) {
 		$config = $this->getConfig($model);
+		if ($id === null) {
+			if ($data === null) {
+				throw new \Exception('Parameter $id and $data can\t both be null');
+			}
+			$id = array();
+			foreach ($config['id'] as $column) {
+				if (isset($data[$column]) == false) {
+					throw new \Exception('Parameter $data must contain the id field(s)');
+				}
+				$id[$column] = $data[$column];
+			}
+		}
 		$key = $this->toKey($id, $config);
 		$instance = @$this->objects[$model][$key]['instance'];
 		if ($instance !== null) {
 			return $instance;
-		}	
+		}
 		if ($data === null) {
 			$data = $this->loadData($config, $id);
 		}
+		// Create new instance
 		$definition = $config['class'];
 		$instance = new $definition();
+		// Map the data onto the instance
 		foreach ($config['mapping'] as $property => $relation) {
 			if (is_string($relation)) {
 				$instance->$property = $data[$relation];
@@ -98,7 +112,7 @@ class Repository extends Object {
 					case 'hasMany':
 						$relationConfig = $this->getConfig($relation['model']);
 						$collection = $this->loadCollection($relation['model']);
-						$collection->sql->where($relation['reference'].' = '.$id);
+						$collection->sql = $collection->sql->where($relation['reference'].' = '.$id);
 						$instance->$property = $collection;
 //								new HasManyPlaceholder(array(
 //							'collection' => new DatabaseCollection($sql, $this->getConfig($relation['Model'])),
@@ -145,13 +159,25 @@ class Repository extends Object {
 	 */
 	private function loadRecord($config, $id) {
 		$db = getDatabase($config['dbLink']);
-		$sql = select('*')->from($config['table']);
-		if (is_string($config['id'])) {
-			$sql = $sql->where($db->quoteIdentifier($config['id']) .' = '.$db->quote($id));
+		if (is_array($id)) {
+			if (count($config['id']) != count($id)) {
+				throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.  human_implode('", "', $config['id']).'"');
+			}
+		} elseif (count($config['id']) == 1) {
+			$id = array($config['id'][0] => $id); // convert $id to array notation
 		} else {
-			error('not implemented');
+			throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.  human_implode('", "', $config['id']).'"');
 		}
-		dump($sql);
+		$sql = select('*')->from($config['table']);
+		$sql->where = array('operator' => 'AND');
+
+		foreach ($config['id'] as $key) {
+			if (isset($id[$key]) == false) {
+				throw new \Exception('Missing key: "'.$key.'"'); // todo better error
+			}
+			$sql->where[] = $db->quoteIdentifier($key) .' = '.$db->quote($id[$key]);
+		}
+
 		return $db->fetch_row($sql);
 		
 	}
@@ -185,11 +211,7 @@ class Repository extends Object {
 				'id' => null,
 				'mapping' => array(),
 			);
-			if (count($table['primaryKeys']) == 1) {
-				$config['id'] = $table['primaryKeys'][0];
-			} else { // complex key
-				$config['id'] = $table['primaryKeys'];
-			}
+			$config['id'] = $table['primaryKeys'];
 			foreach ($this->namespaces as $namespace) {
 				$class = $namespace.$model;
 				if (class_exists($class, false) || $AutoLoader->getFilename($class) !== null) { // Is the class known?
@@ -365,7 +387,17 @@ class Repository extends Object {
 	}
 	private function toKey($id, $config) {
 		if (is_array($id)) {
-			throw new \Exception('Todo: implement complex keys');
+			if (count($config['id']) != count($id)) {
+				throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.  human_implode('", "', $config['id']).'"');
+			}
+			$keys = array();
+			foreach ($config['id'] as $column) {
+				if (isset($id[$column]) == false) {
+					throw new \Exception('Field: "'.$column.'" missing from id');
+				}
+				$keys[$column] = $id[$column];
+			}
+			return implode('+', $keys);
 		} else {
 			return $id;
 		}

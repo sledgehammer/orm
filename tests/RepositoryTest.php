@@ -57,7 +57,6 @@ class RepositoryTest extends DatabaseTestCase {
 	} 
 	
 	function test_getWildcard() {
-		restore_error_handler();
 		$repo = new Repository($this->dbLink);
 		$repo->inspectDatabase($this->dbLink);
 
@@ -98,21 +97,34 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->inspectDatabase($this->dbLink);
 
 		$customers = $repo->getCustomerCollection();
-//		$customerArray = iterator_to_array($customers);
+		$this->assertQueryCount(self::INSPECT_QUERY_COUNT, 'Delay queries until collections access');
 //		$this->assertEqual($customerArray, $compare);
+		$this->assertEqual(count($customers), 2, 'Collection should contain all customers');
+		$customerArray = iterator_to_array($customers);
+		$this->assertEqual($customerArray[0]->name, 'Bob Fanger');
+		$this->assertEqual($customerArray[1]->name, 'James Bond');
+
+		$counter = 0;
 		foreach ($customers as $customer) {
-//			dump($customer);
+			$counter++;
 		}
-//		dump($customers);
-//		dump($repo);
+		foreach ($customers as $customer) {
+			$counter++;
+		}
+		$this->assertEqual($counter, (2 * 2), '$collection->rewind() works as expected');
+		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 1, 'Use only 1 query for multiple loops on all customers');
+		$this->assertLastQuery('SELECT * FROM customers');
 	}
 	
 	function test_hasMany() {
+//		restore_error_handler();
 		$repo = new Repository($this->dbLink);
 		$repo->inspectDatabase($this->dbLink);
 		
 		$c1 = $repo->getCustomer(1);
 		$orders = iterator_to_array($c1->orders);
+		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = 1');
+		$this->assertEqual(gettype($c1->orders), 'array', 'The orders property should be replaced with an array');
 		dump($orders);
 	}
 }

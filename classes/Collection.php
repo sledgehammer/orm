@@ -35,7 +35,7 @@ class Collection extends Object implements \Iterator, \Countable {
 			return $data;
 		}
 		$repository = getRepository($this->repository);
-		$instance = $repository->loadInstance($this->model, $this->key(), $data);
+		$instance = $repository->loadInstance($this->model, null, $data);
 		return $instance;
 	}
 	public function key() {
