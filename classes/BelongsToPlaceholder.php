@@ -44,11 +44,10 @@ class BelongsToPlaceholder extends Object {
 	private function __replacePlaceholder() {
 		$config = $this->__config;
 		$repo = getRepository($config['repository']);
-		$instance = $repo->loadInstance($config['model'], $config['id']);
 		$container = $repo->loadInstance($config['container']['model'], $config['container']['id']);
 		$property = $config['container']['property'];
-		$container->$property = $instance;
-		return $instance;
+		$container->{$property} = $repo->loadInstance($config['model'], $config['id']);;
+		return $container->{$property};
 	}
 }
 ?>

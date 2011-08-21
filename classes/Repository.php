@@ -112,11 +112,16 @@ class Repository extends Object {
 					case 'hasMany':
 						$relationConfig = $this->getConfig($relation['model']);
 						$collection = $this->loadCollection($relation['model']);
-						$collection->sql = $collection->sql->where($relation['reference'].' = '.$id);
-						$instance->$property = $collection;
-//								new HasManyPlaceholder(array(
-//							'collection' => new DatabaseCollection($sql, $this->getConfig($relation['Model'])),
-//						));
+						$collection->sql = $collection->sql->andWhere($relation['reference'].' = '.$id);
+						$instance->$property = new HasManyPlaceholder(array(
+							'repository' => $this->id,
+							'collection' => $collection,
+							'container' => array(
+								'model' => $model,
+								'id' => $id,
+								'property' => $property,
+							),
+						));
 						break;
 					
 					default:

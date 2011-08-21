@@ -57,7 +57,7 @@ class RepositoryTest extends DatabaseTestCase {
 	} 
 	
 	function test_getWildcard() {
-		$repo = new Repository($this->dbLink);
+		$repo = new Repository();
 		$repo->inspectDatabase($this->dbLink);
 
 		$customer1 = $repo->getCustomer(1);
@@ -68,7 +68,7 @@ class RepositoryTest extends DatabaseTestCase {
 	}
 	
 	function test_belongsTo() {
-		$repo = new Repository($this->dbLink);
+		$repo = new Repository();
 		$repo->inspectDatabase($this->dbLink);
 
 		$order2 = $repo->getOrder(2);
@@ -93,7 +93,7 @@ class RepositoryTest extends DatabaseTestCase {
 	}
 	
 	function test_getWildcardCollection() {
-		$repo = new Repository($this->dbLink);
+		$repo = new Repository();
 		$repo->inspectDatabase($this->dbLink);
 
 		$customers = $repo->getCustomerCollection();
@@ -116,16 +116,72 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertLastQuery('SELECT * FROM customers');
 	}
 	
-	function test_hasMany() {
-//		restore_error_handler();
-		$repo = new Repository($this->dbLink);
+	function test_hasManyIteratorInterface() {
+		$repo = new Repository();
 		$repo->inspectDatabase($this->dbLink);
 		
+		// Test iterator 
 		$c1 = $repo->getCustomer(1);
-		$orders = iterator_to_array($c1->orders);
+		$this->assertTrue((gettype($c1->orders) == 'object' && get_class($c1->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
+		foreach ($c1->orders as $order) {
+			//
+		}
 		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = 1');
 		$this->assertEqual(gettype($c1->orders), 'array', 'The orders property should be replaced with an array');
-		dump($orders);
+		$this->assertEqual($c1->orders[0]->product, 'Kop koffie', 'Contents should match the order from customer 1');		
+		$this->assertEqual(count($c1->orders), 1, 'Should only contain the order from customer 1');
+		
+		// Test count
+		$c2 = $repo->getCustomer(2);
+		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
+		$this->assertEqual(count($c2->orders), 2, 'Should only contain the order from customer 2');
+		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+	}
+	
+	function test_hasManyArrayAccessInterface() {
+		restore_error_handler();
+		
+		// Test array access
+		$c2 = $this->getDirtyCustomer(2);
+		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
+
+		$this->assertEqual( $c2->orders[0]->product, 'Walter PPK 9mm', 'Get by array offset');
+		$this->assertEqual( $c2->orders[1]->product, 'Spycam', 'Get by array offset 1');
+		$this->assertEqual(count($c2->orders), 2, 'Should only contain the order from customer 2');
+		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+
+		$c2 = $this->getDirtyCustomer(2);
+		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'Sainity check');
+		$this->assertTrue(isset($c2->orders[1]), 'array offset exists');
+		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+
+		$c2 = $this->getDirtyCustomer(2);
+		$this->assertFalse(isset($c2->orders[3]), 'array offset doesn\'t exist');
+		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+
+		$c2 = $this->getDirtyCustomer(2);
+		$c2->orders[0] = 'test';
+		$this->assertEqual($c2->orders[0], 'test', 'Set by array offset');
+		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+
+		
+		$c2 = $this->getDirtyCustomer(2);
+		unset($c2->orders[0]);
+		$this->assertEqual(count($c2->orders), 1, 'Unset by array offset');
+		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+	}
+	
+	/**
+	 * Get a Customer instance where all the properties are still placeholders
+	 * (Slow/Expensive operation, initializes a new Repository on every call)
+	 * 
+	 * @param string $id
+	 * @return stdClass
+	 */
+	private function getDirtyCustomer($id) {
+		$repo = new Repository();
+		$repo->inspectDatabase($this->dbLink);
+		return $repo->getCustomer($id);
 	}
 }
 ?>

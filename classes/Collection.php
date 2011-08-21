@@ -25,10 +25,27 @@ class Collection extends Object implements \Iterator, \Countable {
 			$this->iterator = $iterator;
 		}
 	}
+	
+	/**
+	 * Return all collections items as an array
+	 * @return array
+	 */
+	function all() {
+		return iterator_to_array($this);
+	}
+	
 	function bind($model, $repository = 'master') {
 		$this->model = $model;
 		$this->repository = $repository;
 	}
+	
+	
+	// Iterator function
+	
+	/**
+	 * 
+	 * @return mixed
+	 */
 	public function current() {
 		$data = $this->iterator->current();
 		if ($this->repository === null) {
