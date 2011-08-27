@@ -185,6 +185,42 @@ class RepositoryTest extends DatabaseTestCase {
 		}
 	}
 	
+	function test_saveWildcard() {
+		$repo = new Repository();
+		$repo->inspectDatabase($this->dbLink);
+		
+		$c1 = $repo->getCustomer(1);
+		$repo->saveCustomer($c1);
+
+		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 1, 'Saving an unmodified instance shouldn\'t generate a query');
+
+		$c1->occupation = 'Webdeveloper';
+		$repo->saveCustomer($c1);
+		$this->assertLastQuery('UPDATE customers SET occupation = "Webdeveloper" WHERE id = "1"');
+		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2, 'Sanity Check');
+		$repo->saveCustomer($c1); // Check if the updated data is now bound to the instance
+		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2, 'Saving an unmodified instance shouldn\'t generate a query');
+
+		$order2 = $repo->getOrder(2);
+		$repo->saveOrder($order2); // Don't autoload belongTo properties 
+		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 3, 'Saving an unmodified instance shouldn\'t generate a query');
+		
+		try {
+			$order2->customer->id = 1; // Changes the id inside the customer object.
+			$repo->saveOrder($order2);
+			$this->fail('Dangerous change should throw an Exception');
+		} catch (\Exception $e) {
+			$this->pass('Dangerous change should throw an Exception');
+			// @todo check if the message indicated the id-change
+		}
+		$order2->customer->id = "2"; // restore customer object
+		$repo->saveOrder($order2); // The belongTo is autoloaded, but unchanged  
+		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 4, 'Saving an unmodified instance shouldn\'t generate a query');
+
+
+		
+
+	}
 	/**
 	 * Get a Customer instance where all the properties are still placeholders
 	 * (Slow/Expensive operation, initializes a new Repository on every call)

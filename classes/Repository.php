@@ -36,14 +36,22 @@ class Repository extends Object {
 			}
 			return $this->load($matches[1], $arguments[0]);
 		}
+		if (preg_match('/^save(.+)$/', $method, $matches)) {
+			if (count($arguments) > 1) {
+				notice('Too many arguments, expecting 1', $arguments);
+			}
+			return $this->save($matches[1], $arguments[0]);
+		}
+
 		return parent::__call($method, $arguments);
 	}
 	
 	/**
-	 *
+	 * Retrieve an instance from the Repository
+	 * 
 	 * @param string $model
-	 * @param mixed $id
-	 * @return instance 
+	 * @param mixed $id  The instance ID
+	 * @return instance
 	 */
 	function load($model, $id) {
 		if ($id === null) {
@@ -62,9 +70,9 @@ class Repository extends Object {
 
 	/**
 	 * Create a instance from existing $data.
-	 * This won't add the data to the datasource/database.
+	 * This won't store the data. For storing data use $repository->save($instance)
 	 * 
-	 * @param type $model
+	 * @param string $model
 	 * @param array/object $data Data from the 
 	 * @return instance
 	 */
@@ -73,13 +81,7 @@ class Repository extends Object {
 			throw new \Exception('Parameter $data is required');
 		}
 		$config = $this->getConfig($model);
-		$id = array();
-		foreach ($config['id'] as $column) {
-			if (isset($data[$column]) == false) {
-				throw new \Exception('Parameter $data must contain the id field(s)');
-			}
-			$id[$column] = $data[$column];
-		}
+		$id = $this->toId($data, $config);
 		$key = $this->toKey($id, $config);
 		
 		$instance = @$this->objects[$model][$key]['instance'];
@@ -156,55 +158,72 @@ class Repository extends Object {
 		return $instance;
 	}
 	
-	function save($model, $instance) {
-		
-	}
-	
+	/**
+	 *
+	 * @param string $model
+	 * @return Collection 
+	 */
 	function loadCollection($model) {
 		$config = $this->getConfig($model);
 		$config['repository'] = $this->id;
-		// @todo reverse-map the columns
-
+		// @todo support for multiple backends
 		$sql = select('*')->from($config['table']);
-		$collection = new DatabaseCollection($sql, $config['dbLink'], $config['id']);
+		$collection = new DatabaseCollection($sql, $config['dbLink']);
 		$collection->bind($model, $this->id); 
 		return $collection;
 	}
 
-	
-	private function loadData($config, $id) {
-		// @todo support different backends
-		return $this->loadDatabaseRecord($config, $id);
-	}
-
 	/**
-	 * Load the record from the db
+	 * Store the intance
 	 * 
-	 * @param mixed $id
-	 * @return array 
+	 * @param string $model
+	 * @param stdClass $instance 
 	 */
-	private function loadDatabaseRecord($config, $id) {
-		$db = getDatabase($config['dbLink']);
-		if (is_array($id)) {
-			if (count($config['id']) != count($id)) {
-				throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.  human_implode('", "', $config['id']).'"');
+	function save($model, $instance) {
+		$config = $this->getConfig($model);
+		$data = array();
+		$collections = array();
+		foreach ($config['mapping'] as $property => $relation) {
+			if (is_string($relation)) { // direct property to column mapping
+				$data[$relation] = $instance->$property;
+			} else {
+				switch ($relation['type']) {
+					
+					case 'hasMany':
+						$collections[$property] = $instance->$property;
+						break;
+						
+					case 'belongsTo':
+						$belongsTo = $instance->$property;
+						if (($belongsTo instanceof BelongsToPlaceholder) == false) {
+							$this->save($relation['model'], $belongsTo);
+						}
+						$idProperty = $relation['id'];
+						$data[$relation['reference']] = $belongsTo->$idProperty;
+						break;
+						
+					default:
+						throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
+					
+				}
 			}
-		} elseif (count($config['id']) == 1) {
-			$id = array($config['id'][0] => $id); // convert $id to array notation
-		} else {
-			throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.  human_implode('", "', $config['id']).'"');
 		}
-		$sql = select('*')->from($config['table']);
-		$sql->where = array('operator' => 'AND');
-
-		foreach ($config['id'] as $key) {
-			if (isset($id[$key]) == false) {
-				throw new \Exception('Missing key: "'.$key.'"'); // todo better error
+		$id = $this->toId($data, $config);
+		$key = $this->toKey($id, $config);
+		$current = @$this->objects[$model][$key];
+		if ($current === null) { // New instance?
+			$this->addData($config, $data);
+			$this->objects[$model][$key] = array(
+				'instance' => $instance, 
+				'data' => $data
+			);
+		} else { // Existing instance?
+			if ($current['instance'] !== $instance) {
+				// @todo ID change detection
+				throw new \Exception('The instance is not bound to this Repository');
 			}
-			$sql->where[] = $db->quoteIdentifier($key) .' = '.$db->quote($id[$key]);
-		}
-
-		return $db->fetch_row($sql);
+			$this->updateData($config, $id, $data, $current['data']);
+		}		
 	}
 	
 	function getConfig($model) {
@@ -214,6 +233,80 @@ class Repository extends Object {
 		}
 		throw new \Exception('Model "'.$model.'" not configured');
 	}
+	
+	private function loadData($config, $id) {
+		// @todo support different backends
+		return $this->loadDatabaseRecord($config, $id);
+	}
+	
+	private function updateData($config, $id, $new, $old = null) {
+		// @todo support different backends
+		$result =  $this->updateDatabaseRecord($config, $id, $new, $old);
+		$key = $this->toKey($id, $config);
+		$this->objects[$config['model']][$key]['data'] = $new;
+		return $result;
+	}
+	
+	private function toPlural($singular) {
+		return $singular.'s';
+	}
+	
+	private function toSingular($plural) {
+		return preg_replace('/s$/', '', $plural);
+	}
+	
+	private function toModel($table) {
+		// @todo implement mapping
+		return ucfirst($this->toSingular($table));
+	}
+	private function toTable($model) {
+		// @todo implement mapping
+		return lcfirst($this->toPlural($model));
+	}
+	private function toProperty($column) {
+		// @todo implement camelCase
+		return $column;
+	}
+	private function toKey($id, $config) {
+		if (is_array($id)) {
+			if (count($config['id']) != count($id)) {
+				throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.  human_implode('", "', $config['id']).'"');
+			}
+			$keys = array();
+			foreach ($config['id'] as $column) {
+				if (isset($id[$column]) == false) {
+					throw new \Exception('Field: "'.$column.'" missing from id');
+				}
+				$keys[$column] = $id[$column];
+			}
+			return implode('+', $keys);
+		} else {
+			return $id;
+		}
+	}
+	
+	/**
+	 * Extract the id from the data
+	 * 
+	 * @param array $data
+	 * @param array $config
+	 * @return array 
+	 */
+	private function toId($data, $config) {
+		$id = array();
+		foreach ($config['id'] as $column) {
+			if (isset($data[$column]) == false) {
+				throw new \Exception('Parameter $data must contain the id field(s)');
+			}
+			$id[$column] = $data[$column];
+		}
+		return $id;
+	}
+	
+	//
+	//    Database functions
+	//    Should be in backend class
+	//
 	
 	/**
 	 * Create model configs based on the tables in the database schema
@@ -390,41 +483,59 @@ class Repository extends Object {
 		return $schema;
 	}
 	
-	private function toPlural($singular) {
-		return $singular.'s';
-	}
-	
-	private function toSingular($plural) {
-		return preg_replace('/s$/', '', $plural);
-	}
-	
-	private function toModel($table) {
-		// @todo implement mapping
-		return ucfirst($this->toSingular($table));
-	}
-	private function toTable($model) {
-		// @todo implement mapping
-		return lcfirst($this->toPlural($model));
-	}
-	private function toProperty($column) {
-		// @todo implement camelCase
-		return $column;
-	}
-	private function toKey($id, $config) {
+	/**
+	 * Load the record from the db
+	 * 
+	 * @param mixed $id
+	 * @return array 
+	 */
+	private function loadDatabaseRecord($config, $id) {
+		$db = getDatabase($config['dbLink']);
 		if (is_array($id)) {
 			if (count($config['id']) != count($id)) {
 				throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.  human_implode('", "', $config['id']).'"');
 			}
-			$keys = array();
-			foreach ($config['id'] as $column) {
-				if (isset($id[$column]) == false) {
-					throw new \Exception('Field: "'.$column.'" missing from id');
-				}
-				$keys[$column] = $id[$column];
-			}
-			return implode('+', $keys);
+		} elseif (count($config['id']) == 1) {
+			$id = array($config['id'][0] => $id); // convert $id to array notation
 		} else {
-			return $id;
+			throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.  human_implode('", "', $config['id']).'"');
+		}
+		$sql = select('*')->from($config['table']);
+		$sql->where = array('operator' => 'AND');
+
+		foreach ($config['id'] as $key) {
+			if (isset($id[$key]) == false) {
+				throw new \Exception('Missing key: "'.$key.'"'); // todo better error
+			}
+			$sql->where[] = $db->quoteIdentifier($key) .' = '.$db->quote($id[$key]);
+		}
+
+		return $db->fetch_row($sql);
+	}
+	
+	private function updateDatabaseRecord($config, $id, $new, $old) {
+		$db = getDatabase($config['dbLink']);
+		$changes = array();
+		foreach ($new as $column => $value) {
+			if ($value !== $old[$column]) { // is the value changed?
+				$changes[] = $db->quoteIdentifier($column).' = '.$db->quote($value);
+			}
+		}
+		if (count($changes) == 0) {
+			return; // No changes, no query
+		} 
+		$id = $this->toId($old, $config);
+		$where = array();
+		foreach ($id as $column => $value) {
+			$where[] = $db->quoteIdentifier($column).' = '.$db->quote($value);
+		}
+		if (count($where) == 0) {
+			throw new \Exception('Invalid id');
+		}
+		$sql = 'UPDATE '.$db->quoteIdentifier($config['table']).' SET '.implode(', ', $changes).' WHERE '.  implode(' AND ', $where);
+		$result = $db->query($sql);
+		if ($result == false) {
+			throw new \Exception('Updating record "'.  implode(' + ', $id).'" failed');;
 		}
 	}
 }
