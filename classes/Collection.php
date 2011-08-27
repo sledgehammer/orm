@@ -52,7 +52,7 @@ class Collection extends Object implements \Iterator, \Countable {
 			return $data;
 		}
 		$repository = getRepository($this->repository);
-		$instance = $repository->loadInstance($this->model, null, $data);
+		$instance = $repository->create($this->model, $data);
 		return $instance;
 	}
 	public function key() {
@@ -62,7 +62,12 @@ class Collection extends Object implements \Iterator, \Countable {
 		return $this->iterator->next();
 	}
 	public function rewind() {
-		return $this->iterator->rewind();
+		if ($this->iterator instanceof \Iterator) {
+			return $this->iterator->rewind();
+		}
+		$type = gettype($this->iterator);
+		$type = ($type == 'object') ? get_class($this->iterator) : $type;
+		throw new \Exception(''.$type.' is not an Iterator');
 	}
 	public function valid() {
 		return $this->iterator->valid();

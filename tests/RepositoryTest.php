@@ -147,8 +147,6 @@ class RepositoryTest extends DatabaseTestCase {
 	}
 	
 	function test_hasManyArrayAccessInterface() {
-		restore_error_handler();
-		
 		// Test array access
 		$c2 = $this->getDirtyCustomer(2);
 		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');

@@ -34,7 +34,7 @@ class Repository extends Object {
 			if (count($arguments) > 1) {
 				notice('Too many arguments, expecting 1', $arguments);
 			}
-			return $this->loadInstance($matches[1], $arguments[0]);
+			return $this->load($matches[1], $arguments[0]);
 		}
 		return parent::__call($method, $arguments);
 	}
@@ -43,30 +43,51 @@ class Repository extends Object {
 	 *
 	 * @param string $model
 	 * @param mixed $id
-	 * @return stdClass 
+	 * @return instance 
 	 */
-	function loadInstance($model, $id, $data = null) {
-		$config = $this->getConfig($model);
+	function load($model, $id) {
 		if ($id === null) {
-			if ($data === null) {
-				throw new \Exception('Parameter $id and $data can\t both be null');
-			}
-			$id = array();
-			foreach ($config['id'] as $column) {
-				if (isset($data[$column]) == false) {
-					throw new \Exception('Parameter $data must contain the id field(s)');
-				}
-				$id[$column] = $data[$column];
-			}
+			throw new \Exception('Parameter $id is required');
 		}
+		$config = $this->getConfig($model);
+
 		$key = $this->toKey($id, $config);
 		$instance = @$this->objects[$model][$key]['instance'];
 		if ($instance !== null) {
 			return $instance;
 		}
+		$data = $this->loadData($config, $id);
+		return $this->create($model, $data);
+	}
+
+	/**
+	 * Create a instance from existing $data.
+	 * This won't add the data to the datasource/database.
+	 * 
+	 * @param type $model
+	 * @param array/object $data Data from the 
+	 * @return instance
+	 */
+	function create($model, $data) {
 		if ($data === null) {
-			$data = $this->loadData($config, $id);
+			throw new \Exception('Parameter $data is required');
 		}
+		$config = $this->getConfig($model);
+		$id = array();
+		foreach ($config['id'] as $column) {
+			if (isset($data[$column]) == false) {
+				throw new \Exception('Parameter $data must contain the id field(s)');
+			}
+			$id[$column] = $data[$column];
+		}
+		$key = $this->toKey($id, $config);
+		
+		$instance = @$this->objects[$model][$key]['instance'];
+		if ($instance !== null) {
+			// @todo validate existing data
+			return $instance;
+		}
+
 		// Create new instance
 		$definition = $config['class'];
 		$instance = new $definition();
@@ -107,9 +128,12 @@ class Repository extends Object {
 						break;
 						
 					case 'hasMany':
+						if (count($id) != 1) {
+							throw new \Exception('Complex keys not (yet) supported for hasMany relations');
+						}
 						$relationConfig = $this->getConfig($relation['model']);
 						$collection = $this->loadCollection($relation['model']);
-						$collection->sql = $collection->sql->andWhere($relation['reference'].' = '.$id);
+						$collection->sql = $collection->sql->andWhere($relation['reference'].' = '.current($id));
 						$instance->$property = new HasManyPlaceholder(array(
 							'repository' => $this->id,
 							'collection' => $collection,
@@ -132,6 +156,10 @@ class Repository extends Object {
 		return $instance;
 	}
 	
+	function save($model, $instance) {
+		
+	}
+	
 	function loadCollection($model) {
 		$config = $this->getConfig($model);
 		$config['repository'] = $this->id;
@@ -139,15 +167,14 @@ class Repository extends Object {
 
 		$sql = select('*')->from($config['table']);
 		$collection = new DatabaseCollection($sql, $config['dbLink'], $config['id']);
-		$collection->bind($model, $this->id);
-		// @inject mapper
+		$collection->bind($model, $this->id); 
 		return $collection;
 	}
 
 	
 	private function loadData($config, $id) {
 		// @todo support different backends
-		return $this->loadRecord($config, $id);
+		return $this->loadDatabaseRecord($config, $id);
 	}
 
 	/**
@@ -156,7 +183,7 @@ class Repository extends Object {
 	 * @param mixed $id
 	 * @return array 
 	 */
-	private function loadRecord($config, $id) {
+	private function loadDatabaseRecord($config, $id) {
 		$db = getDatabase($config['dbLink']);
 		if (is_array($id)) {
 			if (count($config['id']) != count($id)) {
@@ -178,7 +205,6 @@ class Repository extends Object {
 		}
 
 		return $db->fetch_row($sql);
-		
 	}
 	
 	function getConfig($model) {
