@@ -53,7 +53,7 @@ class Repository extends Object {
 	 * @param mixed $id  The instance ID
 	 * @return instance
 	 */
-	function load($model, $id) {
+	function load($model, $id, $recursive = 'lazy') {
 		if ($id === null) {
 			throw new \Exception('Parameter $id is required');
 		}
@@ -130,17 +130,13 @@ class Repository extends Object {
 						break;
 						
 					case 'hasMany':
-						if (count($id) != 1) {
-							throw new \Exception('Complex keys not (yet) supported for hasMany relations');
-						}
-						$relationConfig = $this->getConfig($relation['model']);
-						$collection = $this->loadCollection($relation['model']);
-						$collection->sql = $collection->sql->andWhere($relation['reference'].' = '.current($id));
 						$instance->$property = new HasManyPlaceholder(array(
 							'repository' => $this->id,
-							'collection' => $collection,
+							'container' => array(
+								'model' => $model,
+								'id' => $id,
+							),
 							'property' => $property,
-							'container' => $instance,
 						));
 						break;
 					
@@ -154,6 +150,7 @@ class Repository extends Object {
 		$this->objects[$model][$key] = array(
 			'instance' => $instance,
 			'data' => $data,
+			'associations' => array()
 		);
 		return $instance;
 	}
@@ -173,16 +170,31 @@ class Repository extends Object {
 		return $collection;
 	}
 
+	function loadAssociation($model, $instance, $property) {
+		$config = $this->getConfig($model);
+		if (count($config['id']) != 1) {
+			throw new \Exception('Complex keys not (yet) supported for hasMany relations');
+		}
+		$relation = $config['mapping'][$property];
+		$id = $instance->{$config['id'][0]};
+		// @todo support for multiple backends, by using the (pure) Collection methods
+
+		$collection = $this->loadCollection($relation['model']);
+		$collection->sql = $collection->sql->andWhere($relation['reference'].' = '.$id);
+		$association = $collection->asArray();
+		$instance->$property = $association;
+		$this->objects[$model][$id]['associations'][$property] = $association; // Add a copy for change detection
+	}
 	/**
 	 * Store the intance
 	 * 
 	 * @param string $model
 	 * @param stdClass $instance 
 	 */
-	function save($model, $instance) {
+	function save($model, $instance, $recursive = 'full') {
 		$config = $this->getConfig($model);
 		$data = array();
-		$collections = array();
+		$hasMany = array();
 		foreach ($config['mapping'] as $property => $relation) {
 			if (is_string($relation)) { // direct property to column mapping
 				$data[$relation] = $instance->$property;
@@ -190,7 +202,10 @@ class Repository extends Object {
 				switch ($relation['type']) {
 					
 					case 'hasMany':
-						$collections[$property] = $instance->$property;
+						$hasMany[$property] = array(
+							'config' => $relation,
+							'collection' => $instance->$property
+						);
 						break;
 						
 					case 'belongsTo':
@@ -223,7 +238,20 @@ class Repository extends Object {
 				throw new \Exception('The instance is not bound to this Repository');
 			}
 			$this->updateData($config, $id, $data, $current['data']);
-		}		
+		}
+		foreach ($hasMany as $property => $association) {
+			if (($association['collection'] instanceof HasManyPlaceholder) == false) {
+				throw new \Exception('not implemented');
+				$old = $this->objects[$model][$key]['associations'][$property];
+				dump($old);
+
+				dump($association['collection']);
+				foreach ($association['collection'] as $item) {
+					dump($association['config']);
+					dump($item);
+				}
+			}
+		}
 	}
 	
 	function getConfig($model) {

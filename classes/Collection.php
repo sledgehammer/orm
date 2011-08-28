@@ -30,7 +30,7 @@ class Collection extends Object implements \Iterator, \Countable {
 	 * Return all collections items as an array
 	 * @return array
 	 */
-	function all() {
+	function asArray() {
 		return iterator_to_array($this);
 	}
 	
