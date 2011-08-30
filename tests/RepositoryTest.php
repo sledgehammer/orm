@@ -185,6 +185,17 @@ class RepositoryTest extends DatabaseTestCase {
 		}
 	}
 	
+	function test_removeWildcard() {
+		$repo = new Repository();
+		$repo->inspectDatabase($this->dbLink);
+		
+		$order1 = $repo->getOrder(1);
+		$repo->removeOrder($order1);
+		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2);
+		$this->assertLastQuery('DELETE FROM orders WHERE id = "1"');
+	}
+
+	
 	function test_saveWildcard() {
 		$repo = new Repository();
 		$repo->inspectDatabase($this->dbLink);
@@ -216,10 +227,15 @@ class RepositoryTest extends DatabaseTestCase {
 		$order2->customer->id = "2"; // restore customer object
 		$repo->saveOrder($order2); // The belongTo is autoloaded, but unchanged  
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 4, 'Saving an unmodified instance shouldn\'t generate a query');
-
-
 		
-
+		$c2 = $repo->getCustomer(2);
+		$c2->orders[0]->product = 'Walther PPK';// correct spelling
+		$c2->orders[] = (object) array('product' => 'Scuba gear');
+		unset($c2->orders[1]);
+		$repo->saveCustomer($c2);
+		$this->assertQuery('UPDATE orders SET product = "Walther PPK" WHERE id = "2"');
+		$this->assertQuery('INSERT INTO orders (customer_id, product) VALUES ("2", "Scuba gear")');
+		$this->assertQuery('DELETE FROM orders WHERE id = "3"');
 	}
 	/**
 	 * Get a Customer instance where all the properties are still placeholders

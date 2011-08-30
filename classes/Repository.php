@@ -17,7 +17,6 @@ class Repository extends Object {
 	// references to 
 	private $objects = array();
 	
-
 	function __construct() {
 		$this->id = uniqid('R');
 		$GLOBALS['Repositories'][$this->id] = &$this;
@@ -30,19 +29,13 @@ class Repository extends Object {
 			}
 			return $this->loadCollection($matches[1]);
 		}
-		if (preg_match('/^get(.+)$/', $method, $matches)) {
+		if (preg_match('/^(get|save|remove|add)(.+)$/', $method, $matches)) {
 			if (count($arguments) > 1) {
 				notice('Too many arguments, expecting 1', $arguments);
 			}
-			return $this->load($matches[1], $arguments[0]);
+			$method = $matches[1];
+			return $this->$method($matches[2], $arguments[0]);
 		}
-		if (preg_match('/^save(.+)$/', $method, $matches)) {
-			if (count($arguments) > 1) {
-				notice('Too many arguments, expecting 1', $arguments);
-			}
-			return $this->save($matches[1], $arguments[0]);
-		}
-
 		return parent::__call($method, $arguments);
 	}
 	
@@ -53,7 +46,7 @@ class Repository extends Object {
 	 * @param mixed $id  The instance ID
 	 * @return instance
 	 */
-	function load($model, $id, $recursive = 'lazy') {
+	function get($model, $id, $recursive = 'lazy') {
 		if ($id === null) {
 			throw new \Exception('Parameter $id is required');
 		}
@@ -150,7 +143,8 @@ class Repository extends Object {
 		$this->objects[$model][$key] = array(
 			'instance' => $instance,
 			'data' => $data,
-			'associations' => array()
+			'state' => 'loaded',
+			'references' => array()
 		);
 		return $instance;
 	}
@@ -181,77 +175,127 @@ class Repository extends Object {
 
 		$collection = $this->loadCollection($relation['model']);
 		$collection->sql = $collection->sql->andWhere($relation['reference'].' = '.$id);
-		$association = $collection->asArray();
-		$instance->$property = $association;
-		$this->objects[$model][$id]['associations'][$property] = $association; // Add a copy for change detection
+		$items = $collection->asArray();
+		$this->objects[$model][$id]['references'][$property] = $items; // Add a copy for change detection
+		$instance->$property = $items;
+	}
+	
+	/**
+	 * Remove the instance
+	 * 
+	 * @param string $model
+	 * @param instance $instance 
+	 */
+	function remove($model, $instance) {
+		$config = $this->getConfig($model);
+		$key = $this->toKey($instance, $config);
+		$object = @$this->objects[$model][$key];
+		if ($object === null) {
+			throw new \Exception('The instance is not bound to this Repository');
+		}
+		
+//		$data = $this->toData($instance, $config['mapping']);
+//		if (serialize($data) != serialize($object['data'])) {
+//			throw new \Exception('The instance contains unsaved changes'); // Should we throw this Exception here?
+//		}
+
+		// @todo add multiple backends
+		return $this->removeDatabaseRecord($config, $object['data']);
 	}
 	/**
-	 * Store the intance
+	 * Store the instance
 	 * 
 	 * @param string $model
 	 * @param stdClass $instance 
 	 */
 	function save($model, $instance, $recursive = 'full') {
-		$config = $this->getConfig($model);
-		$data = array();
-		$hasMany = array();
-		foreach ($config['mapping'] as $property => $relation) {
-			if (is_string($relation)) { // direct property to column mapping
-				$data[$relation] = $instance->$property;
-			} else {
-				switch ($relation['type']) {
-					
-					case 'hasMany':
-						$hasMany[$property] = array(
-							'config' => $relation,
-							'collection' => $instance->$property
-						);
-						break;
-						
-					case 'belongsTo':
-						$belongsTo = $instance->$property;
-						if (($belongsTo instanceof BelongsToPlaceholder) == false) {
-							$this->save($relation['model'], $belongsTo);
-						}
-						$idProperty = $relation['id'];
-						$data[$relation['reference']] = $belongsTo->$idProperty;
-						break;
-						
-					default:
-						throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
-					
-				}
-			}
-		}
-		$id = $this->toId($data, $config);
-		$key = $this->toKey($id, $config);
+		$config = $this->getConfig($model);		
+		$key = $this->toKey($instance, $config);
 		$current = @$this->objects[$model][$key];
-		if ($current === null) { // New instance?
-			$this->addData($config, $data);
-			$this->objects[$model][$key] = array(
-				'instance' => $instance, 
-				'data' => $data
-			);
-		} else { // Existing instance?
-			if ($current['instance'] !== $instance) {
-				// @todo ID change detection
-				throw new \Exception('The instance is not bound to this Repository');
-			}
-			$this->updateData($config, $id, $data, $current['data']);
+		if ($current !== null && $current['state'] == 'saving') { // Voorkom oneindige recursion
+			return;
 		}
-		foreach ($hasMany as $property => $association) {
-			if (($association['collection'] instanceof HasManyPlaceholder) == false) {
-				throw new \Exception('not implemented');
-				$old = $this->objects[$model][$key]['associations'][$property];
-				dump($old);
+		$this->objects[$model][$key]['state'] = 'saving';
+		try {
+			$hasMany = array();
+			$data = array();
+			// Map to data and save  the belongsTo instances
+			foreach ($config['mapping'] as $property => $relation) {
+				if (is_string($relation)) { // direct property to column mapping
+					if (property_exists($instance, $property)) {
+						$data[$relation] = $instance->$property;
+					}
+				} else {
+					switch ($relation['type']) {
 
-				dump($association['collection']);
-				foreach ($association['collection'] as $item) {
-					dump($association['config']);
-					dump($item);
+						case 'hasMany':
+							$relation['collection'] = $instance->$property;
+							$hasMany[$property] = $relation;
+							break;
+
+						case 'belongsTo':
+							$belongsTo = $instance->$property;
+							if (($belongsTo instanceof BelongsToPlaceholder) == false) {
+								$this->save($relation['model'], $belongsTo);
+							}
+							$idProperty = $relation['id'];
+							$data[$relation['reference']] = $belongsTo->$idProperty;
+							break;
+
+						default:
+							throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
+
+					}
 				}
 			}
+			// Save the instance
+			if ($current === null) { // New instance?
+				$this->addData($config, $data);
+				$this->objects[$model][$key] = array(
+					'instance' => $instance, 
+					'data' => $data
+				);
+			} else { // Existing instance?
+				if ($current['instance'] !== $instance) {
+					// @todo ID change detection
+					throw new \Exception('The instance is not bound to this Repository');
+				}
+				$this->updateData($config, $data, $current['data']);
+				$this->objects[$model][$key]['data'] = $data;
+			}
+			// Save the connected instances
+			$this->objects[$model][$key]['state'] = 'saving';
+			foreach ($hasMany as $property => $relation) {
+				if (($relation['collection'] instanceof HasManyPlaceholder)) {
+					continue; // No changes (It's not even accessed)
+				}
+				$relationConfig = $this->getConfig($relation['model']);
+				$collection = $relation['collection'];
+				if ($collection instanceof \Iterator) {
+					$collection = iterator_to_array($collection);
+				}
+				foreach ($collection as $item) {
+					// Connect the item to this instance
+					foreach ($relationConfig['mapping'] as $property2 => $relation2 ) {
+						if ($relation2['type'] == 'belongsTo' && $relation['reference'] == $relation2['reference']) {
+							$item->$property2 = $instance;
+						}
+					}
+					$this->save($relation['model'], $item);
+				}
+				// Delete items that are no longer in the relation
+				$old = $this->objects[$model][$key]['references'][$property];
+				foreach ($old as $item) {
+					if (array_search($item, $collection, true) === false) {
+						$this->remove($relation['model'], $item);
+					}
+				}
+			}
+		} catch (\Exception $e) {
+			$this->objects[$model][$key]['state'] = 'unknown';
+			throw $e;
 		}
+		$this->objects[$model][$key]['state'] = 'saved';
 	}
 	
 	function getConfig($model) {
@@ -267,12 +311,12 @@ class Repository extends Object {
 		return $this->loadDatabaseRecord($config, $id);
 	}
 	
-	private function updateData($config, $id, $new, $old = null) {
+	private function updateData($config, $new, $old = null) {
 		// @todo support different backends
-		$result =  $this->updateDatabaseRecord($config, $id, $new, $old);
-		$key = $this->toKey($id, $config);
-		$this->objects[$config['model']][$key]['data'] = $new;
-		return $result;
+		$this->updateDatabaseRecord($config, $new, $old);
+	}
+	private function addData($config, $data) {
+		$this->addDatabaseRecord($config, $data);
 	}
 	
 	private function toPlural($singular) {
@@ -295,6 +339,14 @@ class Repository extends Object {
 		// @todo implement camelCase
 		return $column;
 	}
+	
+	/**
+	 * Get the key for the $this->objects array.
+	 * 
+	 * @param mixed $id  An array with the id value(s), the instance or an id (as string)
+	 * @param array $config
+	 * @return string 
+	 */
 	private function toKey($id, $config) {
 		if (is_array($id)) {
 			if (count($config['id']) != count($id)) {
@@ -308,9 +360,36 @@ class Repository extends Object {
 				$keys[$column] = $id[$column];
 			}
 			return implode('+', $keys);
-		} else {
-			return $id;
+		} elseif (is_object($id)) {
+			$instance = $id;
+			$keys = array();
+			$idFound = false;
+			foreach ($config['id'] as $column) {
+				$property = array_search($column, $config['mapping']);
+				$keys[$column] = null;
+				if (property_exists($instance, $property)) {
+					$keys[$column] = $instance->$property;
+				}
+				if ($keys[$column] === null) {
+					$keys[$column] = '__NULL__';
+				} else {
+					$idFound = true; // Minimaal 1 waarde die niet null is?
+				}
+			}
+			if ($idFound == false) {
+				return null;
+			}
+			// @todo Validate if the id is changed
+			return implode('+', $keys);
+		} elseif (count($config['id']) == 1) {
+			return (string) $id;
 		}
+		throw new \Exception('Unable to convert the $id to a key');
+	}
+	
+	private function toData($instance, $mapping) {
+		
+		return $data;
 	}
 	
 	/**
@@ -502,8 +581,7 @@ class Repository extends Object {
 							dump($parts);
 							break;
 					}
-//										dump($line);
-
+//					dump($line);
 				}
 			}
 			unset($config);
@@ -541,7 +619,7 @@ class Repository extends Object {
 		return $db->fetch_row($sql);
 	}
 	
-	private function updateDatabaseRecord($config, $id, $new, $old) {
+	private function updateDatabaseRecord($config, $new, $old) {
 		$db = getDatabase($config['dbLink']);
 		$changes = array();
 		foreach ($new as $column => $value) {
@@ -561,9 +639,57 @@ class Repository extends Object {
 			throw new \Exception('Invalid id');
 		}
 		$sql = 'UPDATE '.$db->quoteIdentifier($config['table']).' SET '.implode(', ', $changes).' WHERE '.  implode(' AND ', $where);
-		$result = $db->query($sql);
+		$result = $this->execute($sql, $config['dbLink']);
 		if ($result == false) {
 			throw new \Exception('Updating record "'.  implode(' + ', $id).'" failed');;
+		}
+	}
+	
+	
+	private function addDatabaseRecord($config, $data) {
+		$db = getDatabase($config['dbLink']);
+		$columns = array();
+		$values = array();
+		foreach ($data as $column => $value) {
+			$columns[] = $db->quoteIdentifier($column);
+			$values[] = $db->quote($value);
+		}
+		$sql = 'INSERT INTO '.$db->quoteIdentifier($config['table']).' ('.implode(', ', $columns).') VALUES ('.implode(', ', $values).')';
+		$result = $this->execute($sql, $config['dbLink']);
+		if ($result == false) {
+			throw new \Exception('Adding record "'.  implode(' + ', $id).'" failed');;
+		}
+	}
+	
+	private function removeDatabaseRecord($config, $data) {
+		$db = getDatabase($config['dbLink']);
+		$where = array();
+		$id = array();
+		foreach ($config['id'] as $column) {
+			$id[$column] = $data[$column];
+			$where[] = $db->quoteIdentifier($column).' = '.$db->quote($data[$column]);
+		}
+		if (count($where) == 0) {
+			throw new \Exception('Invalid id');
+		}		
+		$sql = 'DELETE FROM '.$db->quoteIdentifier($config['table']).' WHERE '.  implode(' AND ', $where);
+		$result = $this->execute($sql, $config['dbLink']);
+		if ($result == false) {
+			throw new \Exception('Deleting record "'.  implode(' + ', $id).'" failed');;
+		}
+	}
+
+	private function execute($sql, $dbLink) {
+		$db = getDatabase($dbLink);
+		$setting = $db->throw_exception_on_error;
+		$db->throw_exception_on_error = true;
+		try {
+			$result = $db->query($sql);
+			$db->throw_exception_on_error = $setting;
+			return $result;
+		} catch (\Exception $e) {
+			$db->throw_exception_on_error = $setting;
+			throw $e;
 		}
 	}
 }

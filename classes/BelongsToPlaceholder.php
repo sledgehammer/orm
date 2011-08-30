@@ -49,7 +49,7 @@ class BelongsToPlaceholder extends Object {
 		if ($container->{$property} !== $this) {
 			throw new \Exception('The placeholder belongs to an other (cloned?) container');
 		}
-		$container->{$property} = $repo->load($config['model'], $config['id']);;
+		$container->{$property} = $repo->get($config['model'], $config['id']);;
 		return $container->{$property};
 	}
 }
