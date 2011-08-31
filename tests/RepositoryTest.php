@@ -35,25 +35,25 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertQuery('SHOW TABLES');
 		$queryCount = self::INSPECT_QUERY_COUNT;
 		$this->assertQueryCount($queryCount, 'Sanity check');
-		$config = $repo->getConfig('Customer');
+		$this->assertTrue($repo->isConfigured('Customer'));
+		$this->assertTrue($repo->isConfigured('Order'));
 		$this->assertQueryCount($queryCount, 'no additional queries');
-		$this->assertEqual($config['table'], 'customers', 'table "customers" should be defined as "Customer"model');
 	}
 	
-	function test_getRepository() {
+	function test_getRepository_function() {
 		$repo = getRepository(); // get an Empty (master) repository 
+		$this->assertFalse($repo->isConfigured('Customer'), 'Sanity check');
 		try {
-			$repo->getConfig('Customer');
+			$repo->getCustomer(1);
 			$this->fail('An Exception should be thrown');
 		} catch (\Exception $e) {
 			$this->assertEqual($e->getMessage(), 'Model "Customer" not configured', 'Repository should be empty');
 		}
 		$repo->inspectDatabase($this->dbLink);
-		$config1 = $repo->getConfig('Customer');
+		$this->assertTrue($repo->isConfigured('Customer'), 'Sanity check');
 
 		$sameRepo = getRepository();
-		$config2 = $sameRepo->getConfig('Customer'); // Should NOT throw an Exception
-		$this->assertEqual($config1, $config2, 'a second getRepository should return the same repository');
+		$this->assertTrue($sameRepo === $repo, 'a second getRepository() call should return the same repository');
 	} 
 	
 	function test_getWildcard() {
@@ -183,6 +183,15 @@ class RepositoryTest extends DatabaseTestCase {
 		} catch (\Exception $e) {
 			$this->assertEqual($e->getMessage(), 'The placeholder belongs to an other (cloned?) container');
 		}
+	}
+	
+	function test_getWildcard_preload() {
+		$repo = new Repository();
+		$repo->inspectDatabase($this->dbLink);
+		
+		$order = $repo->getOrder(2, true);
+		$this->assertIsA($order->customer, 'stdClass', 'Should not be a BelongsToPlaceholder');
+		$this->assertIsA($order->customer->orders, 'array', 'Should not be a HasManyPlaceholder');
 	}
 	
 	function test_removeWildcard() {
