@@ -31,7 +31,7 @@ class RepositoryTest extends DatabaseTestCase {
 	function test_inspectDatabase() {
 		$repo = new Repository();
 		$this->assertQueryCount(0, 'No queries on contruction');
-		$repo->inspectDatabase($this->dbLink);
+		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
 		$this->assertQuery('SHOW TABLES');
 		$queryCount = self::INSPECT_QUERY_COUNT;
 		$this->assertQueryCount($queryCount, 'Sanity check');
@@ -49,7 +49,7 @@ class RepositoryTest extends DatabaseTestCase {
 		} catch (\Exception $e) {
 			$this->assertEqual($e->getMessage(), 'Model "Customer" not configured', 'Repository should be empty');
 		}
-		$repo->inspectDatabase($this->dbLink);
+		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
 		$this->assertTrue($repo->isConfigured('Customer'), 'Sanity check');
 
 		$sameRepo = getRepository();
@@ -58,7 +58,7 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_getWildcard() {
 		$repo = new Repository();
-		$repo->inspectDatabase($this->dbLink);
+		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
 
 		$customer1 = $repo->getCustomer(1);
 		$this->assertEqual($customer1->name, "Bob Fanger");
@@ -69,7 +69,7 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_belongsTo() {
 		$repo = new Repository();
-		$repo->inspectDatabase($this->dbLink);
+		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
 
 		$order2 = $repo->getOrder(2);
 		$clone = clone $order2;
@@ -102,7 +102,7 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_getWildcardCollection() {
 		$repo = new Repository();
-		$repo->inspectDatabase($this->dbLink);
+		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
 
 		$customers = $repo->getCustomerCollection();
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT, 'Delay queries until collections access');
@@ -126,7 +126,7 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_hasManyIteratorInterface() {
 		$repo = new Repository();
-		$repo->inspectDatabase($this->dbLink);
+		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
 		
 		// Test iterator 
 		$c1 = $repo->getCustomer(1);
@@ -187,7 +187,7 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_getWildcard_preload() {
 		$repo = new Repository();
-		$repo->inspectDatabase($this->dbLink);
+		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
 		
 		$order = $repo->getOrder(2, true);
 		$this->assertIsA($order->customer, 'stdClass', 'Should not be a BelongsToPlaceholder');
@@ -196,7 +196,7 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_removeWildcard() {
 		$repo = new Repository();
-		$repo->inspectDatabase($this->dbLink);
+		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
 		
 		$order1 = $repo->getOrder(1);
 		$repo->removeOrder($order1);
@@ -207,7 +207,7 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_saveWildcard() {
 		$repo = new Repository();
-		$repo->inspectDatabase($this->dbLink);
+		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
 		
 		$c1 = $repo->getCustomer(1);
 		$repo->saveCustomer($c1);
@@ -255,7 +255,7 @@ class RepositoryTest extends DatabaseTestCase {
 	 */
 	private function getDirtyCustomer($id) {
 		$repo = new Repository();
-		$repo->inspectDatabase($this->dbLink);
+		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
 		return $repo->getCustomer($id);
 	}
 }
