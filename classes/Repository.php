@@ -4,18 +4,26 @@
  *
  * @package Record
  */
-
 namespace SledgeHammer;
 
 class Repository extends Object {
 
 	protected $id;
 	protected $namespaces = array('', 'SledgeHammer\\');
-	// model => config
+
+	/**
+	 * @var array  registerd models: array(model => config)
+	 */
 	protected $configs = array();
-	// references to instances
+
+	/**
+	 * @var array  references to instances
+	 */
 	protected $objects = array();
-	
+
+	/**
+	 * @var array registerd backends
+	 */
 	protected $backends = array();
 
 	function __construct() {
@@ -84,7 +92,7 @@ class Repository extends Object {
 			return $instance;
 		}
 		$key = $this->toKey($id, $config);
-		
+
 		// Create new instance
 		$definition = $config['class'];
 		$instance = new $definition();
@@ -106,7 +114,7 @@ class Repository extends Object {
 						$belongsToId = $data[$relation['reference']];
 						if ($belongsToId != null) {
 							if (empty($relation['model'])) {
-								warning('Unable to determine model for property "' . $property . '"');
+								warning('Unable to determine model for property "'.$property.'"');
 							}
 							$belongsToInstance = @$this->objects[$relation['model']][$belongsToId]['instance'];
 							if ($belongsToInstance !== null) {
@@ -146,7 +154,7 @@ class Repository extends Object {
 						break;
 
 					default:
-						throw new \Exception('Invalid mapping type: "' . $relation['type'] . '"');
+						throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
 				}
 			}
 		}
@@ -179,7 +187,7 @@ class Repository extends Object {
 		// @todo support for multiple backends, by using the (pure) Collection methods
 
 		$collection = $this->loadCollection($relation['model']);
-		$collection->sql = $collection->sql->andWhere($relation['reference'] . ' = ' . $id);
+		$collection->sql = $collection->sql->andWhere($relation['reference'].' = '.$id);
 		$items = $collection->asArray();
 		$this->objects[$model][$id]['references'][$property] = $items; // Add a copy for change detection
 		$instance->$property = $items;
@@ -257,7 +265,7 @@ class Repository extends Object {
 							break;
 
 						default:
-							throw new \Exception('Invalid mapping type: "' . $relation['type'] . '"');
+							throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
 					}
 				}
 			}
@@ -308,7 +316,7 @@ class Repository extends Object {
 		}
 		$this->objects[$model][$key]['state'] = 'saved';
 	}
-	
+
 	function registerBackend($backend, $id = null) {
 		if ($id === null) {
 			$id = uniqid('B');
@@ -319,13 +327,12 @@ class Repository extends Object {
 			$config['backend'] = $id;
 			$this->register($model, $config);
 		}
-		
 	}
 
 	function isConfigured($model) {
 		return isset($this->configs[$model]);
 	}
-	
+
 	protected function register($model, $config) {
 		$config['model'] = $model;
 		if (empty($config['class'])) {
@@ -342,7 +349,6 @@ class Repository extends Object {
 			}
 		}
 		$this->configs[$model] = $config;
-		
 	}
 
 	private function toBackend($config) {
@@ -355,7 +361,7 @@ class Repository extends Object {
 		if ($config !== null) {
 			return $config;
 		}
-		throw new \Exception('Model "' . $model . '" not configured');
+		throw new \Exception('Model "'.$model.'" not configured');
 	}
 
 	/**
@@ -368,12 +374,12 @@ class Repository extends Object {
 	private function toKey($id, $config) {
 		if (is_array($id)) {
 			if (count($config['id']) != count($id)) {
-				throw new \Exception('Incomplete id, table: "' . $config['table'] . '" requires: "' . human_implode('", "', $config['id']) . '"');
+				throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['id']).'"');
 			}
 			$keys = array();
 			foreach ($config['id'] as $column) {
 				if (isset($id[$column]) == false) {
-					throw new \Exception('Field: "' . $column . '" missing from id');
+					throw new \Exception('Field: "'.$column.'" missing from id');
 				}
 				$keys[$column] = $id[$column];
 			}
@@ -426,7 +432,6 @@ class Repository extends Object {
 		}
 		return $id;
 	}
-
 
 }
 
