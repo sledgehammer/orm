@@ -320,7 +320,8 @@ abstract class Record extends Object {
 			return $collection;
 		}
 		$arguments = func_get_args();
-		$collection->where = call_user_func_array(array($this, 'buildRestriction'), $arguments); // Roep $this->buildRestriction() aan met dezelde parameters as deze functie
+		$where = call_user_func_array(array($this, 'buildRestriction'), $arguments); // Roep $this->buildRestriction() aan met dezelde parameters as deze functie
+		$collection->where($where);
 		return $collection;
 	}
 	
@@ -561,8 +562,8 @@ abstract class Record extends Object {
 				if ($class) {
 					$record = new $class('__STATIC__', array('dbLink' => $this->_dbLink));
 				} else {
-					// Geen geschikte class gevonden, probeer of er een tabel bestaat met dezelde naam als de property
-					$record = new SimpleRecord($property, '__STATIC__', array('dbLink' => $this->_dbLink));
+					// Geen geschikte class gevonden, probeer of er een tabel bestaat met dezelde naam als de property(+'s')
+					$record = new SimpleRecord($property.'s', '__STATIC__', array('dbLink' => $this->_dbLink));
 				}
 
 				$this->_belongsTo[$property]['record'] = $record;
@@ -647,8 +648,8 @@ abstract class Record extends Object {
 	 * @return SQL
 	 */
 	protected function buildSelect($restriction, $args = null) {
-		$sql = new SQL; // Gebruik SQL zodat columns ook een array kan zijn
-		$sql->select($this->_columns)->from($this->_table);
+		// Gebruik de SQL class zodat columns ook een array kan zijn
+		$sql = select($this->_columns)->from($this->_table);
 		if (func_num_args() == 1 && is_array($restriction) == false) { // PrimaryKey restriction
 			$db = getDatabase($this->_dbLink);
 			$primaryKeys = $db->getPrimaryKeys($this->_table);

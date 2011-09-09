@@ -343,8 +343,7 @@ class RecordRelation extends Object implements \ArrayAccess, \Countable, \Iterat
 		}
 		$db = getDatabase($this->dbLink);
 		$where = $db->quoteIdentifier($this->foreignKey).' = '.$db->quote($this->foreignId);
-		$sql = new SQL();
-       	$sql->select($this->columns)->from($this->table)->where($where);
+       	$sql = select($this->columns)->from($this->table)->where($where);
 		if ($this->keyColumn === null) {
 			$keys = getDatabase($this->dbLink)->getPrimaryKeys($this->table);
 			if (count($keys) == 1) {

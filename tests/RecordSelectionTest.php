@@ -10,18 +10,18 @@ class RecordSelectionTest extends DatabaseTestCase {
 	function fillDatabase($db) {
 		$db->import(dirname(__FILE__).'/rebuild_test_database.sql', $error);
 //		set_error_handler('SledgeHammer\ErrorHandler_trigger_error_callback');
-		$db->query('INSERT INTO klant (name, occupation) VALUES ("Mario", "Loodgieter")');
+		$db->query('INSERT INTO customers (name, occupation) VALUES ("Mario", "Loodgieter")');
 	}
 	
 	function test_collection() {
 		$db = getDatabase($this->dbLink);
-		$info = $db->tableInfo('klant');
+		$info = $db->tableInfo('customers');
 		
-		$klant = new SimpleRecord('klant', '__STATIC__', array('dbLink' => $this->dbLink));
+		$klant = new SimpleRecord('customers', '__STATIC__', array('dbLink' => $this->dbLink));
 		$klantenZonderB = $klant->all()->andWhere('name NOT LIKE "B%"');
 
 		$this->assertEqual($klantenZonderB->count(), 2);
-		$this->assertLastQuery("SELECT * FROM klant WHERE name NOT LIKE \"B%\"");
+		$this->assertLastQuery("SELECT * FROM customers WHERE name NOT LIKE \"B%\"");
 /*
 		$klanten  = $klant->all();
 		$rCollection = new RecordSelection($klant);
@@ -40,7 +40,7 @@ class RecordSelectionTest extends DatabaseTestCase {
 		$collection = $this->getKlantCollection();
 		// dump($collection);
 		$this->assertEqual(3, count($collection));
-		$this->assertLastQuery("SELECT * FROM klant");
+		$this->assertLastQuery("SELECT * FROM customers");
 	}
 
 	private function getKlantCollection() {
@@ -48,7 +48,7 @@ class RecordSelectionTest extends DatabaseTestCase {
         $collection = new RecordSelection(array(
 			'dbLink' => $this->dbLink,
 		));
-		$collection->select('*')->from('klant');
+		$collection->select('*')->from('customers');
        	return $collection;
     }
 
@@ -58,23 +58,22 @@ class RecordSelectionTest extends DatabaseTestCase {
 		$sql = new SQL();
 		$sql->select('*')
 		    ->from('klant AS k')
-				->innerJoin('bestelling', 'k.id = klant_id')
+				->innerJoin('orders', 'k.id = klant_id')
 				->andWhere('k.id = 1');
 		/*$sql->appendTable('klant');
 		$sql->appendTable('klant');
 */
-		$sql->where[] = 'bestelling.id = 1';
+		$sql->where[] = 'orders.id = 1';
 		$this->assertEqual($sql, 
 'SELECT
  *
 FROM
- klant AS k
- INNER JOIN bestelling ON (k.id = klant_id)
+ customers AS c
+ INNER JOIN orders ON (c.id = customer_id)
 WHERE
- k.id = 1 AND bestelling.id = 1');
+ c.id = 1 AND orders.id = 1');
 		//dump($sql);
 		//dump((string) $sql);
-		set_error_handler('ErrorHandler_trigger_error_callback');
 		$db = $this->getDatabase();
 		$db->query($sql);
 		return;

@@ -2,24 +2,26 @@
 -- Test database voor DAO unittests
 
 -- Tabel met een auto_increment ID
-CREATE TABLE klant (
+CREATE TABLE customers (
 	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY ,
 	name VARCHAR(25) NOT NULL ,
 	occupation TEXT NOT NULL
 ) ENGINE = InnoDB;
 
-INSERT INTO klant (name, occupation) VALUES 
+INSERT INTO customers (name, occupation) VALUES 
 	("Bob Fanger", "Software ontwikkelaar"),
 	("James Bond", "Spion");
 
-CREATE TABLE bestelling (
+CREATE TABLE orders (
 	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY ,
-	klant_id INT NOT NULL,
-	product VARCHAR(25) NOT NULL 
+	customer_id INT NOT NULL,
+	product VARCHAR(25) NOT NULL,
+--	KEY customer_id (customer_id),
+	CONSTRAINT belongs_to_customer FOREIGN KEY (customer_id) REFERENCES customers (id)
+ 
 ) ENGINE = InnoDB;
--- todo foreignkey
 
-INSERT INTO bestelling (klant_id, product) VALUES 
+INSERT INTO orders (customer_id, product) VALUES 
 	(1, "Kop koffie"),
 	(2, "Walter PPK 9mm"),
 	(2, "Spycam");

@@ -5,7 +5,7 @@
  * @package Record
  */
 namespace SledgeHammer;
-class RecordSelection extends SQL implements \Countable, \Iterator {
+class RecordSelection extends Object implements \Countable, \Iterator {
 
 	/**
 	 * @var string $record
@@ -18,6 +18,11 @@ class RecordSelection extends SQL implements \Countable, \Iterator {
 	private
 		$isDirty = true, // Geeft aan of het eisenpakket is aangepast en dat er opnieuw een query gegenereerd moet worden
 		$iterator;
+	
+	/**
+	 * @var SQL
+	 */
+	private $sql;
 	/**
 	 * @param Record $record  Een record (in STATIC mode)
 	 */
@@ -28,6 +33,14 @@ class RecordSelection extends SQL implements \Countable, \Iterator {
 			'skipValidation' => true,
 		);
 		$this->recordOptions = array_merge($defaultOptions, $recordOptions);
+		$this->sql = new SQL();
+	}
+	
+	public function __call($method, $arguments) {
+		$sql = call_user_func_array(array($this->sql, $method), $arguments);
+		$this->sql = $sql;
+		$this->isDirty = true;
+		return $this;
 	}
 
     //###################
@@ -71,7 +84,7 @@ class RecordSelection extends SQL implements \Countable, \Iterator {
 	private function getValidIterator() {
 		if ($this->isDirty) {
 			$db = getDatabase($this->recordOptions['dbLink']);
-			$this->iterator = $db->query($this, $this->keyColumn);
+			$this->iterator = $db->query($this->sql, $this->keyColumn);
 			if ($this->iterator == false) {
 				throw new \Exception('Invalid results for query "'.$this.'"');
 			}
