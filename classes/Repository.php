@@ -217,20 +217,55 @@ class Repository extends Object {
 	}
 
 	/**
+	 * Store the new instance
+	 *
+	 * @param string $model
+	 * @param stdClass $instance
+	 * @param $ignore_relations' => bool  true: Only save the instance,  false: Save all connected instances, 
+	 */
+	function add($model, $instance, $ignoreRelations = false) {
+		$options = array(
+			'add_unknown_instance' => true,
+			'ignore_relations' => $ignoreRelations
+		);
+		return $this->save($model, $instance, $options);
+	}
+	/**
 	 * Store the instance
 	 *
 	 * @param string $model
 	 * @param stdClass $instance
-	 * @param bool $ignoreRelations  false: Save all connected instances, true: only save this instance
+	 * @param array $options
+	 *   'ignore_relations' => bool  true: Only save the instance,  false: Save all connected instances, 
+	 *   'add_unknown_instance' => bool, false: Reject unknown instances. (use $Repository->add())
+	 *   'reject_unknown_related_instances' => bool, false: Auto adds unknown instances
+	 *   'keep_missing_related_instances' => bool, false: Auto deletes removed instances
+	 * }
 	 */
-	function save($model, $instance, $ignoreRelations = false) {
+	function save($model, $instance, $options = array()) {
+		$relationSaveOptions = $options;
+		$relationSaveOptions['add_unknown_instance'] = (value($option['reject_unknown_related_instances']) == false);
 		$config = $this->toConfig($model);
 		$key = $this->toKey($instance, $config);
-		$current = @$this->objects[$model][$key];
+		if ($key === null) {
+			$current = null;
+		} else {
+			$current = @$this->objects[$model][$key];
+		}
+		if ($current === null && value($options['add_unknown_instance']) == false) {
+			throw new \Exception('The instance is not bound to this Repository');
+		} else {
+			$this->objects[$model][$key] = array(
+				'instance' => $instance,
+				'references' => array(),
+			);
+		}
 		if ($current !== null && $current['state'] == 'saving') { // Voorkom oneindige recursion
 			return;
 		}
-		$this->objects[$model][$key]['state'] = 'saving';
+		if ($key !== null) {
+			$this->objects[$model][$key]['state'] = 'saving';
+		}
 		try {
 			$hasMany = array();
 			$data = array();
@@ -244,21 +279,20 @@ class Repository extends Object {
 					switch ($relation['type']) {
 
 						case 'hasMany':
-							if ($ignoreRelations) {
+							if (value($options['ignore_relations'])) {
 								break;
 							}
 							$relation['collection'] = $instance->$property;
 							$hasMany[$property] = $relation;
-
 							break;
 
 						case 'belongsTo':
-							if ($ignoreRelations) {
+							if (value($options['ignore_relations'])) {
 								break;
 							}
 							$belongsTo = $instance->$property;
 							if (($belongsTo instanceof BelongsToPlaceholder) == false) {
-								$this->save($relation['model'], $belongsTo);
+								$this->save($relation['model'], $belongsTo, $relationSaveOptions);
 							}
 							$idProperty = $relation['id'];
 							$data[$relation['reference']] = $belongsTo->$idProperty;
@@ -272,6 +306,11 @@ class Repository extends Object {
 			// Save the instance
 			if ($current === null) { // New instance?
 				$this->toBackend($config)->add($data, $config);
+				if ($key === null) { // auto increment?
+					$idColumn = $config['id'][0];
+					$key = $data[$idColumn];
+					$instance->$idColumn = $key;
+				}
 				$this->objects[$model][$key]['instance'] = $instance;
 				$this->objects[$model][$key]['data'] = $data;
 			} else { // Existing instance?
@@ -293,20 +332,26 @@ class Repository extends Object {
 				if ($collection instanceof \Iterator) {
 					$collection = iterator_to_array($collection);
 				}
-				foreach ($collection as $item) {
-					// Connect the item to this instance
-					foreach ($relationConfig['mapping'] as $property2 => $relation2) {
-						if ($relation2['type'] == 'belongsTo' && $relation['reference'] == $relation2['reference']) {
-							$item->$property2 = $instance;
+				if ($collection === null) {
+					notice('Unexpected type NULL for property "'.$property.'", expecting an array or Iterator');
+				} else {
+					foreach ($collection as $item) {
+						// Connect the item to this instance
+						foreach ($relationConfig['mapping'] as $property2 => $relation2) {
+							if ($relation2['type'] == 'belongsTo' && $relation['reference'] == $relation2['reference']) {
+								$item->$property2 = $instance;
+							}
 						}
+						$this->save($relation['model'], $item, $relationSaveOptions);
 					}
-					$this->save($relation['model'], $item);
-				}
-				// Delete items that are no longer in the relation
-				$old = $this->objects[$model][$key]['references'][$property];
-				foreach ($old as $item) {
-					if (array_search($item, $collection, true) === false) {
-						$this->remove($relation['model'], $item);
+					if (value($options['keep_missing_related_instances']) == false) {
+						// Delete items that are no longer in the relation
+						$old = $this->objects[$model][$key]['references'][$property];
+						foreach ($old as $item) {
+							if (array_search($item, $collection, true) === false) {
+								$this->remove($relation['model'], $item);
+							}
+						}
 					}
 				}
 			}
@@ -331,6 +376,41 @@ class Repository extends Object {
 
 	function isConfigured($model) {
 		return isset($this->configs[$model]);
+	}
+
+	/**
+	 * Get the unsaved changes.
+	 *
+	 * @param string $model
+	 * @param stdClass $instance
+	 * @return array
+	 */
+	function diff($model, $instance) {
+		$config = $this->toConfig($model);
+		$key = $this->toKey($instance, $config);
+		$current = @$this->objects[$model][$key];
+		$changes = array();
+		foreach ($config['mapping'] as $property => $relation) {
+			$value = $instance->$property;
+			if ($current !== null) {
+				if (is_string($relation)) {
+					$previous = $current['data'][$relation];
+				} else {
+					// @todo
+					notice('TODO');
+					$previous = null;
+				}
+				if ($previous !== $value) {
+					$changes[$property]['previous'] = $previous;
+				}
+			} else {
+				$previous = null;
+			}
+			if ($previous !== $value) {
+				$changes[$property]['next'] = $value;
+			}
+		}
+		return $changes;
 	}
 
 	protected function register($model, $config) {

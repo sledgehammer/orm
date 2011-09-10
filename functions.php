@@ -7,13 +7,13 @@ namespace SledgeHammer;
  *
  * @return Repository 
  */
-function getRepository($id = 'master') {
+function getRepository($id = 'default') {
 	if (isset($GLOBALS['Repositories'][$id])) {
 		return $GLOBALS['Repositories'][$id];
 	}
-	if ($id == 'master') {
-		$GLOBALS['Repositories']['master'] =  new Repository();
-		return $GLOBALS['Repositories']['master'];
+	if ($id == 'default') {
+		$GLOBALS['Repositories']['default'] =  new Repository();
+		return $GLOBALS['Repositories']['default'];
 	}
 	throw new \Exception('Repository: $GLOBALS[\'Repositories\'][\''.$id.'\'] doesn\'t exist');
 }
