@@ -40,9 +40,12 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				'table' => $tableName,
 				'id' => null,
 				'mapping' => array(),
+				'defaults' => array(),
 			);
 			$config['id'] = $table['primaryKeys'];
 			foreach ($table['columns'] as $column => $info) {
+				$default = @$info['default'];
+				$config['defaults'][$column] = $default;
 				if (isset($info['foreignKeys'])) {
 					if (count($info['foreignKeys']) > 1) {
 						notice('Multiple foreign-keys per column not supported');
@@ -128,7 +131,14 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 		return $db->fetch_row($sql);
 	}
-
+	
+	function save($new, $old, $config) {
+		if ($old === null) {
+			return $this->insert($new, $config);
+		}
+		return $this->update($new, $old, $config);
+	}
+	
 	function update($new, $old, $config) {
 		$db = getDatabase($config['dbLink']);
 		$changes = array();
@@ -155,11 +165,11 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		$result = $this->execute($sql, $config['dbLink']);
 		if ($result == false) {
 			throw new \Exception('Updating record "' . implode(' + ', $id) . '" failed');
-			;
 		}
+		return $new;
 	}
-
-	function add(&$data, $config) {
+	
+	function insert($data, $config) {
 		$db = getDatabase($config['dbLink']);
 		$columns = array();
 		$values = array();
@@ -184,8 +194,8 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					notice('Implement insert_id for '.get_class($db));
 				}
 			}
-
 		}
+		return $data;
 	}
 
 	/**
@@ -295,14 +305,38 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 						'type' => $parts[1],
 					);
 					$columnConfig = &$config['columns'][$column];
-					unset($parts[0], $parts[1]);
-					foreach ($parts as $index => $part) {
+					//unset($parts[0], $parts[1]);
+					//foreach ($parts as $index => $part) {
+					for ($i = 2; $i < count($parts); $i++) {
+						$part = $parts[$i];
+
 						switch ($part) {
 							case 'NOT_NULL';
 								$columnConfig['null'] = false;
 								break;
 
 							case 'AUTO_INCREMENT': break;
+							
+							case 'DEFAULT':
+								$default = '';
+								while($part = $parts[$i + 1]) {
+									$i++;
+									$default .= $part;
+									if (substr($default, 0, 1) != "'") { // Not a quoted string value?
+										break; // end for loop
+									}
+									if (substr($default, -1) == "'") { // End of quoted string? 
+										break; // end for loop
+									}
+									$default .= ' ';
+								}
+								if (substr($default, 0, 1) == "'") {
+									$config['columns'][$column]['default'] = substr($default, 1, -1); // remove quotes
+								} else {
+									notice('Unknown default "' . $default . '" in "' . $line . '"');
+									$config['columns'][$column]['default'] = $default;
+								}
+								break;
 
 							default:
 								notice('Unknown part "' . $part . '" in "' . $line . '"');

@@ -25,6 +25,10 @@ class Repository extends Object {
 	protected $objects = array();
 
 	/**
+	 * @var array  references to instances that are not yet added to the backend
+	 */
+	protected $created = array();
+	/**
 	 * @var array registerd backends
 	 */
 	protected $backends = array();
@@ -47,7 +51,7 @@ class Repository extends Object {
 			}
 			return $this->loadCollection($matches[1]);
 		}
-		if (preg_match('/^(get|save|remove|add)(.+)$/', $method, $matches)) {
+		if (preg_match('/^(get|save|remove|add|create)(.+)$/', $method, $matches)) {
 			$method = $matches[1];
 			array_unshift($arguments, $matches[2]);
 			return call_user_func_array(array($this, $method), $arguments);
@@ -240,6 +244,28 @@ class Repository extends Object {
 				
 		return $this->save($model, $instance, $options);
 	}
+
+	/**
+	 * 
+	 */
+	function create($model, $data = array()) {
+		$config = $this->_getConfig($model);
+		$data = array_merge($config['defaults'], $data);
+		$instance = 
+		// @todo Special mapping
+		$index = uniqid('TMP-');
+		$this->objects[$model][$index] = array(
+			'state' => 'new',
+			'instance' => null,
+			'data' => null,
+			'belongsTo' => array(),
+			'hasMany' => array(),
+		);
+		$instance = $this->convertToInstance($data, $config, $index);
+		$this->objects[$model][$index]['instance'] = $instance;
+		$this->created[$model][$index] = $instance;
+		return $instance;
+	}
 	/**
 	 * Store the instance
 	 *
@@ -419,12 +445,14 @@ class Repository extends Object {
 		return $changes;
 	}
 	
-	protected function convertToInstance($data, $config) {
+	protected function convertToInstance($data, $config, $index = null) {
 		$class = $config['class'];
 		$to = new $class;
 		$from = $data;
 		$model = $config['model'];
-		$index = $this->resolveIndex($data, $config);
+		if ($index === null) {
+			$index = $this->resolveIndex($data, $config);
+		}
 		// Map the data onto the instance
 		foreach ($config['mapping'] as $property => $relation) {
 			if (is_string($relation)) {
@@ -641,6 +669,14 @@ class Repository extends Object {
 		if (is_object($from)) {
 			if ($key !== false) {
 				// @todo check $config['mapping']
+				if (value($from->$key) === null) {
+					foreach ($this->created[$config['model']] as $index => $created) {
+						if ($from === $created) {
+							return $index;
+						}
+					}
+					throw new \Exception('Failed to resolve index, missing property: "'.$key.'"');
+				}
 				return $this->resolveIndex($from->$key);
 			}
 			throw new \Exception('Not implemented');

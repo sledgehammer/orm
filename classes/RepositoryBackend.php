@@ -20,6 +20,18 @@ abstract class RepositoryBackend extends Object {
 	 * @return stdClass instance
 	 */
 	abstract function get($id, $config);
+
+	function save($new, $old, $config) {
+		throw new \Exception('Not implemented');
+	}
+	
+	function add($data, $config) {
+		throw new \Exception('Not implemented');
+	}
+	
+	function remove($row, $config) {
+		throw new \Exception('Not implemented');
+	}
 }
 
 ?>
