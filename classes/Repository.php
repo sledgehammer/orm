@@ -1,6 +1,9 @@
 <?php
 /**
  * Repository/DataMapper
+ * 
+ * An API to retrieve and store models from their backends and track their changes.
+ * A model is a view on top of the data the backend provides.
  *
  * @package Record
  */
@@ -31,6 +34,12 @@ class Repository extends Object {
 		$GLOBALS['Repositories'][$this->id] = &$this;
 	}
 
+	/**
+	 * Catch methods 
+	 * @param string $method
+	 * @param array $arguments
+	 * @return mixed 
+	 */
 	function __call($method, $arguments) {
 		if (preg_match('/^get(.+)Collection$/', $method, $matches)) {
 			if (count($arguments) > 0) {
@@ -55,18 +64,35 @@ class Repository extends Object {
 	 * @return instance
 	 */
 	function get($model, $id, $preload = false) {
-		if ($id === null) {
-			throw new \Exception('Parameter $id is required');
+		$config = $this->_getConfig($model);
+		$index = $this->resolveIndex($id, $config);
+		$object = @$this->objects[$model][$index];
+		if ($object !== null) {
+			return $object['instance'];
 		}
-		$config = $this->toConfig($model);
-
-		$key = $this->toKey($id, $config);
-		$instance = @$this->objects[$model][$key]['instance'];
-		if ($instance !== null) {
-			return $instance;
+		$this->objects[$model][$index] = array(
+			'state' => 'retrieving',
+			'instance' => null,
+			'data' => null,
+			'belongsTo' => array(),
+			'hasMany' => array(),
+		);
+		$data = $this->_getBackend($config['backend'])->get($id, $config);
+		$this->objects[$model][$index]['data'] = $data;
+		$this->objects[$model][$index]['state'] = 'retrieved';
+		
+		$instance = $this->convertToInstance($data, $config);
+		$this->objects[$model][$index]['instance'] = $instance;
+		if ($preload) {
+			foreach (array('belongsTo', 'hasMany') as $relation) {
+				foreach ($this->objects[$model][$index][$relation] as $property => $reference) {
+					if ($reference === true) {
+						$this->loadAssociation($model, $instance, $property, true);
+					}
+				}	
+			}
 		}
-		$data = $this->toBackend($config)->get($id, $config);
-		return $this->create($model, $data, $preload);
+		return $instance;
 	}
 
 	/**
@@ -78,87 +104,25 @@ class Repository extends Object {
 	 * @param bool $preload  Load relations direct
 	 * @return instance
 	 */
-	function create($model, $data, $preload = false) {
+	function convert($model, $data, $preload = false) {
 		if ($data === null) {
 			throw new \Exception('Parameter $data is required');
 		}
-		$config = $this->toConfig($model);
-		$id = $this->toId($data, $config);
-		$key = $this->toKey($id, $config);
+		$config = $this->_getConfig($model);
+		$index = $this->resolveIndex($data, $config);
 
-		$instance = @$this->objects[$model][$key]['instance'];
-		if ($instance !== null) {
-			// @todo validate existing data
-			return $instance;
+		$object = @$this->objects[$model][$index];
+		if ($object !== null) {
+			// @todo validate $data against $object['data']
+			return $object['instance'];
 		}
-		$key = $this->toKey($id, $config);
-
-		// Create new instance
-		$definition = $config['class'];
-		$instance = new $definition();
-		$this->objects[$model][$key] = array(
-			'instance' => $instance,
+		$this->objects[$model][$index] = array(
+			'state' => 'retrieved',
+			'instance' => null,
 			'data' => $data,
-			'state' => 'loading',
-			'references' => array()
 		);
-
-		// Map the data onto the instance
-		foreach ($config['mapping'] as $property => $relation) {
-			if (is_string($relation)) {
-				$instance->$property = $data[$relation];
-			} else {
-				switch ($relation['type']) {
-
-					case 'belongsTo':
-						$belongsToId = $data[$relation['reference']];
-						if ($belongsToId != null) {
-							if (empty($relation['model'])) {
-								warning('Unable to determine model for property "'.$property.'"');
-							}
-							$belongsToInstance = @$this->objects[$relation['model']][$belongsToId]['instance'];
-							if ($belongsToInstance !== null) {
-								$instance->$property = $belongsToInstance;
-							} else {
-								if ($preload) {
-									$instance->$property = $this->get($relation['model'], $belongsToId, $preload);
-								} else {
-									$instance->$property = new BelongsToPlaceholder(array(
-										'repository' => $this->id,
-										'model' => $relation['model'],
-										'id' => $belongsToId,
-										'fields' => array(
-											$relation['id'] => $belongsToId
-										),
-										'property' => $property,
-										'container' => $instance,
-									));
-								}
-							}
-						}
-						break;
-
-					case 'hasMany':
-						if ($preload) {
-							$this->loadAssociation($model, $instance, $property);
-						} else {
-							$instance->$property = new HasManyPlaceholder(array(
-								'repository' => $this->id,
-								'container' => array(
-									'model' => $model,
-									'id' => $id,
-								),
-								'property' => $property,
-							));
-						}
-						break;
-
-					default:
-						throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
-				}
-			}
-		}
-		$this->objects[$model][$key]['state'] = 'loaded';
+		$instance = $this->convertToInstance($data, $config, $preload);
+		$this->objects[$model][$index]['instance'] = $instance;
 		return $instance;
 	}
 
@@ -168,7 +132,7 @@ class Repository extends Object {
 	 * @return Collection
 	 */
 	function loadCollection($model) {
-		$config = $this->toConfig($model);
+		$config = $this->_getConfig($model);
 		$config['repository'] = $this->id;
 		// @todo support for multiple backends
 		$sql = select('*')->from($config['table']);
@@ -177,20 +141,43 @@ class Repository extends Object {
 		return $collection;
 	}
 
-	function loadAssociation($model, $instance, $property) {
-		$config = $this->toConfig($model);
-		if (count($config['id']) != 1) {
-			throw new \Exception('Complex keys not (yet) supported for hasMany relations');
+	function loadAssociation($model, $instance, $property, $preload = false) {
+		$config = $this->_getConfig($model);
+		$index = $this->resolveIndex($instance, $config);
+		
+		$object = @$this->objects[$model][$index];
+		if ($object === null || ($instance !== $object['instance'])) {
+			throw new \Exception('Instance not bound to this repository');
 		}
 		$relation = $config['mapping'][$property];
-		$id = $instance->{$config['id'][0]};
-		// @todo support for multiple backends, by using the (pure) Collection methods
+//		dump($model.'->'.$property);
+		switch ($relation['type']) {
 
-		$collection = $this->loadCollection($relation['model']);
-		$collection->sql = $collection->sql->andWhere($relation['reference'].' = '.$id);
-		$items = $collection->asArray();
-		$this->objects[$model][$id]['references'][$property] = $items; // Add a copy for change detection
-		$instance->$property = $items;
+			case 'belongsTo':
+				$id = $object['data'][$relation['reference']];
+				if ($id === null) {
+					dump($object);
+					throw new \Exception('Now what?');
+				}
+				$instance->$property = $this->get($relation['model'], $id, $preload);
+				$this->objects[$model][$index]['references'][$property] = $instance->$property;
+				break;
+			
+			case 'hasMany':
+				if (count($config['id']) != 1) {
+					throw new \Exception('Complex keys not (yet) supported for hasMany relations');
+				}
+				$id = $instance->{$config['id'][0]};
+				$collection = $this->loadCollection($relation['model'])->where(array($relation['reference'] => $id));
+				$items = $collection->asArray();
+				$this->objects[$model][$index]['references'][$property] = $items; // Add a copy for change detection
+				$instance->$property = $items;
+				break;
+			
+			default:
+				throw new \Exception('Invalid relation-type: '.$relation['type']);
+		}
+		
 	}
 
 	/**
@@ -200,20 +187,19 @@ class Repository extends Object {
 	 * @param instance $instance
 	 */
 	function remove($model, $instance) {
-		$config = $this->toConfig($model);
-		$key = $this->toKey($instance, $config);
-		$object = @$this->objects[$model][$key];
+		$config = $this->_getConfig($model);
+		$index = $this->resolveIndex($instance, $config);
+		$object = @$this->objects[$model][$index];
 		if ($object === null) {
 			throw new \Exception('The instance is not bound to this Repository');
 		}
-
 //		$data = $this->toData($instance, $config['mapping']);
 //		if (serialize($data) != serialize($object['data'])) {
 //			throw new \Exception('The instance contains unsaved changes'); // Should we throw this Exception here?
 //		}
 		// @todo add multiple backends
-		$this->toBackend($config)->remove($object['data'], $config);
-		$this->objects[$model][$key]['state'] = 'removed';
+		$this->_getBackend($config['backend'])->remove($object['data'], $config);
+		$this->objects[$model][$index]['state'] = 'removed';
 	}
 
 	/**
@@ -228,6 +214,30 @@ class Repository extends Object {
 			'add_unknown_instance' => true,
 			'ignore_relations' => $ignoreRelations
 		);
+				
+				
+
+				
+		// Save the instance
+//		if ($current === null) { // New instance?
+//			$this->_getBackend($config)->add($data, $config);
+//			$index = $this->resolveIndex($data, $config);
+//			if (isset($this->objects[$model][$index])) {
+//				warning('Overriding a bound instance');
+//			}
+//			if ($index === null) { // auto increment?
+//				$idColumn = $config['id'][0];
+//				$id = $data[$idColumn];
+//				$instance->$idColumn = $id;
+//			}				
+//			$this->objects[$model][$index]['instance'] = $instance;
+//			$this->objects[$model][$index]['data'] = $data;
+//			$this->objects[$model][$index]['state'] = 'saving';
+//		} else { // Existing instance?
+		
+		throw new \Exception('Reimplement add');
+
+				
 		return $this->save($model, $instance, $options);
 	}
 	/**
@@ -245,108 +255,90 @@ class Repository extends Object {
 	function save($model, $instance, $options = array()) {
 		$relationSaveOptions = $options;
 		$relationSaveOptions['add_unknown_instance'] = (value($option['reject_unknown_related_instances']) == false);
-		$config = $this->toConfig($model);
-		$key = $this->toKey($instance, $config);
-		if ($key === null) {
-			$current = null;
-		} else {
-			$current = @$this->objects[$model][$key];
+		$config = $this->_getConfig($model);
+		$data = array();
+		$index = null;
+		$object = null;
+		try {
+			$index = $this->resolveIndex($instance, $config);
+		} catch (\Exception $e) {
+			if (value($options['add_unknown_instance']) == false) {
+				throw $e;
+			}
+			notice('Unable to dermine index, probably a new instance (use Repository->add()) for those', $e->getMessage());
+			throw $e;
+
+//			ErrorHandler::handle_exception($e);
+//			throw new \Exception('Reimplement add');
+			// @todo Check if the instance is bound to another $index 
 		}
-		if ($current === null && value($options['add_unknown_instance']) == false) {
+		$object = @$this->objects[$model][$index];
+		if ($object === null) {
+			// @todo Check if the instance is bound to another $index 
 			throw new \Exception('The instance is not bound to this Repository');
-		} else {
-			$this->objects[$model][$key] = array(
-				'instance' => $instance,
-				'references' => array(),
-			);
 		}
-		if ($current !== null && $current['state'] == 'saving') { // Voorkom oneindige recursion
+		if ($object['state'] == 'saving') { // Voorkom oneindige recursion
 			return;
 		}
-		if ($key !== null) {
-			$this->objects[$model][$key]['state'] = 'saving';
+		if ($object['instance'] !== $instance) {
+			// id/index change-detection
+			foreach ($this->objects[$model] as $object) {
+				if ($object['instance'] === $instance) {
+					throw new \Exception('Change rejected, the index changed from '.$this->resolveIndex($object['data'], $config).' to '.$index);
+				}
+			}
+			throw new \Exception('The instance is not bound to this Repository');
 		}
-		try {
-			$hasMany = array();
-			$data = array();
-			// Map to data and save  the belongsTo instances
-			foreach ($config['mapping'] as $property => $relation) {
-				if (is_string($relation)) { // direct property to column mapping
-					if (property_exists($instance, $property)) {
-						$data[$relation] = $instance->$property;
-					}
-				} else {
-					switch ($relation['type']) {
-
-						case 'hasMany':
-							if (value($options['ignore_relations'])) {
-								break;
-							}
-							$relation['collection'] = $instance->$property;
-							$hasMany[$property] = $relation;
-							break;
-
-						case 'belongsTo':
-							if (value($options['ignore_relations'])) {
-								break;
-							}
-							$belongsTo = $instance->$property;
-							if (($belongsTo instanceof BelongsToPlaceholder) == false) {
-								$this->save($relation['model'], $belongsTo, $relationSaveOptions);
-							}
-							$idProperty = $relation['id'];
-							$data[$relation['reference']] = $belongsTo->$idProperty;
-							break;
-
-						default:
-							throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
-					}
+		$this->objects[$model][$index]['state'] = 'saving';
+		
+		// Save belongsTo
+		if (value($options['ignore_relations']) == false) {  
+			foreach ($object['belongsTo'] as $property => $value) {
+				if ($instance->$property !== null && ($instance->$property instanceof BelongsToPlaceholder) == false) {
+					$relation = $config['mapping'][$property];
+					$this->save($relation['model'], $instance->$property, $relationSaveOptions);
 				}
 			}
-			// Save the instance
-			if ($current === null) { // New instance?
-				$this->toBackend($config)->add($data, $config);
-				if ($key === null) { // auto increment?
-					$idColumn = $config['id'][0];
-					$key = $data[$idColumn];
-					$instance->$idColumn = $key;
-				}
-				$this->objects[$model][$key]['instance'] = $instance;
-				$this->objects[$model][$key]['data'] = $data;
-			} else { // Existing instance?
-				if ($current['instance'] !== $instance) {
-					// @todo ID change detection
-					throw new \Exception('The instance is not bound to this Repository');
-				}
-				$this->toBackend($config)->update($data, $current['data'], $config);
-				$this->objects[$model][$key]['data'] = $data;
-			}
-			// Save the connected instances
-			$this->objects[$model][$key]['state'] = 'saving';
-			foreach ($hasMany as $property => $relation) {
-				if (($relation['collection'] instanceof HasManyPlaceholder)) {
+		}
+		
+		// Save instance
+		$data = $this->convertToData($object['instance'], $config);
+		$this->_getBackend($config['backend'])->update($data, $object['data'], $config);
+		$this->objects[$model][$index]['data'] = $data;
+		
+		// Save hasMany
+		if (value($options['ignore_relations']) == false) {  
+			foreach ($object['hasMany'] as $property => $old) {
+				if ($instance->$property instanceof HasManyPlaceholder) {
 					continue; // No changes (It's not even accessed)
 				}
-				$relationConfig = $this->toConfig($relation['model']);
-				$collection = $relation['collection'];
+				$relation = $config['mapping'][$property];
+				$relationConfig = $this->_getConfig($relation['model']);
+				$collection = $instance->$property;
 				if ($collection instanceof \Iterator) {
 					$collection = iterator_to_array($collection);
 				}
 				if ($collection === null) {
-					notice('Unexpected type NULL for property "'.$property.'", expecting an array or Iterator');
-				} else {
-					foreach ($collection as $item) {
-						// Connect the item to this instance
-						foreach ($relationConfig['mapping'] as $property2 => $relation2) {
-							if ($relation2['type'] == 'belongsTo' && $relation['reference'] == $relation2['reference']) {
-								$item->$property2 = $instance;
-							}
+					notice('Expecting an array for property "'.$property.'"');
+					$collection = array();
+				}
+				foreach ($collection as $item) {
+					// Connect the item to this instance
+					foreach ($relationConfig['mapping'] as $property2 => $relation2) {
+						if ($relation2['type'] == 'belongsTo' && $relation['reference'] == $relation2['reference']) {
+							$item->$property2 = $instance;
 						}
-						$this->save($relation['model'], $item, $relationSaveOptions);
 					}
-					if (value($options['keep_missing_related_instances']) == false) {
-						// Delete items that are no longer in the relation
-						$old = $this->objects[$model][$key]['references'][$property];
+					$this->save($relation['model'], $item, $relationSaveOptions);
+				}
+				if (value($options['keep_missing_related_instances']) == false) {
+					// Delete items that are no longer in the relation
+//					$old = @$this->objects[$model][$index]['references'][$property];
+					dump($old);
+					if ($old !== null) {
+						if ($collection === null && count($old) > 0) {
+							notice('Unexpected type NULL for property "'.$property.'", expecting an array or Iterator');
+						}
 						foreach ($old as $item) {
 							if (array_search($item, $collection, true) === false) {
 								$this->remove($relation['model'], $item);
@@ -354,12 +346,27 @@ class Repository extends Object {
 						}
 					}
 				}
+
+				
+			// Save the connected instances
+//			$this->objects[$model][$index]['state'] = 'saving';
+//			foreach ($hasMany as $property => $relation) {
+//				if (($relation['collection'] instanceof HasManyPlaceholder)) {
+//					continue; // No changes (It's not even accessed)
+//				}
+//				
+//			}
+//		} catch (\Exception $e) {
+//			if ($this->objects[$model][$index]['instance'] === $instance) {
+//				$this->objects[$model][$index]['state'] = 'unknown';
+//			}
+//			ErrorHandler::handle_exception($e);
+//			throw $e;
+//		}
+	
 			}
-		} catch (\Exception $e) {
-			$this->objects[$model][$key]['state'] = 'unknown';
-			throw $e;
 		}
-		$this->objects[$model][$key]['state'] = 'saved';
+		$this->objects[$model][$index]['state'] = 'saved';
 	}
 
 	function registerBackend($backend, $id = null) {
@@ -386,19 +393,18 @@ class Repository extends Object {
 	 * @return array
 	 */
 	function diff($model, $instance) {
-		$config = $this->toConfig($model);
-		$key = $this->toKey($instance, $config);
-		$current = @$this->objects[$model][$key];
+		$config = $this->_getConfig($model);
+		$index = $this->resolveIndex($instance, $config);
+		$object = @$this->objects[$model][$index];
 		$changes = array();
 		foreach ($config['mapping'] as $property => $relation) {
 			$value = $instance->$property;
-			if ($current !== null) {
+			if ($object !== null) {
 				if (is_string($relation)) {
-					$previous = $current['data'][$relation];
+					$previous = $object['data'][$relation];
 				} else {
 					// @todo
-					notice('TODO');
-					$previous = null;
+					$previous = $value;
 				}
 				if ($previous !== $value) {
 					$changes[$property]['previous'] = $previous;
@@ -412,7 +418,115 @@ class Repository extends Object {
 		}
 		return $changes;
 	}
+	
+	protected function convertToInstance($data, $config) {
+		$class = $config['class'];
+		$to = new $class;
+		$from = $data;
+		$model = $config['model'];
+		$index = $this->resolveIndex($data, $config);
+		// Map the data onto the instance
+		foreach ($config['mapping'] as $property => $relation) {
+			if (is_string($relation)) {
+				$to->$property = $from[$relation];
+			} else {
+				switch ($relation['type']) {
 
+					case 'belongsTo':
+						$belongsToId = $from[$relation['reference']];
+						if ($belongsToId === null) {
+							$this->objects[$model][$index]['belongsTo'][$property] = null;
+						} else {
+							$this->objects[$model][$index]['belongsTo'][$property] = true;
+							if (empty($relation['model'])) {
+								warning('Unable to determine model for property "'.$property.'"');
+							}
+							$belongsToIndex = $this->resolveIndex($belongsToId);
+							$belongsToInstance = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
+							if ($belongsToInstance === null) {
+								$fields = array(
+									$relation['id'] => $belongsToId, // @todo reverse mapping
+								);
+								$to->$property = new BelongsToPlaceholder(array(
+									'repository' => $this->id,
+									'fields' => $fields,
+									'model' => $config['model'],
+									'property' => $property,
+									'container' => $to,
+								));
+							}
+							if ($belongsToInstance !== null) {
+								$to->$property = $belongsToInstance;
+								$this->objects[$model][$index]['belongsTo'][$property] = $belongsToInstance;
+							}
+						}
+						break;
+
+					case 'hasMany':
+						$to->$property = new HasManyPlaceholder(array(
+							'repository' => $this->id,
+							'model' => $config['model'],
+							'property' => $property,
+							'container' => $to,
+						));
+						$this->objects[$model][$index]['hasMany'][$property] = true;
+						break;
+
+					default:
+						throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
+				}
+			}
+		}
+		return $to;
+	}
+	
+	/**
+	 * 
+	 * 
+	 * @param stdClass $from  The instance
+	 * @param array $to  The raw data
+	 * @param array $config 
+	 */
+	protected function convertToData($instance, $config) {
+		$to = array();
+		$from = $instance;
+		
+		// Map to data 
+		foreach ($config['mapping'] as $property => $relation) {
+			if (is_string($relation)) { // direct property to column mapping
+				if (property_exists($instance, $property)) {
+					$to[$relation] = $from->$property;
+				}
+			} else {
+				switch ($relation['type']) {
+
+					case 'belongsTo':
+						$belongsTo = $from->$property;
+						if ($belongsTo === null) {
+							$to[$relation['reference']] = null;
+						} else {
+							$idProperty = $relation['id']; // @todo reverse mapping 
+							$to[$relation['reference']] = $from->$property->$idProperty;
+						}
+						break;
+
+					case 'hasMany':
+						break;
+
+					default:
+						throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
+				}
+			}
+		}
+		return $to;
+	}
+
+	/**
+	 * Add an configution for a model
+	 *  
+	 * @param string $model
+	 * @param array $config
+	 */
 	protected function register($model, $config) {
 		$config['model'] = $model;
 		if (empty($config['class'])) {
@@ -431,18 +545,109 @@ class Repository extends Object {
 		$this->configs[$model] = $config;
 	}
 
-	private function toBackend($config) {
-		$backend = $this->backends[$config['backend']];
-		return $backend;
+	private function _getBackend($backend) {
+		$backendObject = @$this->backends[$backend];
+		if ($backendObject !== null) {
+			return $backendObject;
+		}
+		throw new \Exception('Backend "'.$backend.'" not registered');
 	}
 
-	private function toConfig($model) {
+	private function _getConfig($model) {
 		$config = @$this->configs[$model];
 		if ($config !== null) {
 			return $config;
 		}
 		throw new \Exception('Model "'.$model.'" not configured');
 	}
+	
+	/**
+	 * Get an object from the $this->object array based on id
+	 * 
+	 * @param array $config
+	 * @param mixed $id
+	 * @throws Exception when the object is not found
+	 * @return array array('instance' => ?, 'data' => ?, 'state' => ?)
+	 */
+	private function _getObjectByIndex($id) {
+		if ($id === null) {
+			throw new \Exception('Parameter $id is required');
+		}
+		if (is_array($id)) {
+			if (count($config['id']) != count($id)) {
+				throw new \Exception('Incomplete id, model: "'.$config['model'].'" requires: "'.human_implode('", "', $config['id']).'"');
+			}
+			$keys = array();
+			foreach ($config['id'] as $column) {
+				if (isset($id[$column]) == false) {
+					throw new \Exception('Field: "'.$column.'" missing from id');
+				}
+				$keys[$column] = $id[$column];
+			}
+			$index = implode('+', $keys);
+		} elseif (count($config['id']) == 1) {
+			$index = (string) $id;
+		} else {
+			throw new \Exception('Invalid $id'); 
+		}
+		return @$this->objects[$config['model']][$key];
+	}
+	
+	/**
+	 * Return the (objects) index 
+	 * 
+	 * @param mixed $from
+	 * @param mixed $idConfig 
+	 */
+	private function resolveIndex($from, $config = array()) {	
+		if ((is_string($from) && $from != '') || is_int($from)) {
+			return '{'.$from.'}';
+		}
+		$key = false;
+		if (isset($config['id']) && count($config['id']) == 1) {
+			$key = $config['id'][0];
+		}
+		if (is_array($from)) {
+			if (count($from) == 1 && $key !== false) {
+				if (isset($from[$key])) {
+					return $this->resolveIndex($from[$key]);
+				}
+				throw new \Exception('Failed to resolve index, missing key: "'.$key.'"');
+			}
+			if (is_array(value($config['id']))) {
+				if (count($config['id']) == 1) {
+					$field = $config['id'][0];
+					if (isset($from[$key])) {
+						return $this->resolveIndex($from[$key]);
+					}
+					throw new \Exception('Failed to resolve index, missing key: "'.$key.'"');
+				}
+				$index ='{';
+				foreach ($config['id'] as $field) {
+					if (isset($from[$field])) {
+						$value = $from[$field];
+						if ((is_string($value) && $value != '') || is_int($value)) {
+							$index .= $field.':'.$value;
+						} else {
+							throw new \Exception('Failed to resolve index, invalid value for: "'.$field.'"');
+						}
+					} else {
+						throw new \Exception('Failed to resolve index, missing key: "'.$key.'"');
+					}
+				}
+				return $index;
+			}
+		}
+		if (is_object($from)) {
+			if ($key !== false) {
+				// @todo check $config['mapping']
+				return $this->resolveIndex($from->$key);
+			}
+			throw new \Exception('Not implemented');
+		}
+		throw new \Exception('Failed to resolve index');
+	}
+
 
 	/**
 	 * Get the key for the $this->objects array.
@@ -452,6 +657,7 @@ class Repository extends Object {
 	 * @return string
 	 */
 	private function toKey($id, $config) {
+		throw new \Exception('Use resolveIndex()');
 		if (is_array($id)) {
 			if (count($config['id']) != count($id)) {
 				throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['id']).'"');

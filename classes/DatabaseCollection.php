@@ -18,6 +18,22 @@ class DatabaseCollection extends Collection {
 		$this->dbLink = $dbLink;
 	}
 	
+	function where($conditions) {
+		$db = getDatabase($this->dbLink);
+		$sql = $this->sql;
+		foreach ($conditions as $column => $value) {
+			$sql = $sql->andWhere($db->quoteIdentifier($column).' = '.$db->quote($value));
+		}
+		$collection = new DatabaseCollection($sql, $this->dbLink);
+		$collection->bind($this->model, $this->repository);
+		return $collection;
+		// fallback
+		// @todo detect non-database properties
+//		$this->validateIterator();
+//		return parent::where($conditions);
+	}
+ 
+	
 	public function rewind() {
 		$this->validateIterator();		
 		parent::rewind();

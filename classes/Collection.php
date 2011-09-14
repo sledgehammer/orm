@@ -1,7 +1,7 @@
 <?php
 /**
  * Collection
- * 
+ *
  * @package Record
  */
 namespace SledgeHammer;
@@ -11,12 +11,12 @@ class Collection extends Object implements \Iterator, \Countable {
 	 * @var Iterator
 	 */
 	protected $iterator;
-	
+
 	protected $model;
 	protected $repository;
 
 	/**
-	 * @param \Iterator|array $iterator 
+	 * @param \Iterator|array $iterator
 	 */
 	function __construct($iterator) {
 		if (is_array($iterator)) {
@@ -25,7 +25,7 @@ class Collection extends Object implements \Iterator, \Countable {
 			$this->iterator = $iterator;
 		}
 	}
-	
+
 	/**
 	 * Return all collections items as an array
 	 * @return array
@@ -33,17 +33,33 @@ class Collection extends Object implements \Iterator, \Countable {
 	function asArray() {
 		return iterator_to_array($this);
 	}
-	
+
 	function bind($model, $repository = 'master') {
 		$this->model = $model;
 		$this->repository = $repository;
 	}
-	
-	
+
+	function where($conditions) {
+		$data = array();
+		foreach ($this as $key => $item) {
+			foreach ($conditions as $property => $value) {
+				if (text($property)->endsWith('_id')) { // @todo 
+					$property = substr($property, 0, -3);
+					if ($item->$property->id == $value) {
+						$data[$key] = $item;
+					}
+				} elseif ($item->$property == $value) {
+					$data[$key] = $item;
+				}
+			}
+		}
+		return new Collection($data);
+	}
+
 	// Iterator function
-	
+
 	/**
-	 * 
+	 *
 	 * @return mixed
 	 */
 	public function current() {
@@ -52,7 +68,7 @@ class Collection extends Object implements \Iterator, \Countable {
 			return $data;
 		}
 		$repository = getRepository($this->repository);
-		$instance = $repository->create($this->model, $data);
+		$instance = $repository->convert($this->model, $data);
 		return $instance;
 	}
 	public function key() {

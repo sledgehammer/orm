@@ -93,14 +93,15 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 	 */
 	private function &replacePlaceholder() {
 		$config = $this->config;
-		$repo = getRepository($config['repository']);
-		$instance = $repo->get($config['container']['model'], $config['container']['id']);
+		$container = $config['container'];
 		$property = $config['property'];
-		if ($instance->{$property} !== $this) {
-			throw new \Exception('The placeholder belongs to an other (cloned?) container');
+		if ($container->{$property} !== $this) {
+			notice('This placeholder belongs to an other (cloned?) container');
+			return $container->{$property};
 		}
-		$repo->loadAssociation($config['container']['model'], $instance, $config['property']);
-		return $instance->{$property};
+		$repo = getRepository($config['repository']);
+		$repo->loadAssociation($config['model'], $container, $property, $this);
+		return $container->{$property};
 	}
 }
 

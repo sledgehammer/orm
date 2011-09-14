@@ -1,15 +1,16 @@
 <?php
 /**
- * RepositorySQLBackend
+ * Repository backend for database records
+ *
  * @package Record
  */
 namespace SledgeHammer;
-class RepositorySQLBackend extends Object {
+class RepositoryDatabaseBackend extends RepositoryBackend {
 
 	public $models = array();
 	/**
 	 *
-	 * @param array|string $dbLinks 
+	 * @param array|string $dbLinks
 	 */
 	function __construct($dbLinks = array()) {
 		if (is_string($dbLinks)) {
@@ -25,7 +26,7 @@ class RepositorySQLBackend extends Object {
 	 * @param string $dbLink
 	 */
 	function inspectDatabase($dbLink = 'default') {
-		
+
 		// Pass 1: Retrieve and parse schema information
 		$schema = $this->getSchema($dbLink);
 
@@ -79,7 +80,7 @@ class RepositorySQLBackend extends Object {
 			}
 			$this->models[$model] = $config;
 		}
-		// Pass 2: 
+		// Pass 2:
 		foreach ($this->models as $model => $config) {
 			foreach ($config['mapping'] as $property => $relation) {
 				if (is_array($relation) && $relation['type'] == 'belongsTo' && empty($relation['model'])) {
@@ -93,13 +94,10 @@ class RepositorySQLBackend extends Object {
 			}
 		}
 	}
-	
+
 	public function getModels() {
 		return $this->models;
 	}
-	
-
-	
 
 	/**
 	 * Load the record from the db
@@ -161,11 +159,14 @@ class RepositorySQLBackend extends Object {
 		}
 	}
 
-	function add($data, $config) {
+	function add(&$data, $config) {
 		$db = getDatabase($config['dbLink']);
 		$columns = array();
 		$values = array();
 		foreach ($data as $column => $value) {
+			if ($value === null) {
+				continue;
+			}
 			$columns[] = $db->quoteIdentifier($column);
 			$values[] = $db->quote($value);
 		}
@@ -173,7 +174,17 @@ class RepositorySQLBackend extends Object {
 		$result = $this->execute($sql, $config['dbLink']);
 		if ($result == false) {
 			throw new \Exception('Adding record "' . implode(' + ', $id) . '" failed');
-			;
+		}
+		if (count($config['id']) == 1) {
+			$idColumn = $config['id'][0];
+			if ($data[$idColumn] === null) {
+				if ($db instanceof \mysqli) {
+					$data[$idColumn] = $db->insert_id;
+				} else {
+					notice('Implement insert_id for '.get_class($db));
+				}
+			}
+
 		}
 	}
 
@@ -214,12 +225,12 @@ class RepositorySQLBackend extends Object {
 			throw $e;
 		}
 	}
-	
+
 	private function toModel($table) {
 		// @todo implement mapping
 		return ucfirst($this->toSingular($table));
 	}
-	
+
 	private function toPlural($singular) {
 		return $singular . 's';
 	}
@@ -237,7 +248,7 @@ class RepositorySQLBackend extends Object {
 		// @todo implement camelCase
 		return $column;
 	}
-	
+
 	private function getSchema($dbLink) {
 		$schema = array();
 

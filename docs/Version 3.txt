@@ -14,20 +14,20 @@ Looking back on Version 2
 The good:
 + protection against sql injection 
 + Lazy relations
-+ new RecordClass($id);
 + columns as properties (a object is a row in the db)
 + relations as properties
 + Only save/update the changes
-+ config for the customer in the customer class (no boilerplate mapper classes of xml configurations)
++ config for the customer in the customer class (no boilerplate mapper classes or xml configurations)
 + A record (instance) object cant modify other records
 + Column/property validation (no silent dataloss)
-+ Quick & dirty with SimpleRecord
++ Quick & dirty with SimpleRecord's auto-configuration
 + Strict: No first() method, find() returns 1 object or an exception
++ AutoCompletion. [with the "new RecordClass($id)" syntax];
 
 Shady:
 + Dual mode, a alternative/difficult concept.
 + Not POCO
-+ AutoCompletion for the static mode
++ AutoCompletion not aware of static/instance mode
 + No support for greedy relations
 
 Bad:
@@ -52,8 +52,8 @@ The class should determines the structure.
 Full support for IDE autocompletion
 
 Only one instance per row.
-  $c1 = new Customer(1);
-  $c2 = new Customer(1); // $c2 becomes a reference to $c1;
+  $x = new Customer(1);
+  $y = new Customer(1); // $y becomes a reference to $x;
 
 ORM can save and retrieves POCO (Plain Old Class Objects)
 
@@ -66,13 +66,13 @@ Don't depend on SQL, but allow it.
   Allowing SQL for the datasources that support is powerfull (great featureset with great performance). 
   
 
-Supports multiple sources. 
+Supports for multiple backends. 
   $player->tweets (player from db, tweets from the twitter API)
 
 
 
 Concept descriptions
----------
+---------------------
 
 POCO (Plain Old Class Objects)
   the save() / delete() methods dont make sense on all (record) objects.
@@ -83,8 +83,8 @@ POCO (Plain Old Class Objects)
 
 
 
-Thoughts on LINQ / Entity
--------------------------
+Thoughts on LINQ / Entity / underscore
+---------------------------------------
 
 linq is nice, entity has migration issues (citation needed)
 
@@ -151,7 +151,7 @@ $repository->saveAll()?
 
 
 Record API
------------.
+-----------
 @property $_recordConfig => array('repository' => 'default', 'table' => 'customer', 'hasMany' => array(), 'belongsTo' => array())
 or
 @return RecordConfig
@@ -167,10 +167,8 @@ GenericRecord::findAll()
 GenericRecord->save()
 GenericRecord->delete()
 GenericRecord::deleteAll()
-(private)GenriceRecord->_state = 'NEW'|'EXISTING'|'DELETED'
+(private)GenericRecord->_state = 'NEW'|'EXISTING'|'DELETED'
 GenericRecord::$repository;
-
-
 
 
 SimpleRecord
@@ -189,6 +187,6 @@ injecting lazy-loaded relations.
 
 Rejected ideas
 ---------------
-Autogenerator repositories based on database connection.
+Autogenerate repositories based on database connection.
 'default' => new DbRepo(getDatabase('default'));
-*Because* we can use one Repository instance to handle multiple database connections/schema's
+*Because* we can use one Repository instance to handle multiple database connections/schema's/backends

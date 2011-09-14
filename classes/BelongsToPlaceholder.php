@@ -43,13 +43,14 @@ class BelongsToPlaceholder extends Object {
 	 */
 	private function __replacePlaceholder() {
 		$config = $this->__config;
-		$repo = getRepository($config['repository']);
 		$container = $config['container'];
 		$property = $config['property'];
 		if ($container->{$property} !== $this) {
-			throw new \Exception('The placeholder belongs to an other (cloned?) container');
+			notice('This placeholder belongs to an other (cloned?) container');
+			return $container->{$property};
 		}
-		$container->{$property} = $repo->get($config['model'], $config['id']);;
+		$repo = getRepository($config['repository']);
+		$repo->loadAssociation($config['model'], $container, $property);
 		return $container->{$property};
 	}
 }

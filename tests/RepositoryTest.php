@@ -31,7 +31,7 @@ class RepositoryTest extends DatabaseTestCase {
 	function test_inspectDatabase() {
 		$repo = new Repository();
 		$this->assertQueryCount(0, 'No queries on contruction');
-		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
+		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		$this->assertQuery('SHOW TABLES');
 		$queryCount = self::INSPECT_QUERY_COUNT;
 		$this->assertQueryCount($queryCount, 'Sanity check');
@@ -49,7 +49,7 @@ class RepositoryTest extends DatabaseTestCase {
 		} catch (\Exception $e) {
 			$this->assertEqual($e->getMessage(), 'Model "Customer" not configured', 'Repository should be empty');
 		}
-		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
+		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		$this->assertTrue($repo->isConfigured('Customer'), 'Sanity check');
 
 		$sameRepo = getRepository();
@@ -58,7 +58,7 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_getWildcard() {
 		$repo = new Repository();
-		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
+		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 
 		$customer1 = $repo->getCustomer(1);
 		$this->assertEqual($customer1->name, "Bob Fanger");
@@ -69,7 +69,7 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_belongsTo() {
 		$repo = new Repository();
-		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
+		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 
 		$order2 = $repo->getOrder(2);
 		$clone = clone $order2;
@@ -92,17 +92,14 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertLastQuery('SELECT * FROM orders WHERE id = 3');
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 3, 'No customer queries'); //
 		
-		try {
-			$this->assertEqual($clone->customer->name, 'James Bond');
-			$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
-		} catch (\Exception $e) {
-			$this->assertEqual($e->getMessage(), 'The placeholder belongs to an other (cloned?) container');
-		}
+		$this->expectError('This placeholder belongs to an other (cloned?) container');
+		$this->assertEqual($clone->customer->name, 'James Bond');
+		//	$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
 	}
 	
 	function test_getWildcardCollection() {
 		$repo = new Repository();
-		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
+		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 
 		$customers = $repo->getCustomerCollection();
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT, 'Delay queries until collections access');
@@ -126,15 +123,15 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_hasManyIteratorInterface() {
 		$repo = new Repository();
-		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
+		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		
 		// Test iterator 
 		$c1 = $repo->getCustomer(1);
 		$this->assertTrue((gettype($c1->orders) == 'object' && get_class($c1->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
 		foreach ($c1->orders as $order) {
-			//
+			// do nothing
 		}
-		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = 1');
+		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = "1"');
 		$this->assertEqual(gettype($c1->orders), 'array', 'The orders property should be replaced with an array');
 		$this->assertEqual($c1->orders[0]->product, 'Kop koffie', 'Contents should match the order from customer 1');		
 		$this->assertEqual(count($c1->orders), 1, 'Should only contain the order from customer 1');
@@ -177,17 +174,14 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEqual(count($c2->orders), 1, 'Unset by array offset');
 		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
 		
-		try {
-			isset($clone->orders[1]);
-			$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
-		} catch (\Exception $e) {
-			$this->assertEqual($e->getMessage(), 'The placeholder belongs to an other (cloned?) container');
-		}
+		$this->expectError('This placeholder belongs to an other (cloned?) container');
+		$this->assertEqual($clone->orders[1]->product, 'Spycam');
+		//	$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
 	}
 	
 	function test_getWildcard_preload() {
 		$repo = new Repository();
-		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
+		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		
 		$order = $repo->getOrder(2, true);
 		$this->assertIsA($order->customer, 'stdClass', 'Should not be a BelongsToPlaceholder');
@@ -196,7 +190,7 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_removeWildcard() {
 		$repo = new Repository();
-		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
+		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		
 		$order1 = $repo->getOrder(1);
 		$repo->removeOrder($order1);
@@ -207,7 +201,7 @@ class RepositoryTest extends DatabaseTestCase {
 	
 	function test_saveWildcard() {
 		$repo = new Repository();
-		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
+		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		
 		$c1 = $repo->getCustomer(1);
 		$repo->saveCustomer($c1);
@@ -230,7 +224,7 @@ class RepositoryTest extends DatabaseTestCase {
 			$repo->saveOrder($order2);
 			$this->fail('Dangerous change should throw an Exception');
 		} catch (\Exception $e) {
-			$this->pass('Dangerous change should throw an Exception');
+			$this->assertEqual($e->getMessage(), 'The instance is not bound to this Repository', '');
 			// @todo check if the message indicated the id-change
 		}
 		$order2->customer->id = "2"; // restore customer object
@@ -255,7 +249,7 @@ class RepositoryTest extends DatabaseTestCase {
 	 */
 	private function getDirtyCustomer($id) {
 		$repo = new Repository();
-		$repo->registerBackend(new RepositorySQLBackend($this->dbLink));
+		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		return $repo->getCustomer($id);
 	}
 }
