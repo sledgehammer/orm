@@ -3,7 +3,6 @@
  * RepositoryTest
  */
 namespace SledgeHammer;
-
 class RepositoryTest extends DatabaseTestCase {
 	
 	private $applicationRepositories;
@@ -29,7 +28,7 @@ class RepositoryTest extends DatabaseTestCase {
 	}
 
 	function test_inspectDatabase() {
-		$repo = new Repository();
+		$repo = new RepositoryTester();
 		$this->assertQueryCount(0, 'No queries on contruction');
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		$this->assertQuery('SHOW TABLES');
@@ -57,7 +56,7 @@ class RepositoryTest extends DatabaseTestCase {
 	} 
 	
 	function test_getWildcard() {
-		$repo = new Repository();
+		$repo = new RepositoryTester();
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 
 		$customer1 = $repo->getCustomer(1);
@@ -68,7 +67,7 @@ class RepositoryTest extends DatabaseTestCase {
 	}
 	
 	function test_belongsTo() {
-		$repo = new Repository();
+		$repo = new RepositoryTester();
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 
 		$order2 = $repo->getOrder(2);
@@ -98,7 +97,7 @@ class RepositoryTest extends DatabaseTestCase {
 	}
 	
 	function test_getWildcardCollection() {
-		$repo = new Repository();
+		$repo = new RepositoryTester();
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 
 		$customers = $repo->getCustomerCollection();
@@ -122,7 +121,7 @@ class RepositoryTest extends DatabaseTestCase {
 	}
 	
 	function test_hasManyIteratorInterface() {
-		$repo = new Repository();
+		$repo = new RepositoryTester();
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		
 		// Test iterator 
@@ -180,7 +179,7 @@ class RepositoryTest extends DatabaseTestCase {
 	}
 	
 	function test_getWildcard_preload() {
-		$repo = new Repository();
+		$repo = new RepositoryTester();
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		
 		$order = $repo->getOrder(2, true);
@@ -189,7 +188,7 @@ class RepositoryTest extends DatabaseTestCase {
 	}
 	
 	function test_removeWildcard() {
-		$repo = new Repository();
+		$repo = new RepositoryTester();
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		
 		$order1 = $repo->getOrder(1);
@@ -200,7 +199,7 @@ class RepositoryTest extends DatabaseTestCase {
 
 	
 	function test_saveWildcard() {
-		$repo = new Repository();
+		$repo = new RepositoryTester();
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		
 		$c1 = $repo->getCustomer(1);
@@ -224,16 +223,18 @@ class RepositoryTest extends DatabaseTestCase {
 			$repo->saveOrder($order2);
 			$this->fail('Dangerous change should throw an Exception');
 		} catch (\Exception $e) {
-			$this->assertEqual($e->getMessage(), 'The instance is not bound to this Repository', '');
+			$this->assertEqual($e->getMessage(), 'Change rejected, the index changed from {2} to {1}');
 			// @todo check if the message indicated the id-change
 		}
+		$repo->validate();
 		$order2->customer->id = "2"; // restore customer object
 		$repo->saveOrder($order2); // The belongTo is autoloaded, but unchanged  
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 4, 'Saving an unmodified instance shouldn\'t generate a query');
 		
 		$c2 = $repo->getCustomer(2);
+		$this->assertEqual($c2->orders[0]->product, 'Walter PPK 9mm', 'Sanity check');
 		$c2->orders[0]->product = 'Walther PPK';// correct spelling
-		$c2->orders[] = (object) array('product' => 'Scuba gear');
+		$c2->orders[] = $repo->createOrder(array('product' => 'Scuba gear'));
 		unset($c2->orders[1]);
 		$repo->saveCustomer($c2);
 		$this->assertQuery('UPDATE orders SET product = "Walther PPK" WHERE id = "2"');

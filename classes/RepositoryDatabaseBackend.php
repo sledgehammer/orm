@@ -131,14 +131,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 		return $db->fetch_row($sql);
 	}
-	
-	function save($new, $old, $config) {
-		if ($old === null) {
-			return $this->insert($new, $config);
-		}
-		return $this->update($new, $old, $config);
-	}
-	
+
 	function update($new, $old, $config) {
 		$db = getDatabase($config['dbLink']);
 		$changes = array();
@@ -148,7 +141,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 			}
 		}
 		if (count($changes) == 0) {
-			return; // No changes, no query
+			return $new; // No changes, no query
 		}
 		$where = array();
 
@@ -168,8 +161,15 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		}
 		return $new;
 	}
-	
-	function insert($data, $config) {
+
+	/**
+	 * INSERT record INTO the database.
+	 *
+	 * @param array $data
+	 * @param array $config
+	 * @return array
+	 */
+	function add($data, $config) {
 		$db = getDatabase($config['dbLink']);
 		$columns = array();
 		$values = array();
@@ -316,7 +316,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 								break;
 
 							case 'AUTO_INCREMENT': break;
-							
+
 							case 'DEFAULT':
 								$default = '';
 								while($part = $parts[$i + 1]) {
@@ -325,7 +325,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 									if (substr($default, 0, 1) != "'") { // Not a quoted string value?
 										break; // end for loop
 									}
-									if (substr($default, -1) == "'") { // End of quoted string? 
+									if (substr($default, -1) == "'") { // End of quoted string?
 										break; // end for loop
 									}
 									$default .= ' ';
