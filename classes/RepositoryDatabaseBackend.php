@@ -1,6 +1,7 @@
 <?php
 /**
  * Repository backend for database records
+ * @todo Validate datatypes before retrievin or removing records, because '12a' will be sillently truncated by mysql to 12
  *
  * @package Record
  */
@@ -224,7 +225,13 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		$result = $this->execute($sql, $config['dbLink']);
 		if ($result == false) {
 			throw new \Exception('Deleting record "' . implode(' + ', $id) . '" failed');
-			;
+		}
+		if ($db instanceof \mysqli) {
+			if ($db->affected_rows != 1) {
+				throw new \Exception('Removing "'.$config['model'].': '.implode('-', $id).'" failed, '.$db->affected_rows.' rows were affected');
+			}
+		} else {
+			notice('Implement affected_rows for '.get_class($db));
 		}
 	}
 

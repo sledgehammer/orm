@@ -64,6 +64,17 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEqual($customer1->occupation, "Software ontwikkelaar");
 		$order1 = $repo->getOrder(1);
 		$this->assertEqual($order1->product, 'Kop koffie');
+		// id truncation
+		try {
+			$customer1s = $repo->getCustomer('1s');
+			if ($customer1s !== $customer1) {
+				$this->fail('id was truncated, but not detected');
+			} else {
+				$this->fail('id was truncated, but index was corrected');
+			}
+		} catch (\Exception $e)  {
+			$this->assertEqual($e->getMessage(), 'The $id parameter doesn\'t match the retrieved data. {1s} != {1}');
+		}
 	}
 	
 	function test_belongsTo() {
@@ -192,9 +203,14 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		
 		$order1 = $repo->getOrder(1);
+		// remove by instance
 		$repo->removeOrder($order1);
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2);
 		$this->assertLastQuery('DELETE FROM orders WHERE id = "1"');
+		// remove by id
+		$repo->removeOrder('2');
+		$this->assertLastQuery('DELETE FROM orders WHERE id = "2"');
+
 	}
 
 	

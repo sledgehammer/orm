@@ -80,6 +80,11 @@ class Repository extends Object {
 			'data' => null,
 		);
 		$data = $this->_getBackend($config['backend'])->get($id, $config);
+		$indexFromData = $this->resolveIndex($data, $config);
+		if ($index != $indexFromData) {
+			unset($this->objects[$model][$index]); // cleanup invalid entry
+			throw new \Exception('The $id parameter doesn\'t match the retrieved data. '.$index.' != '.$indexFromData);
+		}
 		$this->objects[$model][$index]['data'] = $data;
 		$this->objects[$model][$index]['state'] = 'retrieved';
 
@@ -186,24 +191,31 @@ class Repository extends Object {
 	}
 
 	/**
-	 * Remove the instance
+	 * Remove an instance
 	 *
 	 * @param string $model
-	 * @param instance $instance
+	 * @param instance|id $mixed  The instance or id
 	 */
-	function remove($model, $instance) {
+	function remove($model, $mixed) {
 		$config = $this->_getConfig($model);
-		$index = $this->resolveIndex($instance, $config);
+		$index = $this->resolveIndex($mixed, $config);
 		$object = @$this->objects[$model][$index];
 		if ($object === null) {
-			throw new \Exception('The instance is not bound to this Repository');
+			if (is_object($mixed)) {
+				throw new \Exception('The instance is not bound to this Repository');
+			}
+			// The parameter is the id
+			if (is_array($mixed)) {
+				$data = $mixed; 
+			} else {
+				$data = array($config['id'][0] => $mixed); // convert the id to array-notation
+			}
+		} elseif ($object['state'] == 'new') { // The instance issn't stored in the backend and only exists in-memory?
+			throw new \Exception('Removing instance failed, the instance issn\'t stored in the backend');
+		} else {
+			$data = $object['data'];
 		}
-//		$data = $this->toData($instance, $config['mapping']);
-//		if (serialize($data) != serialize($object['data'])) {
-//			throw new \Exception('The instance contains unsaved changes'); // Should we throw this Exception here?
-//		}
-		// @todo add multiple backends
-		$this->_getBackend($config['backend'])->remove($object['data'], $config);
+		$this->_getBackend($config['backend'])->remove($data, $config);
 		$this->objects[$model][$index]['state'] = 'removed';
 	}
 
