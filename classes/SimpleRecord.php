@@ -5,52 +5,109 @@
  * @package Record
  */
 namespace SledgeHammer;
-class SimpleRecord extends Record {
+class SimpleRecord extends Object {
 	
-	function __construct($table, $id = '__STATIC__', $options = array()) {
-		$options = array_merge($options, array('table' => $table));
-		if ($id === '__STATIC__') {
-			parent::__construct($id, $options);
-			return;
-		}
-		if ($table === '__INSTANCE__' || $table === '__STATIC__') {
-			$options = $id;
-			$id = $table;
-		}
-		// @todo $options[??] setting bedenken voor het gebruik inladen van alle kolommen uit de query (ipv de tabel)
-		if (array_value($options, 'propertiesByValues') && $id === '__INSTANCE__') {
-			if (empty($options['values'])) {
-				throw new \Exception('Can\'t create an Instance without $options["values"]');
-			}
-			$properties =  array_keys($options['values']);
-		} else {
-			// @todo Waarom niet altijd de properties uit de Tabel gebruiken? is betrouwbaarder dan $options['values']
-			$dbLink = isset($options['dbLink']) ? $options['dbLink'] : 'default';
-			$info = getDatabase($dbLink)->tableInfo($options['table']);
-			$properties = $info['columns'];
-		}
-		$this->_mode = '__SET_PROPERTY';
-		foreach ($properties as $property) {
-			$this->$property = null;
-		}
-		unset($options['propertiesByValues']);
-		parent::__construct($id, $options);
+	private $_model;
+	private $_state = 'unconstructed';
+//	private $_instance;
+	private $_repository = '__not_set__';
+	
+	function __construct() {
+		$this->_state = 'constructed';
 	}
-
-	function __set($property, $value) {
-		if ($this->_mode == '__SET_PROPERTY') {
-			$this->$property = $value; // Eigenschap toevoegen aan het object
-			return;
-		}
-		parent::__set($property, $value);
-	}
-
+	
 	/**
-	 * Een SimpleRecord heeft altijd alle kolommen die uit de database gehaald worden. (By design)
-	 * @return true
+	 *
+	 * @param string $model
+	 * @param mixed $id
+	 * @param string $repository
+	 * @return SimpleRecord 
 	 */
-	protected function validateRecord($exclude = array()) {
-		return true;
+	static function findById($model, $id, $repository = 'default') {
+		$repo = getRepository($repository);
+		$instance = $repo->get($model, $id);
+		if ($instance instanceof SimpleRecord) {
+			$instance->_state = 'retrieved';
+			$instance->_repository = $repository;
+			$instance->_model = $model;
+			return $instance;
+		}
+		throw new \Exception('Model "'.$model.'" isn\'t configured as SimpleRecord');
+	}
+	
+	/**
+	 *
+	 * @param string $model
+	 * @param array $values
+	 * @param string $repository
+	 * @return SimpleRecord 
+	 */
+	static function create($model, $values = array(), $repository = 'default') {
+		$repo = getRepository($repository);
+		$instance = $repo->create($model, $values);
+		if ($instance instanceof SimpleRecord) {
+			$instance->_state = 'new';
+			$instance->_repository = $repository;
+			$instance->_model = $model;
+			return $instance;
+		}
+		throw new \Exception('Model "'.$model.'" isn\'t configured as SimpleRecord');
+	}
+	
+	function __get($property) {
+		if ($this->_state == 'deleted') {
+			notice('A deleted Record has no properties');
+			return null;
+		} else {
+			return parent::__get($property);
+		}
+	}
+
+	public function __set($property, $value) {
+		switch ($this->_state) {
+
+			case 'constructed':
+				$this->$property = $value;
+				break;
+
+			case 'deleted':
+				notice('A deleted Record has no properties');
+				break;
+			
+			default:
+				return parent::__set($property, $value);
+		}
+	}
+
+	function save() {
+		if ($this->_state == 'deleted') {
+			throw new \Exception(__CLASS__.'->save() not allowed on deleted objects');
+		}
+		$repo = getRepository($this->_repository);
+		$repo->save($this->_model, $this);
+	}
+
+	function delete() {
+		$repo = getRepository($this->_repository);
+		$repo->remove($this->_model, $this);
+		// unset properties
+		$propertyWhitelist = array_keys(get_class_vars(__CLASS__));
+		foreach (get_object_vars($this) as $property => $value) {
+			if (in_array($property, $propertyWhitelist) == false) {
+				unset($this->$property);
+			}
+		}
+		$this->_state = 'deleted';
+	}
+
+ 
+	/**
+	 *
+	 * @return array
+	 */
+	function getChanges() {
+		$repo = getRepository($this->_repository);
+		return $repo->diff($this->_model, $this);
 	}
 }
 ?>

@@ -88,15 +88,21 @@ class Repository extends Object {
 		$this->objects[$model][$index]['data'] = $data;
 		$this->objects[$model][$index]['state'] = 'retrieved';
 
-		$instance = $this->convertToInstance($data, $config);
+		$instance = $this->convertToInstance($data, $config, $index);
 		$this->objects[$model][$index]['instance'] = $instance;
 		if ($preload) {
-			foreach (array('belongsTo', 'hasMany') as $relation) {
-				if (empty ($this->objects[$model][$index][$relation])) {
-					continue;
+			if (isset($config['belongsTo'])) {
+				foreach ($config['belongsTo'] as $property => $relation) {
+					$value = $instance->$property;
+					if ($value instanceof BelongsToPlaceholder) {
+						$this->loadAssociation($model, $instance, $property, true);
+					}
 				}
-				foreach ($this->objects[$model][$index][$relation] as $property => $reference) {
-					if ($reference === true) {
+			}
+			if (isset($config['hasMany'])) {
+				foreach ($config['hasMany'] as $property => $relation) {
+					$value = $instance->$property;
+					if ($value instanceof HasManyPlaceholder) {
 						$this->loadAssociation($model, $instance, $property, true);
 					}
 				}
@@ -159,35 +165,29 @@ class Repository extends Object {
 		if ($object === null || ($instance !== $object['instance'])) {
 			throw new \Exception('Instance not bound to this repository');
 		}
-		$relation = $config['mapping'][$property];
-//		dump($model.'->'.$property);
-		switch ($relation['type']) {
-
-			case 'belongsTo':
-				$id = $object['data'][$relation['reference']];
-				if ($id === null) {
-					dump($object);
-					throw new \Exception('Now what?');
-				}
-				$instance->$property = $this->get($relation['model'], $id, $preload);
-				$this->objects[$model][$index]['belongsTo'][$property] = $instance->$property;
-				break;
-
-			case 'hasMany':
-				if (count($config['id']) != 1) {
-					throw new \Exception('Complex keys not (yet) supported for hasMany relations');
-				}
-				$id = $instance->{$config['id'][0]};
-				$collection = $this->loadCollection($relation['model'])->where(array($relation['reference'] => $id));
-				$items = $collection->asArray();
-				$this->objects[$model][$index]['hasMany'][$property] = $items; // Add a copy for change detection
-				$instance->$property = $items;
-				break;
-
-			default:
-				throw new \Exception('Invalid relation-type: '.$relation['type']);
+		$belongsTo = @$config['belongsTo'][$property];
+		if ($belongsTo !== null) {
+			$id = $object['data'][$belongsTo['reference']];
+			if ($id === null) {
+				dump($object);
+				throw new \Exception('Now what?');
+			}
+			$instance->$property = $this->get($belongsTo['model'], $id, $preload);
+			return;
 		}
-
+		$hasMany = @$config['hasMany'][$property];
+		if ($hasMany !== null) {
+			if (count($config['id']) != 1) {
+				throw new \Exception('Complex keys not (yet) supported for hasMany relations');
+			}
+			$id = $instance->{$config['id'][0]};
+			$collection = $this->loadCollection($hasMany['model'])->where(array($hasMany['reference'] => $id));
+			$items = $collection->asArray();
+			$this->objects[$model][$index]['hadMany'][$property] = $items; // Add a copy for change detection
+			$instance->$property = $items;
+			return;
+		}
+		throw new \Exception('No association found for  '.$model.'->'.$property);
 	}
 
 	/**
@@ -206,7 +206,7 @@ class Repository extends Object {
 			}
 			// The parameter is the id
 			if (is_array($mixed)) {
-				$data = $mixed; 
+				$data = $mixed;
 			} else {
 				$data = array($config['id'][0] => $mixed); // convert the id to array-notation
 			}
@@ -226,17 +226,22 @@ class Repository extends Object {
 	 * @param array $data  Initial contents of the object (optional)
 	 * @return object
 	 */
-	function create($model, $data = array()) {
+	function create($model, $values = array()) {
 		$config = $this->_getConfig($model);
-		$data = array_merge($config['defaults'], $data);
+		$values = array_merge($config['defaults'], $values);
 		$index = uniqid('TMP-');
+		$class = $config['class'];
+		$instance = new $class;
+		// Apply initial values
+		foreach ($values as $property => $value) {
+			// @todo Support complex mapping
+			$instance->$property = $value;
+		}
 		$this->objects[$model][$index] = array(
 			'state' => 'new',
-			'instance' => null,
+			'instance' => $instance,
 			'data' => null,
 		);
-		$instance = $this->convertToInstance($data, $config, $index);
-		$this->objects[$model][$index]['instance'] = $instance;
 		$this->created[$model][$index] = $instance;
 		return $instance;
 	}
@@ -297,11 +302,11 @@ class Repository extends Object {
 			$this->objects[$model][$index]['state'] = 'saving';
 
 			// Save belongsTo
-			if (isset($object['belongsTo']) && value($options['ignore_relations']) == false) {
-				foreach ($object['belongsTo'] as $property => $value) {
+			if (isset($config['belongsTo']) && value($options['ignore_relations']) == false) {
+				foreach ($config['belongsTo'] as $property => $belongsTo) {
+
 					if ($instance->$property !== null && ($instance->$property instanceof BelongsToPlaceholder) == false) {
-						$relation = $config['mapping'][$property];
-						$this->save($relation['model'], $instance->$property, $relationSaveOptions);
+						$this->save($belongsTo['model'], $instance->$property, $relationSaveOptions);
 					}
 				}
 			}
@@ -326,13 +331,12 @@ class Repository extends Object {
 			}
 
 			// Save hasMany
-			if (isset($object['hasMany']) && value($options['ignore_relations']) == false) {
-				foreach ($object['hasMany'] as $property => $old) {
+			if (isset($config['hasMany']) && value($options['ignore_relations']) == false) {
+				foreach ($config['hasMany'] as $property => $hasMany) {
 					if ($instance->$property instanceof HasManyPlaceholder) {
 						continue; // No changes (It's not even accessed)
 					}
-					$relation = $config['mapping'][$property];
-					$relationConfig = $this->_getConfig($relation['model']);
+					$relationConfig = $this->_getConfig($hasMany['model']);
 					$collection = $instance->$property;
 					if ($collection instanceof \Iterator) {
 						$collection = iterator_to_array($collection);
@@ -343,22 +347,23 @@ class Repository extends Object {
 					}
 					foreach ($collection as $item) {
 						// Connect the item to this instance
-						foreach ($relationConfig['mapping'] as $property2 => $relation2) {
-							if ($relation2['type'] == 'belongsTo' && $relation['reference'] == $relation2['reference']) {
+						foreach ($relationConfig['belongsTo'] as $property2 => $belongsTo) {
+							if ($hasMany['reference'] == $belongsTo['reference']) { // @todo Een van deze "reference" moet eingenlijk anders heten. id/foreign_key/reference
 								$item->$property2 = $instance;
 							}
 						}
-						$this->save($relation['model'], $item, $relationSaveOptions);
+						$this->save($hasMany['model'], $item, $relationSaveOptions);
 					}
 					if (value($options['keep_missing_related_instances']) == false) {
 						// Delete items that are no longer in the relation
+						$old = @$this->objects[$model][$index]['hadMany'][$property];
 						if ($old !== null) {
 							if ($collection === null && count($old) > 0) {
 								notice('Unexpected type NULL for property "'.$property.'", expecting an array or Iterator');
 							}
 							foreach ($old as $item) {
 								if (array_search($item, $collection, true) === false) {
-									$this->remove($relation['model'], $item);
+									$this->remove($hasMany['model'], $item);
 								}
 							}
 						}
@@ -453,51 +458,44 @@ class Repository extends Object {
 			if (is_string($relation)) {
 				$to->$property = $from[$relation];
 			} else {
-				switch ($relation['type']) {
-
-					case 'belongsTo':
-						$belongsToId = $from[$relation['reference']];
-						if ($belongsToId === null) {
-							$this->objects[$model][$index]['belongsTo'][$property] = null;
-						} else {
-							$this->objects[$model][$index]['belongsTo'][$property] = true;
-							if (empty($relation['model'])) {
-								warning('Unable to determine model for property "'.$property.'"');
-							}
-							$belongsToIndex = $this->resolveIndex($belongsToId);
-							$belongsToInstance = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
-							if ($belongsToInstance === null) {
-								$fields = array(
-									$relation['id'] => $belongsToId, // @todo reverse mapping
-								);
-								$to->$property = new BelongsToPlaceholder(array(
-									'repository' => $this->id,
-									'fields' => $fields,
-									'model' => $config['model'],
-									'property' => $property,
-									'container' => $to,
-								));
-							}
-							if ($belongsToInstance !== null) {
-								$to->$property = $belongsToInstance;
-								$this->objects[$model][$index]['belongsTo'][$property] = $belongsToInstance;
-							}
-						}
-						break;
-
-					case 'hasMany':
-						$to->$property = new HasManyPlaceholder(array(
+				// @todo implement complex mappings
+				throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
+			}
+		}
+		if (isset($config['belongsTo'])) {
+			foreach ($config['belongsTo'] as $property => $relation) {
+				$belongsToId = $from[$relation['reference']];
+				if ($belongsToId !== null) {
+					if (empty($relation['model'])) {
+						warning('Unable to determine model for property "'.$property.'"');
+					}
+					$belongsToIndex = $this->resolveIndex($belongsToId);
+					$belongsToInstance = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
+					if ($belongsToInstance !== null) {
+						$to->$property = $belongsToInstance;
+					} else {
+						$fields = array(
+							$relation['id'] => $belongsToId, // @todo reverse mapping
+						);
+						$to->$property = new BelongsToPlaceholder(array(
 							'repository' => $this->id,
+							'fields' => $fields,
 							'model' => $config['model'],
 							'property' => $property,
 							'container' => $to,
 						));
-						$this->objects[$model][$index]['hasMany'][$property] = true;
-						break;
-
-					default:
-						throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
+					}
 				}
+			}
+		}
+		if (isset($config['hasMany'])) {
+			foreach ($config['hasMany'] as $property => $relation) {
+				$to->$property = new HasManyPlaceholder(array(
+					'repository' => $this->id,
+					'model' => $config['model'],
+					'property' => $property,
+					'container' => $to,
+				));
 			}
 		}
 		return $to;
@@ -513,31 +511,32 @@ class Repository extends Object {
 	protected function convertToData($instance, $config) {
 		$to = array();
 		$from = $instance;
-
+		// Put the belongsTo columns at the beginning of the array
+		if (isset($config['belongsTo'])) {
+			foreach ($config['belongsTo'] as $property => $relation) {
+				$to[$relation['reference']] = null;  // Dont set the value yet. (could be overwritten with an mapping?)
+			}
+		}
 		// Map to data
 		foreach ($config['mapping'] as $property => $relation) {
 			if (is_string($relation)) { // direct property to column mapping
 				if (property_exists($instance, $property)) {
 					$to[$relation] = $from->$property;
+				} else {
+					throw new \Exception('Invalid mapping type');
+
 				}
-			} else {
-				switch ($relation['type']) {
-
-					case 'belongsTo':
-						$belongsTo = $from->$property;
-						if ($belongsTo === null) {
-							$to[$relation['reference']] = null;
-						} else {
-							$idProperty = $relation['id']; // @todo reverse mapping
-							$to[$relation['reference']] = $from->$property->$idProperty;
-						}
-						break;
-
-					case 'hasMany':
-						break;
-
-					default:
-						throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
+			}
+		}
+		// Map the belongTo to the "*_id" columns.
+		if (isset($config['belongsTo'])) {
+			foreach ($config['belongsTo'] as $property => $relation) {
+				$belongsTo = $from->$property;
+				if ($belongsTo === null) {
+					$to[$relation['reference']] = null;
+				} else {
+					$idProperty = $relation['id']; // @todo reverse mapping
+					$to[$relation['reference']] = $from->$property->$idProperty;
 				}
 			}
 		}

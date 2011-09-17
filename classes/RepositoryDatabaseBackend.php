@@ -9,13 +9,25 @@ namespace SledgeHammer;
 class RepositoryDatabaseBackend extends RepositoryBackend {
 
 	public $models = array();
+
+	private $defaultClass;
 	/**
 	 *
 	 * @param array|string $dbLinks
 	 */
-	function __construct($dbLinks = array()) {
-		if (is_string($dbLinks)) {
-			$dbLinks = array($dbLinks);
+	function __construct($options = array()) {
+		$dbLinks = array();
+		if (is_string($options)) { // If options is a string that option is a dbLink
+			$dbLinks = array($options);
+			$options = array();
+		}
+		foreach ($options as $key => $option) {
+			if (is_int($key)) {
+				$dbLinks[] = $option;
+			} else {
+				$this->$key = $option;
+			}
+
 		}
 		foreach ($dbLinks as $dbLink) {
 			$this->inspectDatabase($dbLink);
@@ -36,7 +48,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 			$config = array(
 //				'plural' => $this->toPlural($model),
-//				'class' => 'stdClass', // @todo Generate data classses based on \SledgeHammer\Object
+				'class' => $this->defaultClass, // @todo Generate data classses based on \SledgeHammer\Object (in Repository?)
 				'dbLink' => $dbLink,
 				'table' => $tableName,
 				'id' => null,
@@ -47,7 +59,10 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 			foreach ($table['columns'] as $column => $info) {
 				$default = @$info['default'];
 				$config['defaults'][$column] = $default;
-				if (isset($info['foreignKeys'])) {
+				$config['columns'][$column] = $info;
+				if (empty($info['foreignKeys'])) {
+					$config['mapping'][$this->toProperty($column)] = $column;
+				} else {
 					if (count($info['foreignKeys']) > 1) {
 						notice('Multiple foreign-keys per column not supported');
 					}
@@ -58,16 +73,16 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 						if (array_key_exists($property, $table['columns'])) {
 							notice('Unable to use "' . $property . '" for relation config');
 							$property .= '_id';
+						} else {
+							unset($config['defaults'][$column]);
 						}
 					}
-					$config['mapping'][$property] = array(
-						'type' => 'belongsTo',
+					$config['belongsTo'][$property] = array(
 						'reference' => $column,
-						'table' => $foreignKey['table'],
+						'model' => $this->toModel($foreignKey['table']),
 						'id' => $foreignKey['column'],
 					);
-				} else {
-					$config['mapping'][$this->toProperty($column)] = $column;
+					$config['defaults'][$property] = null;
 				}
 			}
 			foreach ($table['referencedBy'] as $reference) {
@@ -76,11 +91,11 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					notice('Unable to use "' . $property . '" for relation config');
 					break;
 				}
-				$config['mapping'][$property] = array(
-					'type' => 'hasMany',
+				$config['hasMany'][$property] = array(
 					'model' => $this->toModel($reference['table']),
 					'reference' => $reference['column'],
 				);
+				$config['defaults'][$property] = array();
 			}
 			$this->models[$model] = $config;
 		}
@@ -181,7 +196,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		$columns = array();
 		$values = array();
 		foreach ($data as $column => $value) {
-			if ($value === $config['defaults'][$column]) {
+			if ($value === value($config['columns'][$column]['default'])) {
 				continue;
 			}
 			$columns[] = $db->quoteIdentifier($column);
