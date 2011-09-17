@@ -132,6 +132,12 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		return $db->fetch_row($sql);
 	}
 
+	function all($config) {
+		$sql = select('*')->from($config['table']);
+		$collection = new DatabaseCollection($sql, $config['dbLink']);
+		return $collection;
+	}
+
 	function update($new, $old, $config) {
 		$db = getDatabase($config['dbLink']);
 		$changes = array();
@@ -174,7 +180,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		$columns = array();
 		$values = array();
 		foreach ($data as $column => $value) {
-			if ($value === null) {
+			if ($value === $config['defaults'][$column]) {
 				continue;
 			}
 			$columns[] = $db->quoteIdentifier($column);

@@ -21,15 +21,46 @@ abstract class RepositoryBackend extends Object {
 	 */
 	abstract function get($id, $config);
 
+	/**
+	 * Retrieve all available model-data
+	 *
+	 * @param array $config
+	 * @return Collection
+	 */
+	function all($config) {
+		throw new \Exception('Not implemented');
+	}
+
+	/**
+	 * Update an existing record
+	 *
+	 * @param mixed $new
+	 * @param mixed $old
+	 * @param array $config
+	 * @return mixed
+	 */
 	function update($new, $old, $config) {
 		throw new \Exception('Not implemented');
 	}
 
+	/**
+	 * Add a new record
+	 *
+	 * @param mixed $data
+	 * @param array $config
+	 * @return mixed
+	 */
 	function add($data, $config) {
 		throw new \Exception('Not implemented');
 	}
 
-	function remove($row, $config) {
+	/**
+	 * Permanently remove the data
+	 *
+	 * @param mixed $data
+	 * @param array $config
+	 */
+	function remove($data, $config) {
 		throw new \Exception('Not implemented');
 	}
 }
