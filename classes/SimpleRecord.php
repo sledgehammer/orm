@@ -6,26 +6,29 @@
  */
 namespace SledgeHammer;
 class SimpleRecord extends Object {
-	
+
 	private $_model;
 	private $_state = 'unconstructed';
-//	private $_instance;
 	private $_repository = '__not_set__';
-	
+
 	function __construct() {
 		$this->_state = 'constructed';
 	}
-	
+
 	/**
 	 *
 	 * @param string $model
 	 * @param mixed $id
-	 * @param string $repository
-	 * @return SimpleRecord 
+	 * @param array $options array(
+	 *   'repository' => (string) "default"
+	 *   'preload' => (bool) false
+	 * )
+	 * @return SimpleRecord
 	 */
-	static function findById($model, $id, $repository = 'default') {
+	static function findById($model, $id, $options = array()) {
+		$repository = value($options['repository']) ?: 'default';
 		$repo = getRepository($repository);
-		$instance = $repo->get($model, $id);
+		$instance = $repo->get($model, $id, value($options['preload']));
 		if ($instance instanceof SimpleRecord) {
 			$instance->_state = 'retrieved';
 			$instance->_repository = $repository;
@@ -34,15 +37,18 @@ class SimpleRecord extends Object {
 		}
 		throw new \Exception('Model "'.$model.'" isn\'t configured as SimpleRecord');
 	}
-	
+
 	/**
 	 *
 	 * @param string $model
 	 * @param array $values
-	 * @param string $repository
-	 * @return SimpleRecord 
+	 * @param array $options array(
+	 *   'repository' => (string) "default"
+	 * )
+	 * @return SimpleRecord
 	 */
-	static function create($model, $values = array(), $repository = 'default') {
+	static function create($model, $values = array(), $options = array()) {
+		$repository = value($options['repository']) ?: 'default';
 		$repo = getRepository($repository);
 		$instance = $repo->create($model, $values);
 		if ($instance instanceof SimpleRecord) {
@@ -53,7 +59,7 @@ class SimpleRecord extends Object {
 		}
 		throw new \Exception('Model "'.$model.'" isn\'t configured as SimpleRecord');
 	}
-	
+
 	function __get($property) {
 		if ($this->_state == 'deleted') {
 			notice('A deleted Record has no properties');
@@ -73,7 +79,7 @@ class SimpleRecord extends Object {
 			case 'deleted':
 				notice('A deleted Record has no properties');
 				break;
-			
+
 			default:
 				return parent::__set($property, $value);
 		}
@@ -100,7 +106,7 @@ class SimpleRecord extends Object {
 		$this->_state = 'deleted';
 	}
 
- 
+
 	/**
 	 *
 	 * @return array

@@ -29,7 +29,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 	}
 
 	function test_create_and_update() {
-		$record = $this->createRecord();
+		$record = $this->createCustomer();
 		$record->name = 'Naam';
 		$record->occupation = 'Beroep';
 //		$record->orders = array(); // @todo SimpleRecord should create an array for thes property
@@ -67,7 +67,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 	}
 
 	function test_find_and_update() {
-		$record = $this->getRecord(1);
+		$record = $this->getCustomer(1);
 		// Object should contain values from the db. %s');
 
 		$this->assertIsA($record->orders, 'SledgeHammer\HasManyPlaceholder');
@@ -96,7 +96,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 	}
 
 	function test_update_to_empty_values() {
-		$record = $this->getRecord(1);
+		$record = $this->getCustomer(1);
 		$record->occupation = '';
 		$record->save();
 		$this->assertTableContents('customers', array(
@@ -107,7 +107,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 
 	function test_open_delete_update() {
 		$this->getDatabase()->query('DELETE FROM orders WHERE customer_id = 1');
-		$record = $this->getRecord(1);
+		$record = $this->getCustomer(1);
 		$record->delete();
 		$this->assertLastQuery('DELETE FROM customers WHERE id = "1"');
 		$this->expectError('A deleted Record has no properties');
@@ -124,7 +124,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 	}
 
 	function test_create_and_delete() {
-		$record = $this->createRecord();
+		$record = $this->createCustomer();
 		try {
 			$record->delete();
 			$this->fail('Expecting an exception');
@@ -172,7 +172,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 	}
 
 	function test_belongsTo_detection() {
-		$order = SimpleRecord::findById('Order', 1, __CLASS__);
+		$order = $this->getOrder(1);
 //		$this->assertEqual($orders->customer_id, 1); // Sanity check
 		$this->assertQueryCount(1); // Sanity check
 		$this->assertEqual($order->customer->name, 'Bob Fanger');  // De customer eigenschap wordt automagisch ingeladen.
@@ -186,8 +186,8 @@ class SimpleRecordTest extends DatabaseTestCase {
 	}
 
 	function test_belongsTo_setter() {
-		$order = SimpleRecord::findById('Order', 1, __CLASS__);
-		$james = $this->getRecord(2);
+		$order = $this->getOrder(1);
+		$james = $this->getCustomer(2);
 		$order->customer = $james;
 		$this->assertEqual($order->getChanges(), array('customer_id' => array(
 			'next' => '2',
@@ -196,10 +196,10 @@ class SimpleRecordTest extends DatabaseTestCase {
 	}
 
 	function test_belongsTo_recursief_save() {
-		$order = SimpleRecord::create('Order', array(), __CLASS__);
+		$order = $this->createOrder();
 		$order->product = 'New product';
 
-		$order->customer = SimpleRecord::create('Customer', array('occupation' => 'Consumer'), __CLASS__);
+		$order->customer = $this->createCustomer(array('occupation' => 'Consumer'));
 		$order->customer->name = 'New customer';
 		$order->save();
 
@@ -208,17 +208,30 @@ class SimpleRecordTest extends DatabaseTestCase {
 	}
 
 	/**
-	 * @return Record  Een customer-record in INSTANCE/INSERT mode
+	 * @return SimpleRecord  Een customer-record in INSERT mode
 	 */
-	private function createRecord($values = array()) {
-		return SimpleRecord::create('Customer', $values, __CLASS__);
+	private function createCustomer($values = array()) {
+		return SimpleRecord::create('Customer', $values, array('repository' => __CLASS__));
 	}
 
 	/**
-	 * @return Record  Een customer-record in INSTANCE/UPDATE mode
+	 * @return SimpleRecord  Een customer-record in UPDATE mode
 	 */
-	private function getRecord($id) {
-		return SimpleRecord::findById('Customer', $id, __CLASS__);
+	private function getCustomer($id) {
+		return SimpleRecord::findById('Customer', $id, array('repository' => __CLASS__));
+	}
+		/**
+	 * @return SimpleRecord  Een order-record in INSERT mode
+	 */
+	private function createOrder($values = array()) {
+		return SimpleRecord::create('Order', $values, array('repository' => __CLASS__));
+	}
+
+	/**
+	 * @return SimpleRecord  Een order-record in UPDATE mode
+	 */
+	private function getOrder($id) {
+		return SimpleRecord::findById('Order', $id, array('repository' => __CLASS__));
 	}
 }
 ?>
