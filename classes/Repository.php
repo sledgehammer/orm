@@ -178,7 +178,8 @@ class Repository extends Object {
 				throw new \Exception('Complex keys not (yet) supported for hasMany relations');
 			}
 			$id = $instance->{$config->id[0]};
-			$collection = $this->loadCollection($hasMany['model'])->where(array($hasMany['reference'] => $id));
+			$foreignProperty = $hasMany['property'].'.'.$hasMany['id'];
+			$collection = $this->loadCollection($hasMany['model'])->where(array($foreignProperty => $id));
 			$items = $collection->asArray();
 			$this->objects[$model][$index]['hadMany'][$property] = $items; // Add a copy for change detection
 			$instance->$property = $items;
@@ -332,7 +333,6 @@ class Repository extends Object {
 					if ($instance->$property instanceof HasManyPlaceholder) {
 						continue; // No changes (It's not even accessed)
 					}
-					$relationConfig = $this->_getConfig($hasMany['model']);
 					$collection = $instance->$property;
 					if ($collection instanceof \Iterator) {
 						$collection = iterator_to_array($collection);
@@ -341,13 +341,10 @@ class Repository extends Object {
 						notice('Expecting an array for property "'.$property.'"');
 						$collection = array();
 					}
+					$belongsToProperty = $hasMany['property'];
 					foreach ($collection as $item) {
-						// Connect the item to this instance
-						foreach ($relationConfig->belongsTo as $property2 => $belongsTo) {
-							if ($hasMany['reference'] == $belongsTo['reference']) { // @todo Een van deze "reference" moet eingenlijk anders heten. id/foreign_key/reference
-								$item->$property2 = $instance;
-							}
-						}
+						// Connect the items to the instance
+						$item->$belongsToProperty = $instance;
 						$this->save($hasMany['model'], $item, $relationSaveOptions);
 					}
 					if (value($options['keep_missing_related_instances']) == false) {

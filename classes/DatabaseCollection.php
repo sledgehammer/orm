@@ -1,6 +1,7 @@
 <?php
 /**
  * DatabaseCollection
+ * Inspired by "Linq to SQL"
  * 
  * @package Record
  */
@@ -11,26 +12,45 @@ class DatabaseCollection extends Collection {
 	 * @var SQL
 	 */
 	public $sql;
+	protected $config;
 	protected $dbLink;
 	
-	function __construct($sql, $dbLink = 'default') {
+	function __construct($sql, $dbLink = 'default', $config = array()) {
 		$this->sql = $sql;
 		$this->dbLink = $dbLink;
+		$this->config = $config;
 	}
 	
 	function where($conditions) {
 		$db = getDatabase($this->dbLink);
 		$sql = $this->sql;
-		foreach ($conditions as $column => $value) {
-			$sql = $sql->andWhere($db->quoteIdentifier($column).' = '.$db->quote($value));
+		if ($this->model === null) { // Not bound to an repository?
+			// The result are rows(fetch_assoc arrays), all conditions must be columnnames (or invalid)
+			foreach ($conditions as $column => $value) {
+				$sql = $sql->andWhere($db->quoteIdentifier($column).' = '.$db->quote($value));
+			}
+			return new DatabaseCollection($sql, $this->dbLink, $this->config);
 		}
-		$collection = new DatabaseCollection($sql, $this->dbLink);
-		$collection->bind($this->model, $this->repository);
-		return $collection;
-		// fallback
-		// @todo detect non-database properties
-//		$this->validateIterator();
-//		return parent::where($conditions);
+		$sqlChanged = false;
+		foreach ($conditions as $property => $value) {
+			$column = @$this->config['columns'][$property];
+			if ($column !== null) { // No direct mapping to a column available?
+				$sql = $sql->andWhere($db->quoteIdentifier($column).' = '.$db->quote($value));
+				$sqlChanged = true;
+				unset($conditions[$property]);
+			}
+		}
+		if ($sqlChanged) {
+			$collection = new DatabaseCollection($sql, $this->dbLink, $this->config);
+			$collection->bind($this->model, $this->repository);
+			if (count($conditions) == 0) { // All conditions are handled by sql?
+				return $collection;
+			} else {
+				return $collection->where($conditions); // Filter the remaining items in php
+			}
+		}
+		// Filter all items in php
+		return parent::where($conditions);
 	}
  
 	

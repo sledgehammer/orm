@@ -138,7 +138,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$c1 = $repo->getCustomer(1);
 		$this->assertTrue((gettype($c1->orders) == 'object' && get_class($c1->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
 		foreach ($c1->orders as $order) {
-			// do nothing
+			$this->assertEqual($order->product, 'Kop koffie', 'Only 1 order expected'); 
 		}
 		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = "1"');
 		$this->assertEqual(gettype($c1->orders), 'array', 'The orders property should be replaced with an array');

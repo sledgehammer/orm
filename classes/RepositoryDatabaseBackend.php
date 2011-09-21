@@ -52,12 +52,15 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				'backendConfig' => $table,
 			));
 			$config->backendConfig['dbLink'] = $dbLink;
+			$config->backendConfig['collection'] = array('columns' => array()); // database collection config.
 			$config->id = $table['primaryKeys'];
 			foreach ($table['columns'] as $column => $info) {
 				$default = @$info['default'];
 				$config->defaults[$column] = $default;
 				if (empty($info['foreignKeys'])) {
-					$config->properties[$this->toProperty($column)] = $column;
+					$property = $this->toProperty($column);
+					$config->properties[$property] = $column;
+					$config->backendConfig['collection']['columns'][$property] = $column; 
 				} else {
 					if (count($info['foreignKeys']) > 1) {
 						notice('Multiple foreign-keys per column not supported');
@@ -78,23 +81,37 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 						'model' => $this->toModel($foreignKey['table']),
 						'id' => $foreignKey['column'], // primairy key
 					);
+					$config->backendConfig['collection']['columns'][$property.'.'.$foreignKey['column']] =  $column;
 					$config->defaults[$property] = null;
 				}
 			}
-			foreach ($table['referencedBy'] as $reference) {
-				$property = $this->toProperty($reference['table']);
-				if (array_key_exists($property, $table['columns'])) {
-					notice('Unable to use "' . $property . '" for relation config');
-					break;
-				}
-				$config->hasMany[$property] = array(
-					'model' => $this->toModel($reference['table']),
-					'reference' => $reference['column'], // foreign key
-				);
-				$config->defaults[$property] = array();
-			}
 			$this->configs[$config->name] = $config;
 		}
+		// Pass 2:
+		foreach ($this->configs as $config) {
+			$table = $schema[$config->backendConfig['table']];
+			foreach ($table['referencedBy'] as $reference) {
+				$property = $this->toProperty($reference['table']);
+				if (array_key_exists($property, $config->properties)) {
+					notice('Unable to use "' . $property . '" for hasMany relation config');
+					break;
+				}
+				$model = $this->toModel($reference['table']);
+				$belongsToModel = $this->configs[$model];
+				foreach ($belongsToModel->belongsTo as $belongsToProperty => $belongsTo) {
+					if ($belongsTo['model'] == $config->name && $belongsTo['reference'] == $reference['column']) {
+						$config->hasMany[$property] = array(
+							'model' => $model,
+							'property' => $belongsToProperty,
+							'id' => $belongsTo['id'], // reverse map?
+						);		
+						$config->defaults[$property] = array();
+						break;
+					}
+				}
+			}
+		}
+
 	}
 
 	public function getModelConfigs() {
@@ -134,13 +151,12 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 	/**
 	 *
-	 * @param ModelConfig $config
+	 * @param array $config
 	 * @return DatabaseCollection 
 	 */
 	function all($config) {
 		$sql = select('*')->from($config['table']);
-		$collection = new DatabaseCollection($sql, $config['dbLink']);
-		return $collection;
+		return new DatabaseCollection($sql, $config['dbLink'], $config['collection']);
 	}
 
 	/**
@@ -219,7 +235,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	/**
 	 *
 	 * @param array $row  The data
-	 * @param ModelConfig $config
+	 * @param array $config
 	 */
 	function remove($row, $config) {
 		$db = getDatabase($config['dbLink']);

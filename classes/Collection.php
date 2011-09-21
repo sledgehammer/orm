@@ -34,7 +34,7 @@ class Collection extends Object implements \Iterator, \Countable {
 		return iterator_to_array($this);
 	}
 
-	function bind($model, $repository = 'master') {
+	function bind($model, $repository = 'default') {
 		$this->model = $model;
 		$this->repository = $repository;
 	}
@@ -42,14 +42,11 @@ class Collection extends Object implements \Iterator, \Countable {
 	function where($conditions) {
 		$data = array();
 		foreach ($this as $key => $item) {
-			foreach ($conditions as $property => $value) {
-				if (text($property)->endsWith('_id')) { // @todo 
-					$property = substr($property, 0, -3);
-					if ($item->$property->id == $value) {
-						$data[$key] = $item;
-					}
-				} elseif ($item->$property == $value) {
-					$data[$key] = $item;
+			foreach ($conditions as $path => $expectation) {
+				$actual = PropertyPath::get($item, $path);
+				if (equals($actual, $expectation)) {
+					// $data[$key] = $item; @todo check if its not an index array
+					$data[] = $item;
 				}
 			}
 		}
