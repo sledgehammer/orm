@@ -8,9 +8,12 @@
 namespace SledgeHammer;
 class RepositoryDatabaseBackend extends RepositoryBackend {
 
-	public $models = array();
+	public $identifier = 'database';
+	/**
+	 * @var array|ModelConfig
+	 */
+	public $configs = array();
 
-	private $defaultClass;
 	/**
 	 *
 	 * @param array|string $dbLinks
@@ -44,24 +47,17 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		$schema = $this->getSchema($dbLink);
 
 		foreach ($schema as $tableName => $table) {
-			$model = $this->toModel($tableName);
-
-			$config = array(
+			$config = new ModelConfig($this->toModel($tableName), array(
 //				'plural' => $this->toPlural($model),
-				'class' => $this->defaultClass, // @todo Generate data classses based on \SledgeHammer\Object (in Repository?)
-				'dbLink' => $dbLink,
-				'table' => $tableName,
-				'id' => null,
-				'mapping' => array(),
-				'defaults' => array(),
-			);
-			$config['id'] = $table['primaryKeys'];
+				'backendConfig' => $table,
+			));
+			$config->backendConfig['dbLink'] = $dbLink;
+			$config->id = $table['primaryKeys'];
 			foreach ($table['columns'] as $column => $info) {
 				$default = @$info['default'];
-				$config['defaults'][$column] = $default;
-				$config['columns'][$column] = $info;
+				$config->defaults[$column] = $default;
 				if (empty($info['foreignKeys'])) {
-					$config['mapping'][$this->toProperty($column)] = $column;
+					$config->properties[$this->toProperty($column)] = $column;
 				} else {
 					if (count($info['foreignKeys']) > 1) {
 						notice('Multiple foreign-keys per column not supported');
@@ -74,15 +70,15 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 							notice('Unable to use "' . $property . '" for relation config');
 							$property .= '_id';
 						} else {
-							unset($config['defaults'][$column]);
+							unset($config->defaults[$column]);
 						}
 					}
-					$config['belongsTo'][$property] = array(
-						'reference' => $column,
+					$config->belongsTo[$property] = array(
+						'reference' => $column, // foreignKey
 						'model' => $this->toModel($foreignKey['table']),
-						'id' => $foreignKey['column'],
+						'id' => $foreignKey['column'], // primairy key
 					);
-					$config['defaults'][$property] = null;
+					$config->defaults[$property] = null;
 				}
 			}
 			foreach ($table['referencedBy'] as $reference) {
@@ -91,54 +87,42 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					notice('Unable to use "' . $property . '" for relation config');
 					break;
 				}
-				$config['hasMany'][$property] = array(
+				$config->hasMany[$property] = array(
 					'model' => $this->toModel($reference['table']),
-					'reference' => $reference['column'],
+					'reference' => $reference['column'], // foreign key
 				);
-				$config['defaults'][$property] = array();
+				$config->defaults[$property] = array();
 			}
-			$this->models[$model] = $config;
-		}
-		// Pass 2:
-		foreach ($this->models as $model => $config) {
-			foreach ($config['mapping'] as $property => $relation) {
-				if (is_array($relation) && $relation['type'] == 'belongsTo' && empty($relation['model'])) {
-					if (empty($relation['table'])) {
-						warning('Unable to determine model for property "' . $property . '" in model "'.$model.'"');
-						break;
-					}
-					$this->models[$model]['mapping'][$property]['model'] = $this->toModel($relation['table']); // update config
-
-				}
-			}
+			$this->configs[$config->name] = $config;
 		}
 	}
 
-	public function getModels() {
-		return $this->models;
+	public function getModelConfigs() {
+		return $this->configs;
 	}
 
 	/**
 	 * Load the record from the db
 	 *
 	 * @param mixed $id
+	 * @param array $config
 	 * @return array
 	 */
 	function get($id, $config) {
 		$db = getDatabase($config['dbLink']);
 		if (is_array($id)) {
-			if (count($config['id']) != count($id)) {
-				throw new \Exception('Incomplete id, table: "' . $config['table'] . '" requires: "' . human_implode('", "', $config['id']) . '"');
+			if (count($config['primaryKeys']) != count($id)) {
+				throw new \Exception('Incomplete id, table: "' . $config['table'] . '" requires: "' . human_implode('", "', $config['primairyKeys']) . '"');
 			}
-		} elseif (count($config['id']) == 1) {
-			$id = array($config['id'][0] => $id); // convert $id to array notation
+		} elseif (count($config['primaryKeys']) == 1) {
+			$id = array($config['primaryKeys'][0] => $id); // convert $id to array notation
 		} else {
-			throw new \Exception('Incomplete id, table: "' . $config['table'] . '" requires: "' . human_implode('", "', $config['id']) . '"');
+			throw new \Exception('Incomplete id, table: "' . $config['table'] . '" requires: "' . human_implode('", "', $config['primairyKeys']) . '"');
 		}
 		$sql = select('*')->from($config['table']);
 		$sql->where = array('operator' => 'AND');
 
-		foreach ($config['id'] as $key) {
+		foreach ($config['primaryKeys'] as $key) {
 			if (isset($id[$key]) == false) {
 				throw new \Exception('Missing key: "' . $key . '"'); // todo better error
 			}
@@ -148,12 +132,24 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		return $db->fetch_row($sql);
 	}
 
+	/**
+	 *
+	 * @param ModelConfig $config
+	 * @return DatabaseCollection 
+	 */
 	function all($config) {
 		$sql = select('*')->from($config['table']);
 		$collection = new DatabaseCollection($sql, $config['dbLink']);
 		return $collection;
 	}
 
+	/**
+	 *
+	 * @param array $new
+	 * @param array $old
+	 * @param array $config
+	 * @return array 
+	 */
 	function update($new, $old, $config) {
 		$db = getDatabase($config['dbLink']);
 		$changes = array();
@@ -167,7 +163,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		}
 		$where = array();
 
-		foreach ($config['id'] as $column) {
+		foreach ($config['primaryKeys'] as $column) {
 			if (isset($old[$column]) == false) {
 				throw new \Exception('Parameter $old must contain the id field(s)');
 			}
@@ -207,8 +203,8 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		if ($result == false) {
 			throw new \Exception('Adding record "' . implode(' + ', $id) . '" failed');
 		}
-		if (count($config['id']) == 1) {
-			$idColumn = $config['id'][0];
+		if (count($config['primaryKeys']) == 1) {
+			$idColumn = $config['primaryKeys'][0];
 			if ($data[$idColumn] === null) {
 				if ($db instanceof \mysqli) {
 					$data[$idColumn] = $db->insert_id;
@@ -223,13 +219,13 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	/**
 	 *
 	 * @param array $row  The data
-	 * @param array $config
+	 * @param ModelConfig $config
 	 */
 	function remove($row, $config) {
 		$db = getDatabase($config['dbLink']);
 		$where = array();
 		$id = array();
-		foreach ($config['id'] as $column) {
+		foreach ($config['primaryKeys'] as $column) {
 			$id[$column] = $row[$column];
 			$where[] = $db->quoteIdentifier($column) . ' = ' . $db->quote($row[$column]);
 		}

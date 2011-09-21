@@ -23,7 +23,8 @@ class SimpleRecordTest extends DatabaseTestCase {
 	function fillDatabase($db) {
 		$db->import(dirname(__FILE__).'/rebuild_test_database.sql', $error);
 		$repo = new Repository();
-		$repo->registerBackend(new RepositoryDatabaseBackend(array('defaultClass' => 'SledgeHammer\SimpleRecord', $this->dbLink)));
+		$repo->baseClass = 'SledgeHammer\SimpleRecord';
+		$repo->registerBackend(new RepositoryDatabaseBackend(array($this->dbLink)));
 		$GLOBALS['Repositories'][__CLASS__] = $repo;
 //		set_error_handler('SledgeHammer\ErrorHandler_trigger_error_callback');
 	}

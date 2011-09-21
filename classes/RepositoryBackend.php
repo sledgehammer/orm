@@ -8,11 +8,16 @@ namespace SledgeHammer;
 abstract class RepositoryBackend extends Object {
 
 	/**
+	 * @var string
+	 */
+	public $identifier;
+
+	/**
 	 * Return the available models in this backend.
 	 *
-	 * @return array  array('model name' => array()
+	 * @return array|ModelConfig  array('model name' => ModelConfig
 	 */
-	abstract function getModels();
+	abstract function getModelConfigs();
 
 	/**
 	 * Retrieve model-data by id.
