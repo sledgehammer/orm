@@ -383,11 +383,11 @@ class Repository extends Object {
 		}
 		$this->backends[$backend->identifier] = $backend;
 		$configs = $backend->getModelConfigs();
-		foreach ($configs as $model => $config) {
+		foreach ($configs as $config) {
 			if ($config->backend === null) {
 				$config->backend = $backend->identifier;
 			}
-			$this->register($model, $config);
+			$this->register($config);
 		}
 	}
 
@@ -442,9 +442,9 @@ class Repository extends Object {
 			throw new \Exception('Invalid index: "'.$index.'"');		} else {
 		}
 		// Map the data onto the instance
-		foreach ($config->properties as $property => $relation) {
-			if (is_string($relation)) {
-				$to->$property = $from[$relation];
+		foreach ($config->properties as $property => $path) {
+			if (is_string($path)) {
+				$to->$property = PropertyPath::get($from, $path);
 			} else {
 				// @todo implement complex mappings
 				throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
@@ -526,24 +526,24 @@ class Repository extends Object {
 	/**
 	 * Add an configution for a model
 	 *
-	 * @param string $model
 	 * @param ModelConfig $config
 	 */
-	protected function register($model, $config) {
+	protected function register($config) {
 		if (empty($config->class)) {
 			$config->class = $this->baseClass; // @todo generate custom class, based on mapping
 		}
 		$AutoLoader = $GLOBALS['AutoLoader'];
 
 		foreach ($this->namespaces as $namespace) {
-			$class = $namespace.$model;
+			$class = $namespace.$config->name;
 			if (class_exists($class, false) || $AutoLoader->getFilename($class) !== null) { // Is the class known?
 //				@todo class compatibility check (Reflection?)
 //				@todo import config from class?
 				$config->class = $class;
 			}
 		}
-		$this->configs[$model] = $config;
+		// @todo Check if the config overrides another config.
+		$this->configs[$config->name] = $config;
 	}
 
 	/**

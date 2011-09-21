@@ -19,7 +19,7 @@ class ModelConfig extends Object {
 	/**
 	 * @var array  Direct mapping of properties to the backend data structure
 	 */
-	public $properties;
+	public $properties = array();
 	/**
 	 * @var array  The element(s) in the backend data that identifies an instance 
 	 */

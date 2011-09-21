@@ -33,7 +33,7 @@ abstract class RepositoryBackend extends Object {
 	 * @return Collection
 	 */
 	function all($config) {
-		throw new \Exception('Not implemented');
+		throw new \Exception('Method: '.get_class($this).'->all() not implemented');
 	}
 
 	/**
@@ -45,7 +45,7 @@ abstract class RepositoryBackend extends Object {
 	 * @return mixed
 	 */
 	function update($new, $old, $config) {
-		throw new \Exception('Not implemented');
+		throw new \Exception('Method: '.get_class($this).'->update() not implemented');
 	}
 
 	/**
@@ -56,7 +56,7 @@ abstract class RepositoryBackend extends Object {
 	 * @return mixed
 	 */
 	function add($data, $config) {
-		throw new \Exception('Not implemented');
+		throw new \Exception('Method: '.get_class($this).'->add() not implemented');
 	}
 
 	/**
@@ -66,7 +66,7 @@ abstract class RepositoryBackend extends Object {
 	 * @param array $config
 	 */
 	function remove($data, $config) {
-		throw new \Exception('Not implemented');
+		throw new \Exception('Method: '.get_class($this).'->remove() not implemented');
 	}
 }
 ?>
