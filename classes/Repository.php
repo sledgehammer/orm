@@ -178,7 +178,7 @@ class Repository extends Object {
 				throw new \Exception('Complex keys not (yet) supported for hasMany relations');
 			}
 			$id = $instance->{$config->id[0]};
-			$foreignProperty = $hasMany['property'].'.'.$hasMany['id'];
+			$foreignProperty = $hasMany['property'].'->'.$hasMany['id'];
 			$collection = $this->loadCollection($hasMany['model'])->where(array($foreignProperty => $id));
 			$items = $collection->asArray();
 			$this->objects[$model][$index]['hadMany'][$property] = $items; // Add a copy for change detection

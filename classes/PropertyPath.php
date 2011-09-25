@@ -4,13 +4,18 @@
  * Inspired by XPath
  * But implemented similar to "Property Path Syntax" in Silverlight
  * @link http://msdn.microsoft.com/en-us/library/cc645024(v=VS.95).aspx
+ * 
+ * @todo Escaping '[12\[34]' for key '12[34'
+ * @todo Dot notation for automatic switching
+ * @todo? Wildcards for getting and setting a range of properties ''
+ * @todo? $path Validation properties
  *
  * Format:
  *   'abc'  maps to element $data['abc'] or property $data->abc.
- *   '.abc' maps to property $data->abc
+ *   '->abc' maps to property $data->abc
  *   '[abc] maps to element  $data['abc']
- *   '.abc.efg' maps to property $data->abc->efg
- *   '.abc[efg]' maps to property $data->abc[efg]
+ *   '->abc->efg' maps to property $data->abc->efg
+ *   '->abc[efg]' maps to property $data->abc[efg]
  *
  * @package Record
  */
@@ -24,9 +29,9 @@ class PropertyPath extends Object {
 	 * @return mixed
 	 */
 	static function get($data, $path) {
-		$dot = self::dotPosition($path);
+		$arrow = self::arrowPosition($path);
 		$bracket = self::openBracketPosition($path);
-		if ($dot === false && $bracket === false) { // Autodetect element/property?
+		if ($arrow === false && $bracket === false) { // Autodetect element/property?
 			if (is_array($data)) {
 				return $data[$path];
 			}
@@ -36,30 +41,30 @@ class PropertyPath extends Object {
 			notice('Unexpected type: '.gettype($data));
 			return null;
 		}
-		if ($dot !== false && ($bracket === false || $dot < $bracket)) { // Property syntax?
-			if ($dot > 0) {
-				$data = self::get($data, substr($path, 0, $dot));
+		if ($arrow !== false && ($bracket === false || $arrow < $bracket)) { // Property syntax?
+			if ($arrow > 0) {
+				$data = self::get($data, substr($path, 0, $arrow));
 			}
 			if (is_object($data) == false) {
 				notice('Unexpected type: '.gettype($data).', expecting an object');
 				return null;
 			}
-			$path = substr($path, $dot + 1); // remove dot
-			$dot2 = self::dotPosition($path);
-			if ($dot2 === false && $bracket === false) {
+			$path = substr($path, $arrow + 2); // remove arrow
+			$arrow2 = self::arrowPosition($path);
+			if ($arrow2 === false && $bracket === false) {
 				return $data->$path;
 			}
 			if ($bracket !== false) {
-				$bracket += $dot - 1;
-				if ($dot2 === false || $bracket < $dot2) {
+				$bracket += $arrow - 2;
+				if ($arrow2 === false || $bracket < $arrow2) {
 					$property = substr($path, 0, $bracket);
 					$data = $data->$property;
 					return self::get($data, substr($path, $bracket));
 				}
 			}
-			$property = substr($path, 0, $dot2);
+			$property = substr($path, 0, $arrow2);
 			$data = $data->$property;
-			return self::get($data, substr($path, $dot2));
+			return self::get($data, substr($path, $arrow2));
 		}
 		// array notation
 		if ($bracket > 0) {
@@ -84,22 +89,95 @@ class PropertyPath extends Object {
 	}
 
 	/**
+	 * 
 	 * @param array|object $data
 	 * @param string $path
 	 * @param mixed $value
 	 */
-	static function set($data, $path, $value) {
-		$parts = explode('.', $path);
-		$ref = &$data;
-		foreach ($parts as $index => $key) {
+	static function set(&$data, $path, $value) {
+		$arrow = self::arrowPosition($path);
+		$bracket = self::openBracketPosition($path);
+		if ($arrow === false && $bracket === false) { // Autodetect element/property?
 			if (is_array($data)) {
-				$data = $data[$key];
-			} elseif (is_object($data)) {
-				$data = $data->$key;
+				$data[$path] = $value;
+				return true;
+			}
+			if (is_object($data)) {
+				$data->$path = $value;
+				return true;
+			}
+			notice('Unexpected type: '.gettype($data));
+			// @todo create object or array?
+			return false;
+		}
+		if ($arrow !== false && ($bracket === false || $arrow < $bracket)) { // Property syntax?
+			if ($arrow == 0) {
+				if (is_object($data) == false) {
+					notice('Unexpected type: '.gettype($data).', expecting an object');
+					// @todo create object?
+					return null;
+				}
+ 				return self::set($data, substr($path, 2), $value);
+			}
+			$identifier = substr($path, 0, $arrow);
+			if (is_object($data)) {
+				$data = &$data->$identifier;
+
+			} elseif (is_array($data)) {
+				$data = &$data[$identifier];
+
 			} else {
-				notice('Unexcpected type: '.gettype($ref));
+				notice('Unexpected type: '.gettype($data).', expecting an object');
+				// @todo create object or array?
+				return false;
+			}
+			$path = substr($path, $arrow + 2); // remove arrow
+			$arrow2 = self::arrowPosition($path);
+			if ($arrow2 === false && $bracket === false) {
+				$data->$path = $value;
+				return true;
+			}
+			if ($bracket !== false) {
+				$bracket += $arrow - 2;
+				if ($arrow2 === false || $bracket < $arrow2) {
+					$property = substr($path, 0, $bracket);
+					return self::set($data->$property, substr($path, $bracket));
+				}
+			}
+			$property = substr($path, 0, $arrow2);
+			return self::set($data->$property, substr($path, $arrow2), $value);
+		}
+		// array notation
+		if ($bracket == 0) {
+			if (is_array($data) == false) {
+				notice('Unexpected type: '.gettype($data).', expecting an array');
+				return false;
+			}
+			// $data = self::set($data, substr($path, 0, $bracket));
+		} else {
+			$identifier = substr($path, 0, $bracket);
+			if (is_object($data)) {
+				$data = &$data->$identifier;
+			} elseif (is_array($data)) {
+				$data = &$data[$identifier];
+			} else {
+				notice('Unexpected type: '.gettype($data).', expecting an object or array');
+				// @todo create object or array?
+				return false;
 			}
 		}
+		$path = substr($path, $bracket + 1); // remove starting bracket '['
+		$bracket = self::closeBracketPosition($path);
+		if ($bracket === false) {
+			notice('Unvalid path, unmatched brackets, missing a "]"');
+		}
+		$element = substr($path, 0, $bracket);
+		$path = substr($path, $bracket + 1);
+		if ($path === false) {
+			$data[$element] = $value;
+			return true;
+		}
+		return self::set($data[$element], $path, $value);
 	}
 
 	/**
@@ -123,8 +201,8 @@ class PropertyPath extends Object {
 
 	// @todo check escaped positions
 
-	private static function dotPosition($path) {
-		return strpos($path, '.');
+	private static function arrowPosition($path) {
+		return strpos($path, '->');
 	}
 	private static function openBracketPosition($path) {
 		return strpos($path, '[');

@@ -81,7 +81,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 						'model' => $this->toModel($foreignKey['table']),
 						'id' => $foreignKey['column'], // primairy key
 					);
-					$config->backendConfig['collection']['columns'][$property.'.'.$foreignKey['column']] =  $column;
+					$config->backendConfig['collection']['columns'][$property.'->'.$foreignKey['column']] =  $column;
 					$config->defaults[$property] = null;
 				}
 			}
