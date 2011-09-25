@@ -442,45 +442,51 @@ class Repository extends Object {
 			throw new \Exception('Invalid index: "'.$index.'"');		} else {
 		}
 		// Map the data onto the instance
-		foreach ($config->properties as $property => $path) {
-			if (is_string($path)) {
-				$to->$property = PropertyPath::get($from, $path);
-			} else {
-				// @todo implement complex mappings
-				throw new \Exception('Invalid mapping type: "'.$relation['type'].'"');
-			}
+		foreach ($config->properties as $targetPath => $sourcePath) {
+			PropertyPath::set($to, $targetPath, PropertyPath::get($from, $sourcePath));
 		}
 		foreach ($config->belongsTo as $property => $relation) {
-			$belongsToId = $from[$relation['reference']];
-			if ($belongsToId !== null) {
-				if (empty($relation['model'])) {
-					warning('Unable to determine model for property "'.$property.'"');
-				}
-				$belongsToIndex = $this->resolveIndex($belongsToId);
-				$belongsToInstance = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
-				if ($belongsToInstance !== null) {
-					$to->$property = $belongsToInstance;
-				} else {
-					$fields = array(
-						$relation['id'] => $belongsToId, // @todo reverse mapping
-					);
-					$to->$property = new BelongsToPlaceholder(array(
-						'repository' => $this->id,
-						'fields' => $fields,
-						'model' => $config->name,
-						'property' => $property,
-						'container' => $to,
-					));
+			if (isset($relation['convert'])) {
+				$value = $this->convert($relation['model'], PropertyPath::get($from, $relation['convert']));
+				PropertyPath::set($to, $property, $value);
+			} else {
+				$belongsToId = $from[$relation['reference']];
+				if ($belongsToId !== null) {
+					if (empty($relation['model'])) {
+						warning('Unable to determine model for property "'.$property.'"');
+					}
+					$belongsToIndex = $this->resolveIndex($belongsToId);
+					$belongsToInstance = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
+					if ($belongsToInstance !== null) {
+						$to->$property = $belongsToInstance;
+					} else {
+						$fields = array(
+							$relation['id'] => $belongsToId, // @todo reverse mapping
+						);
+						$to->$property = new BelongsToPlaceholder(array(
+							'repository' => $this->id,
+							'fields' => $fields,
+							'model' => $config->name,
+							'property' => $property,
+							'container' => $to,
+						));
+					}
 				}
 			}
 		}
 		foreach ($config->hasMany as $property => $relation) {
-			$to->$property = new HasManyPlaceholder(array(
-				'repository' => $this->id,
-				'model' => $config->name,
-				'property' => $property,
-				'container' => $to,
-			));
+			if (isset($relation['convert'])) {
+				$collection = new Collection(PropertyPath::get($from, $relation['convert']));
+				$collection->bind($relation['model'], $this->id);
+				PropertyPath::set($to, $property, $collection);
+			} else {
+				$to->$property = new HasManyPlaceholder(array(
+					'repository' => $this->id,
+					'model' => $config->name,
+					'property' => $property,
+					'container' => $to,
+				));
+			}
 		}
 		return $to;
 	}
@@ -529,19 +535,20 @@ class Repository extends Object {
 	 * @param ModelConfig $config
 	 */
 	protected function register($config) {
+//		$config = clone $config;
 		if (empty($config->class)) {
 			$config->class = $this->baseClass; // @todo generate custom class, based on mapping
-		}
-		$AutoLoader = $GLOBALS['AutoLoader'];
-
-		foreach ($this->namespaces as $namespace) {
-			$class = $namespace.$config->name;
-			if (class_exists($class, false) || $AutoLoader->getFilename($class) !== null) { // Is the class known?
-//				@todo class compatibility check (Reflection?)
-//				@todo import config from class?
-				$config->class = $class;
+			$AutoLoader = $GLOBALS['AutoLoader'];
+			foreach ($this->namespaces as $namespace) {
+				$class = $namespace.$config->name;
+				if (class_exists($class, false) || $AutoLoader->getFilename($class) !== null) { // Is the class known?
+	//				@todo class compatibility check (Reflection?)
+	//				@todo import config from class?
+					$config->class = $class;
+				}
 			}
 		}
+//		$config->backendConfig['repository'] = $this->id;
 		// @todo Check if the config overrides another config.
 		$this->configs[$config->name] = $config;
 	}
