@@ -60,7 +60,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				if (empty($info['foreignKeys'])) {
 					$property = $this->toProperty($column);
 					$config->properties[$property] = $column;
-					$config->backendConfig['collection']['columns'][$property] = $column; 
+					$config->backendConfig['collection']['columns'][$property] = $column;
 				} else {
 					if (count($info['foreignKeys']) > 1) {
 						notice('Multiple foreign-keys per column not supported');
@@ -104,7 +104,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 							'model' => $model,
 							'property' => $belongsToProperty,
 							'id' => $belongsTo['id'], // reverse map?
-						);		
+						);
 						$config->defaults[$property] = array();
 						break;
 					}
@@ -152,7 +152,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	/**
 	 *
 	 * @param array $config
-	 * @return DatabaseCollection 
+	 * @return DatabaseCollection
 	 */
 	function all($config) {
 		$sql = select('*')->from($config['table']);
@@ -164,7 +164,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	 * @param array $new
 	 * @param array $old
 	 * @param array $config
-	 * @return array 
+	 * @return array
 	 */
 	function update($new, $old, $config) {
 		$db = getDatabase($config['dbLink']);
@@ -373,9 +373,35 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 								if (substr($default, 0, 1) == "'") {
 									$config['columns'][$column]['default'] = substr($default, 1, -1); // remove quotes
 								} else {
-									notice('Unknown default "' . $default . '" in "' . $line . '"');
+									switch ($default) {
+										case 'NULL'; $default = null; break;
+										case 'CURRENT_TIMESTAMP': $default = null; break;
+										default:
+											notice('Unknown default "' . $default . '" in "' . $line . '"');
+											break;
+									}
 									$config['columns'][$column]['default'] = $default;
 								}
+								break;
+
+							case 'unsigned':
+								$config['columns'][$column]['type'] = 'unsigned '.$config['columns'][$column]['type'];
+								break;
+
+							case 'COMMENT':
+								$comment = '';
+								while($part = $parts[$i + 1]) {
+									$i++;
+									$comment .= $part;
+									if (substr($default, 0, 1) != "'") { // Not a quoted string value?
+										break; // end for loop
+									}
+									if (substr($default, -1) == "'") { // End of quoted string?
+										break; // end for loop
+									}
+									$comment .= ' ';
+								}
+								$config['columns'][$column]['comment'] = $comment;
 								break;
 
 							default:
@@ -391,7 +417,9 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 							$config['primaryKeys'] = explode(',', substr($parts[1], 1, -1));
 							break;
 
-						case 'KEY': break;
+						case 'KEY':
+						case 'UNIQUE_KEY';
+							break; // Skip
 
 						case 'CONSTRAINT':
 							if ($parts[2] != 'FOREIGN_KEY') {
