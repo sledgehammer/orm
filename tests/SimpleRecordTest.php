@@ -148,22 +148,20 @@ class SimpleRecordTest extends DatabaseTestCase {
 	}
 
 	function test_all() {
-//		$collection = $this->customer->all();
-//		$this->assertQueryCount(1);
-//		$this->assertQuery('DESCRIBE customers');
-
-//		$records = iterator_to_array($collection);
-//		$this->assertQueryCount(2);
-//		$this->assertLastQuery('SELECT * FROM customers');
-//		$this->assertEqual(count($records), 2);
-//		$this->assertEqual($records[1]->name, 'Bob Fanger');
-//		$this->assertEqual($records[2]->name, 'James Bond');
+		$collection = $this->getAllCustomers();
+		$this->assertQueryCount(0);
+		$records = iterator_to_array($collection);
+		$this->assertQueryCount(1);
+		$this->assertLastQuery('SELECT * FROM customers');
+		$this->assertEqual(count($records), 2);
+		$this->assertEqual($records[0]->name, 'Bob Fanger');
+		$this->assertEqual($records[1]->name, 'James Bond');
 	}
 
 	function test_all_with_array() {
-//		$collection = $this->customer->all(array('name' => 'James Bond'));
-//		$this->assertEqual(count($collection), 1);
-//		$this->assertLastQuery('SELECT * FROM customers WHERE name = "James Bond"');
+		$collection = $this->getAllCustomers()->where(array('name' => 'James Bond'));
+		$this->assertEqual(count($collection), 1);
+		$this->assertLastQuery('SELECT * FROM customers WHERE name = "James Bond"');
 	}
 
 	function test_all_with_sprintf() {
@@ -221,6 +219,14 @@ class SimpleRecordTest extends DatabaseTestCase {
 	private function getCustomer($id) {
 		return SimpleRecord::findById('Customer', $id, array('repository' => __CLASS__));
 	}
+
+	/**
+	 * @return Collection
+	 */
+	private function getAllCustomers() {
+		return SimpleRecord::all('Customer', array('repository' => __CLASS__));
+	}
+
 		/**
 	 * @return SimpleRecord  Een order-record in INSERT mode
 	 */

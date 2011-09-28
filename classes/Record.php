@@ -49,15 +49,11 @@ abstract class Record extends Object {
 		}
 	}
 
-	public function __set($property, $value) {
-		switch ($this->_state) {
-
-			case 'deleted':
-				notice('A deleted Record has no properties');
-				break;
-
-			default:
-				return parent::__set($property, $value);
+	function __set($property, $value) {
+		if ($this->_state == 'deleted') {
+			notice('A deleted Record has no properties');
+		} else {
+			return parent::__set($property, $value);
 		}
 	}
 
@@ -71,7 +67,7 @@ abstract class Record extends Object {
 
 	function delete() {
 		$repo = getRepository($this->_repository);
-		$retval = $repo->remove($this->_model, $this);
+		$retval = $repo->delete($this->_model, $this);
 		// unset properties
 		$propertyWhitelist = array_keys(get_class_vars(__CLASS__));
 		foreach (get_object_vars($this) as $property => $value) {

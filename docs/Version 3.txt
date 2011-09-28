@@ -7,6 +7,7 @@ ORM Duties/Goals
    - Create/Update
  * Protect againt SQL injection
  * OOP aproach to database records.
+  - Easily fetch related records
 
 
 Looking back on Version 2
@@ -18,7 +19,7 @@ The good:
 + relations as properties
 + Only save/update the changes
 + config for the customer in the customer class (no boilerplate mapper classes or xml configurations)
-+ A record (instance) object cant modify other records
++ A record (instance) object can't modify other records
 + Column/property validation (no silent dataloss)
 + Quick & dirty with SimpleRecord's auto-configuration
 + Strict: No first() method, find() returns 1 object or an exception
@@ -54,6 +55,7 @@ Full support for IDE autocompletion
 Only one instance per row.
   $x = new Customer(1);
   $y = new Customer(1); // $y becomes a reference to $x;
+(Became $repository->getCustomer(1), the "new" keyword will allway generate a new/seperate instance)
 
 ORM can save and retrieves POCO (Plain Old Class Objects)
 
@@ -79,7 +81,7 @@ POCO (Plain Old Class Objects)
   Also no inheritance of interface required.
 
   No direct connection between datasource and object?
-  aka support for multiple database connections for the same class.
+  aka support for multiple database/repository connections for the same class.
 
 
 
@@ -103,6 +105,8 @@ Implementation ideas
  column "city" to property "address/city" translates to $x->address->city; // or "address.city"? or "address->city"?
  // is 'address' a array, stdClass, ArrayObject or custom class? 
  // Getting autocompletion to work: @var AddresStruct public $address
+
+Became "address->city" for objects and "address[city]" for arrays in PropertyPath.
 
 = Repository =
 Loading and Saving logic outside the Record object.
@@ -133,10 +137,10 @@ $t->findAll($criteria);
 $t->add($o); //insert
 $t->update($o);
 $t->delete($id);
-$t->deleteAll($criteria);
+$t->deleteAll($criteria); // Won't be implemented, would enable big mistakes in client code
 // Filtering/List
 $rs = $t->all();
-$rs->where('x = 2');
+$rs = $t->all()->where('x = 2');
 foreach($rs as $record) {}
 
 
@@ -145,9 +149,15 @@ Repository API
 $repository = getRepository('default');
 $customer = $repository->getCustomer($id);
 $customer = $repository->findCustomer($criteria);
+  became $customer = $repository->getCustomerCollection()->where($criteria);
+  should become $repository->getCustomers()->where($criteria);
+    but both options wouldn't force 1 result (or an Exception).
+
 $repository->saveCustomer($customer);
 $table = $repository->getCustomersTable();
-$repository->saveAll()?
+  
+$repository->saveAll()? namespace conflict with the "All" model?
+  Wouldn't this generate multiple save() call per (belongsTo/hasMany) instance? 
 
 
 Record API

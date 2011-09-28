@@ -29,6 +29,17 @@ class SimpleRecord extends Record {
 		}
 		throw new \Exception('Model "'.$model.'" isn\'t configured as SimpleRecord');
 	}
+	/**
+	 *
+	 * @param string $model
+	 * @param array $options
+	 * @return Collection
+	 */
+	static function all($model, $options = array()) {
+		$repository = value($options['repository']) ?: 'default';
+		$repo = getRepository($repository);
+		return $repo->loadCollection($model);
+	}
 
 	/**
 	 *

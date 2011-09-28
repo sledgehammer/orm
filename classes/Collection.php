@@ -39,16 +39,23 @@ class Collection extends Object implements \Iterator, \Countable {
 		$this->repository = $repository;
 	}
 
+	/**
+	 *
+	 * @param array $conditions
+	 * @return Collection 
+	 */
 	function where($conditions) {
 		$data = array();
 		foreach ($this as $key => $item) {
 			foreach ($conditions as $path => $expectation) {
 				$actual = PropertyPath::get($item, $path);
-				if (equals($actual, $expectation)) {
-					// $data[$key] = $item; @todo check if its not an index array
-					$data[] = $item;
+				if (equals($actual, $expectation) == false) {
+					continue 2; // Skip this entry
 				}
 			}
+			// $data[$key] = $item; @todo check if its not an index array
+			$data[] = $item;
+
 		}
 		return new Collection($data);
 	}
