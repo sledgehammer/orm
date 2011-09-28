@@ -237,7 +237,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	 * @param array $row  The data
 	 * @param array $config
 	 */
-	function remove($row, $config) {
+	function delete($row, $config) {
 		$db = getDatabase($config['dbLink']);
 		$where = array();
 		$id = array();

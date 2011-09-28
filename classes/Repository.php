@@ -33,10 +33,11 @@ class Repository extends Object {
 	 * @var array registerd backends
 	 */
 	protected $backends = array();
+	private $autoComplete;
 
 	function __construct() {
 		$this->id = uniqid('R');
-		$GLOBALS['Repositories'][$this->id] = &$this;
+		$GLOBALS['Repositories'][$this->id] = $this; // Register this Repository to the Repositories pool.
 	}
 
 	/**
@@ -52,7 +53,7 @@ class Repository extends Object {
 			}
 			return $this->loadCollection($matches[1]);
 		}
-		if (preg_match('/^(get|save|remove|create)(.+)$/', $method, $matches)) {
+		if (preg_match('/^(get|save|delete|create)(.+)$/', $method, $matches)) {
 			$method = $matches[1];
 			array_unshift($arguments, $matches[2]);
 			return call_user_func_array(array($this, $method), $arguments);
@@ -189,12 +190,12 @@ class Repository extends Object {
 	}
 
 	/**
-	 * Remove an instance
+	 * Delete an instance
 	 *
 	 * @param string $model
 	 * @param instance|id $mixed  The instance or id
 	 */
-	function remove($model, $mixed) {
+	function delete($model, $mixed) {
 		$config = $this->_getConfig($model);
 		$index = $this->resolveIndex($mixed, $config);
 		$object = @$this->objects[$model][$index];
@@ -213,15 +214,15 @@ class Repository extends Object {
 		} else {
 			$data = $object['data'];
 		}
-		$this->_getBackend($config->backend)->remove($data, $config->backendConfig);
-		$this->objects[$model][$index]['state'] = 'removed';
+		$this->_getBackend($config->backend)->delete($data, $config->backendConfig);
+		$this->objects[$model][$index]['state'] = 'deleted';
 	}
 
 	/**
-	 * Create an in-memory instance of the model, ready to be save()d.
+	 * Create an in-memory instance of the model, ready to be saved.
 	 *
 	 * @param string $model
-	 * @param array $data  Initial contents of the object (optional)
+	 * @param array $values  Initial contents of the object (optional)
 	 * @return object
 	 */
 	function create($model, $values = array()) {
@@ -251,7 +252,7 @@ class Repository extends Object {
 	 * @param stdClass $instance
 	 * @param array $options
 	 *   'ignore_relations' => bool  true: Only save the instance,  false: Save all connected instances,
-	 *   'add_unknown_instance' => bool, false: Reject unknown instances. (use $Repository->add())
+	 *   'add_unknown_instance' => bool, false: Reject unknown instances. (use $repository->create())
 	 *   'reject_unknown_related_instances' => bool, false: Auto adds unknown instances
 	 *   'keep_missing_related_instances' => bool, false: Auto deletes removed instances
 	 * }
@@ -265,19 +266,6 @@ class Repository extends Object {
 		$object = null;
 		$index = $this->resolveIndex($instance, $config);
 
-//		try {
-//			$index = $this->resolveIndex($instance, $config);
-//		} catch (\Exception $e) {
-//			if (value($options['add_unknown_instance']) == false) {
-//				throw $e;
-//			}
-//			notice('Unable to dermine index, probably a new instance (use Repository->add()) for those', $e->getMessage());
-//			throw $e;
-//
-////			ErrorHandler::handle_exception($e);
-////			throw new \Exception('Reimplement add');
-//			// @todo Check if the instance is bound to another $index
-//		}
 		$object = @$this->objects[$model][$index];
 		if ($object === null) {
 			// @todo Check if the instance is bound to another $index
@@ -350,13 +338,19 @@ class Repository extends Object {
 					if (value($options['keep_missing_related_instances']) == false) {
 						// Delete items that are no longer in the relation
 						$old = @$this->objects[$model][$index]['hadMany'][$property];
+						if ($previousState != 'new' && $old === null && is_array($collection)) { // Is the property replaced, before the placeholder was replaced?
+							// Load the previous situation
+							$this->loadAssociation($model, $instance, $property);
+							$old = $instance->$property;
+							$instance->$property = $collection;
+						}
 						if ($old !== null) {
 							if ($collection === null && count($old) > 0) {
 								notice('Unexpected type NULL for property "'.$property.'", expecting an array or Iterator');
 							}
 							foreach ($old as $item) {
 								if (array_search($item, $collection, true) === false) {
-									$this->remove($hasMany['model'], $item);
+									$this->delete($hasMany['model'], $item);
 								}
 							}
 						}
@@ -372,7 +366,7 @@ class Repository extends Object {
 
 	/**
 	 *
-	 * @param RepositoryBackend $backend 
+	 * @param RepositoryBackend $backend
 	 */
 	function registerBackend($backend) {
 		if ($backend->identifier === null) {
@@ -430,7 +424,7 @@ class Repository extends Object {
 	 * @param mixed $data
 	 * @param ModelConfig $config
 	 * @param string|null $index
-	 * @return Object 
+	 * @return Object
 	 */
 	protected function convertToInstance($data, $config, $index = null) {
 		$class = $config->class;
@@ -548,15 +542,46 @@ class Repository extends Object {
 				}
 			}
 		}
-//		$config->backendConfig['repository'] = $this->id;
-		// @todo Check if the config overrides another config.
 		$this->configs[$config->name] = $config;
+		// Generate or update the AutoComplete Helper for the default repository?
+		if (ENVIRONMENT == 'development' && isset($GLOBALS['Repositories']['default']) && $GLOBALS['Repositories']['default']->id == $this->id) {
+			$autoCompleteFile = TMP_DIR.'AutoComplete/repository.ini';
+			if ($this->autoComplete === null) {
+				if (file_exists($autoCompleteFile)) {
+					$this->autoComplete = parse_ini_file($autoCompleteFile, true);
+				} else {
+					$this->autoComplete = array();
+				}
+			}
+			// Validate AutoCompleteHelper
+			$autoComplete = array(
+				'class' => $config->class,
+			);
+			$dirty = false;
+			if (empty($this->autoComplete[$config->name])) {
+				$this->autoComplete[$config->name] = $autoComplete;
+				$dirty = true;
+			} else {
+				foreach ($this->autoComplete[$config->name] as $key => $value) {
+					if ($autoComplete[$key] != $value) {
+						$this->autoComplete[$config->name] = $value;
+						$dirty = true;
+					}
+				}
+			}
+			if ($dirty) {
+				mkdirs(TMP_DIR.'AutoComplete');
+				write_ini_file($autoCompleteFile, $this->autoComplete, 'Repository AutoComplete config');
+				$this->writeAutoCompleteHelper(TMP_DIR.'AutoComplete/DefaultRepository.php', 'DefaultRepository', 'SledgeHammer\AutoComplete');
+
+			}
+		}
 	}
 
 	/**
 	 *
 	 * @param string $backend
-	 * @return RepositoryBackend 
+	 * @return RepositoryBackend
 	 */
 	private function _getBackend($backend) {
 		$backendObject = @$this->backends[$backend];
@@ -569,7 +594,7 @@ class Repository extends Object {
 	/**
 	 *
 	 * @param string $model
-	 * @return ModelConfig 
+	 * @return ModelConfig
 	 */
 	private function _getConfig($model) {
 		$config = @$this->configs[$model];
@@ -642,6 +667,75 @@ class Repository extends Object {
 			throw new \Exception('Not implemented');
 		}
 		throw new \Exception('Failed to resolve index');
+	}
+
+	/**
+	 *
+	 * @param string $filename
+	 * @param string $class  The classname of the genereted class
+	 * @param string $namespace  (optional) The namespace of the generated class
+	 */
+	function writeAutoCompleteHelper($filename, $class, $namespace = null) {
+		$php = "<?php\n";
+		$php .= "/**\n";
+		$php .= " * ".$class." a generated AutoCompleteHelper\n";
+		$php .= " *\n";
+		$php .= " * @package Record\n";
+		$php .= " */\n";
+		if ($namespace !== null) {
+			$php .= 'namespace '.$namespace.";\n";
+		}
+		$php .= 'class '.$class.' extends \\'.get_class($this)." {\n\n";
+		foreach ($this->configs as $model => $config) {
+			$class = $config->class;
+			$instanceVar = '$'.lcfirst($model);
+			$php .= "\t/**\n";
+			$php .= "\t * Retrieve an ".$model."\n";
+			$php .= "\t *\n";
+			$php .= "\t * @param mixed \$id  The ".$model." ID\n";
+			$php .= "\t * @param bool \$preload  Load relations direct\n";
+			$php .= "\t * @return ".$class."\n";
+			$php .= "\t */\n";
+			$php .= "\tfunction get".$model.'($id, $preload = false) {'."\n";
+			$php .= "\t\treturn \$this->get('".$model."', \$id, \$preload);\n";
+			$php .= "\t}\n";
+
+			$php .= "\t/**\n";
+			$php .= "\t * Store the ".$model."\n";
+			$php .= "\t *\n";
+			$php .= "\t * @param ".$class.'  The '.$model." to be saved\n";
+			$php .= "\t * @param array \$options {\n";
+			$php .= "\t *   'ignore_relations' => bool  true: Only save the instance,  false: Save all connected instances,\n";
+			$php .= "\t *   'add_unknown_instance' => bool, false: Reject unknown instances. (use \$repository->create())\n";
+			$php .= "\t *   'reject_unknown_related_instances' => bool, false: Auto adds unknown instances\n";
+			$php .= "\t *   'keep_missing_related_instances' => bool, false: Auto deletes removed instances\n";
+			$php .= "\t * }\n";
+			$php .= "\t */\n";
+			$php .= "\tfunction save".$model.'('.$class.' '.$instanceVar.', $options = array()) {'."\n";
+			$php .= "\t\treturn \$this->save('".$model."', ".$instanceVar.", \$options);\n";
+			$php .= "\t}\n";
+
+			$php .= "\t/**\n";
+			$php .= "\t * Create an in-memory ".$model.", ready to be saved.\n";
+			$php .= "\t *\n";
+			$php .= "\t * @param array \$values (optional) Initial contents of the object \n";
+			$php .= "\t * @return ".$class."\n";
+			$php .= "\t */\n";
+			$php .= "\tfunction create".$model.'($values = array()) {'."\n";
+			$php .= "\t\treturn \$this->create('".$model."', \$values);\n";
+			$php .= "\t}\n";
+
+			$php .= "\t/**\n";
+			$php .= "\t * Delete the ".$model."\n";
+			$php .= "\t *\n";
+			$php .= "\t * @param ".$class.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
+			$php .= "\t */\n";
+			$php .= "\tfunction delete".$model.'('.$instanceVar.') {'."\n";
+			$php .= "\t\treturn \$this->delete('".$model."', ".$instanceVar.");\n";
+			$php .= "\t}\n";
+		}
+		$php .= "}";
+		return file_put_contents($filename, $php);
 	}
 }
 

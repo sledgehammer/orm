@@ -60,12 +60,12 @@ abstract class RepositoryBackend extends Object {
 	}
 
 	/**
-	 * Permanently remove the data
+	 * Permanently remove an record based on the data
 	 *
-	 * @param mixed $data
+	 * @param array $data  Might only contain the ID
 	 * @param array $config
 	 */
-	function remove($data, $config) {
+	function delete($data, $config) {
 		throw new \Exception('Method: '.get_class($this).'->remove() not implemented');
 	}
 }
