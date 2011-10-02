@@ -14,7 +14,7 @@ class Repository extends Object {
 	protected $id;
 	protected $namespaces = array('', 'SledgeHammer\\');
 
-	public $baseClass = 'stdClass';
+	public $baseClass = null;
 	/**
 	 * @var array  registerd models: array(model => config)
 	 */
@@ -568,6 +568,28 @@ class Repository extends Object {
 					$config->class = $class;
 				}
 			}
+			if ($config->class === null) { // No class found?
+				// Generate class
+				$namespace = 'SledgeHammer\Generated\\';
+				if (isset($GLOBALS['Repositories']['default']) && $GLOBALS['Repositories']['default']->id == $this->id) {
+					$namespace .= 'Repository';
+				} else {
+					$namespace .= $this->id;
+				}
+				$php = "namespace ".$namespace.";\nclass ".$config->name." extends \SledgeHammer\Object {\n";
+				$properties = array_merge(array_keys($config->properties), array_keys($config->belongsTo), array_keys($config->hasMany));
+				foreach ($properties as $property) {
+					$php .= "\tpublic $".$property.";\n";
+				}
+				$php .= "}";
+				if (ENVIRONMENT == 'development' && $namespace == 'SledgeHammer\Generated\Repository') {
+					// Write autoComplete helper
+					// @todo Only write file when needed, aka validate $this->autoComplete
+					file_put_contents(TMP_DIR.'AutoComplete/'.$config->name.'.php', '<?php '.$php);
+				}
+				eval($php);
+				$config->class = $namespace.'\\'.$config->name;
+			}
 		}
 		$this->configs[$config->name] = $config;
 		$this->created[$config->name] = array();
@@ -592,7 +614,7 @@ class Repository extends Object {
 			} else {
 				foreach ($this->autoComplete[$config->name] as $key => $value) {
 					if ($autoComplete[$key] != $value) {
-						$this->autoComplete[$config->name] = $value;
+						$this->autoComplete[$config->name][$key] = $value;
 						$dirty = true;
 					}
 				}
@@ -739,7 +761,7 @@ class Repository extends Object {
 			$php .= "\t *   'keep_missing_related_instances' => bool, false: Auto deletes removed instances\n";
 			$php .= "\t * }\n";
 			$php .= "\t */\n";
-			$php .= "\tfunction save".$model.'('.$class.' '.$instanceVar.', $options = array()) {'."\n";
+			$php .= "\tfunction save".$model.'('.$instanceVar.', $options = array()) {'."\n";
 			$php .= "\t\treturn \$this->save('".$model."', ".$instanceVar.", \$options);\n";
 			$php .= "\t}\n";
 
