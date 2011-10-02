@@ -176,7 +176,6 @@ GenericRecord::find()
 GenericRecord::findAll()
 GenericRecord->save()
 GenericRecord->delete()
-GenericRecord::deleteAll()
 (private)GenericRecord->_state = 'NEW'|'EXISTING'|'DELETED'
 GenericRecord::$repository;
 

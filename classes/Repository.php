@@ -181,6 +181,11 @@ class Repository extends Object {
 			$id = $instance->{$config->id[0]};
 			$foreignProperty = $hasMany['property'].'->'.$hasMany['id'];
 			$collection = $this->loadCollection($hasMany['model'])->where(array($foreignProperty => $id));
+			if (isset($hasMany['collection'])) {
+				foreach ($hasMany['collection'] as $collectionProperty => $value) {
+					$collection->$collectionProperty = $value;
+				}
+			}
 			$items = $collection->asArray();
 			$this->objects[$model][$index]['hadMany'][$property] = $items; // Add a copy for change detection
 			$instance->$property = $items;
@@ -268,8 +273,17 @@ class Repository extends Object {
 
 		$object = @$this->objects[$model][$index];
 		if ($object === null) {
-			// @todo Check if the instance is bound to another $index
-			throw new \Exception('The instance is not bound to this Repository');
+			foreach ($this->created[$config->name] as $createdIndex => $created) {
+				if ($instance === $created) {
+					$index = $createdIndex;
+					$object = $this->objects[$model][$index];
+					break;
+				}
+			}
+			// @todo Check if the instance is bound to another $index, aka ID change
+			if ($object === null) {
+				throw new \Exception('The instance is not bound to this Repository');
+			}
 		}
 		$previousState = $object['state'];
 		try {
@@ -300,17 +314,17 @@ class Repository extends Object {
 			$data = $this->convertToData($object['instance'], $config);
 			if ($previousState == 'new') {
 				$object['data'] = $this->_getBackend($config->backend)->add($data, $config->backendConfig);
+				unset ($this->created[$config->name][$index]);
+				unset ($this->objects[$config->name][$index]);
 				$changes = array_diff($object['data'], $data);
 				if (count($changes) > 0) {
 					foreach ($changes as $column => $value) {
 						$instance->$column = $value; // @todo reversemap the column to the property
 					}
-					unset($this->objects[$model][$index]);
-					$index = $this->resolveIndex($object['data'], $config);
-					// @todo check if index already exists?
-					$this->objects[$model][$index] = $object;
 				}
-
+				$index = $this->resolveIndex($instance, $config);
+				// @todo check if index already exists?
+				$this->objects[$model][$index] = $object;
 			} else {
 				$this->objects[$model][$index]['data'] = $this->_getBackend($config->backend)->update($data, $object['data'], $config->backendConfig);
 			}
@@ -329,6 +343,23 @@ class Repository extends Object {
 						notice('Expecting an array for property "'.$property.'"');
 						$collection = array();
 					}
+					// Determine old situation
+					$old = @$this->objects[$model][$index]['hadMany'][$property];
+					if ($old === null && value($options['keep_missing_related_instances']) == false) {
+						// Delete items that are no longer in the relation
+						if ($previousState != 'new' && $old === null && is_array($collection)) { // Is the property replaced, before the placeholder was replaced?
+							// Load the previous situation
+							$this->loadAssociation($model, $instance, $property);
+							$old = $instance->$property;
+							$instance->$property = $collection;
+						}
+					}
+					if (isset($hasMany['collection']['valueField'])) {
+						if (count(array_diff_assoc($old, $collection)) != 0) {
+							warning('Saving changes in complex hasMany relations are not (yet) supported.');
+						}
+						continue;
+					}
 					$belongsToProperty = $hasMany['property'];
 					foreach ($collection as $item) {
 						// Connect the items to the instance
@@ -337,13 +368,6 @@ class Repository extends Object {
 					}
 					if (value($options['keep_missing_related_instances']) == false) {
 						// Delete items that are no longer in the relation
-						$old = @$this->objects[$model][$index]['hadMany'][$property];
-						if ($previousState != 'new' && $old === null && is_array($collection)) { // Is the property replaced, before the placeholder was replaced?
-							// Load the previous situation
-							$this->loadAssociation($model, $instance, $property);
-							$old = $instance->$property;
-							$instance->$property = $collection;
-						}
 						if ($old !== null) {
 							if ($collection === null && count($old) > 0) {
 								notice('Unexpected type NULL for property "'.$property.'", expecting an array or Iterator');
@@ -355,6 +379,7 @@ class Repository extends Object {
 							}
 						}
 					}
+					$this->objects[$model][$index]['hadMany'][$property] = $collection;
 				}
 			}
 			$this->objects[$model][$index]['state'] = 'saved';
@@ -376,8 +401,7 @@ class Repository extends Object {
 			throw new \Exception('RepositoryBackend "'.$backend->identifier.'" already registered');
 		}
 		$this->backends[$backend->identifier] = $backend;
-		$configs = $backend->getModelConfigs();
-		foreach ($configs as $config) {
+		foreach ($backend->configs as $config) {
 			if ($config->backend === null) {
 				$config->backend = $backend->identifier;
 			}
@@ -529,6 +553,9 @@ class Repository extends Object {
 	 * @param ModelConfig $config
 	 */
 	protected function register($config) {
+		if (isset($this->configs[$config->name])) {
+			warning('Overwriting model: "'.$config->name.'"'); // @todo? Allow overwritting models? or throw Exception?
+		}
 //		$config = clone $config;
 		if (empty($config->class)) {
 			$config->class = $this->baseClass; // @todo generate custom class, based on mapping
@@ -543,6 +570,7 @@ class Repository extends Object {
 			}
 		}
 		$this->configs[$config->name] = $config;
+		$this->created[$config->name] = array();
 		// Generate or update the AutoComplete Helper for the default repository?
 		if (ENVIRONMENT == 'development' && isset($GLOBALS['Repositories']['default']) && $GLOBALS['Repositories']['default']->id == $this->id) {
 			$autoCompleteFile = TMP_DIR.'AutoComplete/repository.ini';

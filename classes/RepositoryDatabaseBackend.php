@@ -114,10 +114,6 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 	}
 
-	public function getModelConfigs() {
-		return $this->configs;
-	}
-
 	/**
 	 * Load the record from the db
 	 *

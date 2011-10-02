@@ -63,6 +63,27 @@ class SimpleRecord extends Record {
 		throw new \Exception('Model "'.$model.'" isn\'t configured as SimpleRecord');
 	}
 
+	function delete() {
+		if ($this->_model == 'SimpleRecord') {
+		 	throw new \Exception('Model unknown, instance not loaded using SimpleRecord methods');
+		}
+		return parent::delete();
+	}
+
+	function save() {
+		if ($this->_model == 'SimpleRecord') {
+		 	throw new \Exception('Model unknown, instance not loaded or created using SimpleRecord methods');
+		}
+		return parent::save();
+	}
+
+	function getChanges() {
+		if ($this->_model == 'SimpleRecord') {
+		 	throw new \Exception('Model unknown, instance not loaded or created using SimpleRecord methods');
+		}
+		return parent::getChanges();
+	}
+
 	public function __set($property, $value) {
 		if ($this->_state == 'constructed') {
 			$this->$property = $value;

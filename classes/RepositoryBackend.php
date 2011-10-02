@@ -13,11 +13,11 @@ abstract class RepositoryBackend extends Object {
 	public $identifier;
 
 	/**
-	 * Return the available models in this backend.
+	 * The available models in this backend.
 	 *
-	 * @return array|ModelConfig  array('model name' => ModelConfig
+	 * @var array|ModelConfig  array('Model name' => ModelConfig, 'Model2 name' => ModelConfig, ...)
 	 */
-	abstract function getModelConfigs();
+	public $configs;
 
 	/**
 	 * Retrieve model-data by id.

@@ -5,8 +5,10 @@
  * @package Record
  */
 namespace SledgeHammer;
-class Collection extends Object implements \Iterator, \Countable {
+class Collection extends Object implements \Iterator, \Countable, \ArrayAccess {
 
+	public $keyField;
+	public $valueField;
 	/**
 	 * @var Iterator
 	 */
@@ -14,6 +16,8 @@ class Collection extends Object implements \Iterator, \Countable {
 
 	protected $model;
 	protected $repository;
+
+	private $current;
 
 	/**
 	 * @param \Iterator|array $iterator
@@ -34,15 +38,10 @@ class Collection extends Object implements \Iterator, \Countable {
 		return iterator_to_array($this);
 	}
 
-	function bind($model, $repository = 'default') {
-		$this->model = $model;
-		$this->repository = $repository;
-	}
-
 	/**
 	 *
 	 * @param array $conditions
-	 * @return Collection 
+	 * @return Collection
 	 */
 	function where($conditions) {
 		$data = array();
@@ -60,30 +59,34 @@ class Collection extends Object implements \Iterator, \Countable {
 		return new Collection($data);
 	}
 
-	// Iterator function
+	// Iterator functions
 
 	/**
 	 *
 	 * @return mixed
 	 */
 	public function current() {
-		$data = $this->iterator->current();
-		if ($this->repository === null) {
-			return $data;
+		if ($this->valueField === null) {
+			return $this->current;
 		}
-		$repository = getRepository($this->repository);
-		$instance = $repository->convert($this->model, $data);
-		return $instance;
+		return PropertyPath::get($this->current, $this->valueField);
 	}
 	public function key() {
-		return $this->iterator->key();
+		if ($this->keyField === null) {
+			return $this->iterator->key();
+		}
+		return PropertyPath::get($this->current, $this->keyField);
 	}
 	public function next() {
-		return $this->iterator->next();
+		$retval = $this->iterator->next();
+		$this->current = $this->convertValue($this->iterator->current());
+		return $retval;
 	}
 	public function rewind() {
 		if ($this->iterator instanceof \Iterator) {
-			return $this->iterator->rewind();
+			$retval = $this->iterator->rewind();
+			$this->current = $this->convertValue($this->iterator->current());
+			return $retval;
 		}
 		$type = gettype($this->iterator);
 		$type = ($type == 'object') ? get_class($this->iterator) : $type;
@@ -92,8 +95,68 @@ class Collection extends Object implements \Iterator, \Countable {
 	public function valid() {
 		return $this->iterator->valid();
 	}
+
+	// Countable function
 	public function count() {
 		return count($this->iterator);
+	}
+
+	// ArrayAccess functions
+	public function offsetExists($offset) {
+		if (($this->iterator instanceof \ArrayIterator) == false) {
+			$this->iterator = new \ArrayIterator(iterator_to_array($this->iterator));
+		}
+		return $this->iterator->offsetExists($offset);
+	}
+	public function offsetGet($offset) {
+		if (($this->iterator instanceof \ArrayIterator) == false) {
+			$this->iterator = new \ArrayIterator(iterator_to_array($this->iterator));
+		}
+		return $this->convertValue($this->iterator->offsetGet($offset));
+	}
+	public function offsetSet($offset, $value) {
+		if (($this->iterator instanceof \ArrayIterator) == false) {
+			$this->iterator = new \ArrayIterator(iterator_to_array($this->iterator));
+		}
+		return $this->iterator->offsetSet($offset, $value);
+	}
+	public function offsetUnset($offset) {
+		if (($this->iterator instanceof \ArrayIterator) == false) {
+			$this->iterator = new \ArrayIterator(iterator_to_array($this->iterator));
+		}
+		return $this->iterator->offsetUnset($offset);
+	}
+
+	// Repository binding
+
+	/**
+	 * Bind a model from a repository to the items in this collection
+	 *
+	 * @param string $model The model
+	 * @param string $repository The repository id
+	 */
+	function bind($model, $repository = 'default', $options = array()) {
+		$this->model = $model;
+		$this->repository = $repository;
+		foreach ($options as $property => $value) {
+			dump($property);
+		}
+	}
+
+	/**
+	 * Convert the raw data to an instance via the repository
+	 *
+	 * @param mixed $value
+	 * @return stdClass
+	 */
+	private function convertValue($value) {
+		if ($value === null) {
+			return null;
+		}
+		if ($this->repository !== null) { // Not bound to a repository?
+			$repository = getRepository($this->repository);
+			return $repository->convert($this->model, $value);
+		}
 	}
 }
 ?>
