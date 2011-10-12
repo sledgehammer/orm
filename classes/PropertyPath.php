@@ -4,7 +4,7 @@
  * Inspired by XPath
  * But implemented similar to "Property Path Syntax" in Silverlight
  * @link http://msdn.microsoft.com/en-us/library/cc645024(v=VS.95).aspx
- * 
+ *
  * @todo Escaping '[12\[34]' for key '12[34'
  * @todo Dot notation for automatic switching
  * @todo? Wildcards for getting and setting a range of properties ''
@@ -89,7 +89,7 @@ class PropertyPath extends Object {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param array|object $data
 	 * @param string $path
 	 * @param mixed $value
@@ -199,18 +199,69 @@ class PropertyPath extends Object {
 		return $ref;
 	}
 
+	const TYPE_PROPERTY = 'PROPERTY';
+	const TYPE_ELEMENT = 'ELEMENT';
+	const TYPE_ANY = 'ANY';
+
+
+	static function compile($path, $type = self::TYPE_ANY) {
+		if ($path == '') {
+			return array();
+		}
+		$tokens = array();
+		$arrowPos = self::arrowPosition($path);
+		$bracketPos = self::openBracketPosition($path);
+//		$dotPos = self::openBracketPosition($path);
+		if ($arrowPos === false && $bracketPos === false) {
+			$tokens[] = array($type, $path);
+			return $tokens;
+		}
+		if ($arrowPos !== false && ($bracketPos === false || $arrowPos < $bracketPos)) {
+			// PROPERTY(OBJECT)
+			if ($arrowPos !== 0) {
+				$tokens[] = array($type, substr($path, 0, $arrowPos));
+			}
+//			if ($bracketPos === false) {
+//				$secondArrowPos = self::arrowPosition($path, $arrowPos + 2);
+//				// if secondArrow is 0 notice
+//				if ($secondArrowPos === false) {
+//					$tokens[] = array(self::TYPE_PROPERTY, substr($path, $arrowPos + 2));
+//					return $tokens;
+//				}
+//			}
+			// @todo check for "->" "." or "["
+			return array_merge($tokens, self::compile(substr($path, $arrowPos + 2), self::TYPE_PROPERTY));
+		}
+		// ELEMENT(ARRAY)
+		if ($bracketPos !== 0) {
+			$tokens[] = array($type, substr($path, 0, $bracketPos));
+		}
+		$closeBracketPos = self::closeBracketPosition($path, $bracketPos + 1);
+		if ($closeBracketPos === false) {
+			warning('Unterminated "[", expecting a "]" in path: "'.$path.'"');
+			return array(array($type, $path)); // return the entire path as identifier
+		}
+		$tokens[] = array(self::TYPE_ELEMENT, substr($path, $bracketPos + 1, $closeBracketPos - $bracketPos - 1));
+//		if ($closeBracketPos + 1 == strlen($path)) { // laatste element?
+//			return $tokens;
+//		}
+		// @todo check for "->" "." or "["
+		return array_merge($tokens, self::compile(substr($path, $closeBracketPos + 1)));
+	}
+
 	// @todo check escaped positions
-
-	private static function arrowPosition($path) {
-		return strpos($path, '->');
+	private static function dotPosition($path, $offset = null) {
+		return strpos($path, '.', $offset);
 	}
-	private static function openBracketPosition($path) {
-		return strpos($path, '[');
+	private static function arrowPosition($path, $offset = null) {
+		return strpos($path, '->', $offset);
 	}
-	private static function closeBracketPosition($path) {
-		return strpos($path, ']');
+	private static function openBracketPosition($path, $offset = null) {
+		return strpos($path, '[', $offset);
 	}
-
+	private static function closeBracketPosition($path, $offset = null) {
+		return strpos($path, ']', $offset);
+	}
 }
 
 ?>

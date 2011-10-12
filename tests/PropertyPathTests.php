@@ -7,6 +7,33 @@ namespace SledgeHammer;
 
 class PropertyPathTests extends \UnitTestCase {
 
+	function test_compile() {
+		$any = PropertyPath::TYPE_ANY;
+		$element = PropertyPath::TYPE_ELEMENT;
+		$property = PropertyPath::TYPE_PROPERTY;
+
+		$this->assertEqual(PropertyPath::compile('any'), array(array($any, 'any')));
+//		$this->assertEqual(PropertyPath::compile('.any'), array(array($any, 'any'))); // dot notation a invalid start?
+		$this->assertEqual(PropertyPath::compile('[element]'), array(array($element, 'element')));
+		$this->assertEqual(PropertyPath::compile('any[element]'), array(array($any, 'any'), array($element, 'element')));
+		$this->assertEqual(PropertyPath::compile('[element1][element2]'), array(array($element, 'element1'), array($element, 'element2')));
+
+		$this->assertEqual(PropertyPath::compile('->property'), array(array($property, 'property')));
+		$this->assertEqual(PropertyPath::compile('any->property'), array(array($any, 'any'), array($property, 'property')));
+		$this->assertEqual(PropertyPath::compile('->property1->property2'), array(array($property, 'property1'), array($property, 'property2')));
+
+		$this->assertEqual(PropertyPath::compile('[element]->property'), array(array($element, 'element'), array($property, 'property')));
+		$this->assertEqual(PropertyPath::compile('any[element]->property'), array(array($any, 'any'),array($element, 'element'), array($property, 'property')));
+		$this->assertEqual(PropertyPath::compile('->property[element]'), array(array($property, 'property'), array($element, 'element')));
+
+
+
+//		$this->assertEqual(PropertyPath::compile('any[element1][element2]'), array(array($element, 'element1'), array($element, 'element2')));
+
+		$path = PropertyPath::compile('any.any');
+		dump($path);
+	}
+
 	function test_PropertyPath_get() {
 		$array = array('id' => '1');
 		$object = (object) array('id' => '2');
@@ -37,11 +64,10 @@ class PropertyPathTests extends \UnitTestCase {
 		$array['object'] = (object) array('id' => 6);
 		$this->assertEqual(PropertyPath::get($array, 'object->id'), 6);
 		$this->assertEqual(PropertyPath::get($array, '[object]->id'), 6);
-		
+
 	}
-	
+
 	function test_PropertyPath_set() {
-		restore_error_handler();
 		$array = array('id' => '1');
 		$object = (object) array('id' => '2');
 		PropertyPath::set($array, 'id', 3);
@@ -60,12 +86,12 @@ class PropertyPathTests extends \UnitTestCase {
 		$array['element'] = array('id' => 1);
 		PropertyPath::set($array, 'element[id]', 10);
 		$this->assertEqual($array['element']['id'], 10);
-		
-		
-		
+
+
+
 	}
-	
-	
+
+
 
 }
 
