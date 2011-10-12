@@ -14,7 +14,7 @@ class RecordRelationTest extends DatabaseTestCase {
 		$backend = new RepositoryDatabaseBackend(array($this->dbLink));
 		$customer = $backend->configs['Customer'];
 		$customer->hasMany['products'] = $customer->hasMany['orders'];
-		$customer->hasMany['products']['collection'] = array('keyField' => 'id', 'valueField' => 'product');
+		$customer->hasMany['products']['filters'] = array('CollectionView' => array('valueField' => 'product', 'keyField' => 'id'));
 		$repo->registerBackend($backend);
 		$GLOBALS['Repositories'][__CLASS__] = $repo;
 	}
@@ -42,6 +42,7 @@ class RecordRelationTest extends DatabaseTestCase {
 	function test_hasMany_array_access() {
 		$customer = getRepository(__CLASS__)->getCustomer(2, true);
 //		dump($customer);
+//		restore_error_handler();
 		$order = clone $customer->orders[0];
 		$this->assertEqual($order->product, 'Walter PPK 9mm');
 		$customer->orders[0]->product = 'Magnum';

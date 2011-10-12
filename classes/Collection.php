@@ -7,18 +7,10 @@
 namespace SledgeHammer;
 class Collection extends Object implements \Iterator, \Countable, \ArrayAccess {
 
-	public $keyField;
-	public $valueField;
 	/**
 	 * @var Iterator
 	 */
 	protected $iterator;
-
-	protected $model;
-	protected $repository;
-
-	private $current;
-
 	/**
 	 * @param \Iterator|array $iterator
 	 */
@@ -66,27 +58,17 @@ class Collection extends Object implements \Iterator, \Countable, \ArrayAccess {
 	 * @return mixed
 	 */
 	public function current() {
-		if ($this->valueField === null) {
-			return $this->current;
-		}
-		return PropertyPath::get($this->current, $this->valueField);
+		return $this->iterator->current();
 	}
 	public function key() {
-		if ($this->keyField === null) {
-			return $this->iterator->key();
-		}
-		return PropertyPath::get($this->current, $this->keyField);
+		return $this->iterator->key();
 	}
 	public function next() {
-		$retval = $this->iterator->next();
-		$this->current = $this->convertValue($this->iterator->current());
-		return $retval;
+		return $this->iterator->next();
 	}
 	public function rewind() {
 		if ($this->iterator instanceof \Iterator) {
-			$retval = $this->iterator->rewind();
-			$this->current = $this->convertValue($this->iterator->current());
-			return $retval;
+			return $this->iterator->rewind();
 		}
 		$type = gettype($this->iterator);
 		$type = ($type == 'object') ? get_class($this->iterator) : $type;
@@ -112,7 +94,7 @@ class Collection extends Object implements \Iterator, \Countable, \ArrayAccess {
 		if (($this->iterator instanceof \ArrayIterator) == false) {
 			$this->iterator = new \ArrayIterator(iterator_to_array($this->iterator));
 		}
-		return $this->convertValue($this->iterator->offsetGet($offset));
+		return $this->iterator->offsetGet($offset);
 	}
 	public function offsetSet($offset, $value) {
 		if (($this->iterator instanceof \ArrayIterator) == false) {
@@ -127,36 +109,5 @@ class Collection extends Object implements \Iterator, \Countable, \ArrayAccess {
 		return $this->iterator->offsetUnset($offset);
 	}
 
-	// Repository binding
-
-	/**
-	 * Bind a model from a repository to the items in this collection
-	 *
-	 * @param string $model The model
-	 * @param string $repository The repository id
-	 */
-	function bind($model, $repository = 'default', $options = array()) {
-		$this->model = $model;
-		$this->repository = $repository;
-		foreach ($options as $property => $value) {
-			dump($property);
-		}
-	}
-
-	/**
-	 * Convert the raw data to an instance via the repository
-	 *
-	 * @param mixed $value
-	 * @return stdClass
-	 */
-	private function convertValue($value) {
-		if ($value === null) {
-			return null;
-		}
-		if ($this->repository !== null) { // Not bound to a repository?
-			$repository = getRepository($this->repository);
-			return $repository->convert($this->model, $value);
-		}
-	}
 }
 ?>

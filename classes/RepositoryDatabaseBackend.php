@@ -60,7 +60,6 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				if (empty($info['foreignKeys'])) {
 					$property = $this->toProperty($column);
 					$config->properties[$property] = $column;
-					$config->backendConfig['collection']['columns'][$property] = $column;
 				} else {
 					if (count($info['foreignKeys']) > 1) {
 						notice('Multiple foreign-keys per column not supported');
@@ -81,7 +80,8 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 						'model' => $this->toModel($foreignKey['table']),
 						'id' => $foreignKey['column'], // primairy key
 					);
-					$config->backendConfig['collection']['columns'][$property.'->'.$foreignKey['column']] =  $column;
+					$config->collectionMapping[$property.'->'.$foreignKey['column']] = $column;
+					$config->collectionMapping[$property.'.'.$foreignKey['column']] = $column;
 					$config->defaults[$property] = null;
 				}
 			}
@@ -152,7 +152,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	 */
 	function all($config) {
 		$sql = select('*')->from($config['table']);
-		return new DatabaseCollection($sql, $config['dbLink'], $config['collection']);
+		return new DatabaseCollection($sql, $config['dbLink']);
 	}
 
 	/**

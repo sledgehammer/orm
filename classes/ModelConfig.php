@@ -36,7 +36,10 @@ class ModelConfig extends Object {
 	 * @var array  Default values for new instance
 	 */
 	public $defaults = array();
-	
+	/**
+	 * @var array
+	 */
+	public $collectionMapping = array();
 	/**
 	 * @var string 
 	 */

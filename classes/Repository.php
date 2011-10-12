@@ -151,8 +151,7 @@ class Repository extends Object {
 	function loadCollection($model) {
 		$config = $this->_getConfig($model);
 		$collection = $this->_getBackend($config->backend)->all($config->backendConfig);
-		$collection->bind($model, $this->id);
-		return $collection;
+		return new RepositoryCollection($collection, $model, $this->id, $config->collectionMapping);
 	}
 
 	function loadAssociation($model, $instance, $property, $preload = false) {
@@ -181,9 +180,13 @@ class Repository extends Object {
 			$id = $instance->{$config->id[0]};
 			$foreignProperty = $hasMany['property'].'->'.$hasMany['id'];
 			$collection = $this->loadCollection($hasMany['model'])->where(array($foreignProperty => $id));
-			if (isset($hasMany['collection'])) {
-				foreach ($hasMany['collection'] as $collectionProperty => $value) {
-					$collection->$collectionProperty = $value;
+			if (isset($hasMany['filters'])) {
+				foreach ($hasMany['filters'] as $filter => $filterOptions) {
+					if ($filter == 'CollectionView') {
+						$collection = new CollectionView($collection, value($filterOptions['valueField']), value($filterOptions['keyField']));
+					} else {
+						throw new \Exception('Filter: "'.$filter.'" not supported');
+					}
 				}
 			}
 			$items = $collection->asArray();
@@ -555,6 +558,10 @@ class Repository extends Object {
 	protected function register($config) {
 		if (isset($this->configs[$config->name])) {
 			warning('Overwriting model: "'.$config->name.'"'); // @todo? Allow overwritting models? or throw Exception?
+		}
+		// Create reversed mapping for the collection based on the properties mapping
+		foreach ($config->properties as $property => $column) {
+			$config->collectionMapping[$column] = $property;
 		}
 //		$config = clone $config;
 		if (empty($config->class)) {
