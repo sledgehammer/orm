@@ -22,6 +22,11 @@
 namespace SledgeHammer;
 class PropertyPath extends Object {
 
+	const TYPE_PROPERTY = 'PROPERTY';
+	const TYPE_ELEMENT = 'ELEMENT';
+	const TYPE_ANY = 'ANY';
+	const TYPE_CHAIN = 'CHAIN';
+
 	/**
 	 *
 	 * @param array|object $data
@@ -199,27 +204,60 @@ class PropertyPath extends Object {
 		return $ref;
 	}
 
-	const TYPE_PROPERTY = 'PROPERTY';
-	const TYPE_ELEMENT = 'ELEMENT';
-	const TYPE_ANY = 'ANY';
 
 
-	static function compile($path, $type = self::TYPE_ANY) {
+
+	/**
+	 * Compile the path into
+	 *
+	 * @param string $path
+	 * @return array
+	 */
+	static function compile($path) {
+		$parts = self::compilePath($path, self::TYPE_ANY);
+		// Validate parts
+		foreach ($parts as $part) {
+			if ($part[0] == self::TYPE_PROPERTY && preg_match('/^[a-z_]{1}[a-z_0-9]*$/i', $part[1]) != 1) {
+				notice('Invalid property identifier "'.$part[1].'" in path "'.$path.'"');
+			}
+		}
+		return $parts;
+	}
+	/**
+	 *
+	 * @param string $path
+	 * @param TYPE $type start type
+	 * @return array
+	 */
+	private static function compilePath($path, $type) {
 		if ($path == '') {
+			notice('$path was empty');
 			return array();
 		}
 		$tokens = array();
 		$arrowPos = self::arrowPosition($path);
 		$bracketPos = self::openBracketPosition($path);
-//		$dotPos = self::openBracketPosition($path);
-		if ($arrowPos === false && $bracketPos === false) {
+		$dotPos = self::dotPosition($path);
+		if ($type === self::TYPE_CHAIN) {
+			if ($dotPos === 0) {
+				return self::compilePath(substr($path, 1), self::TYPE_ANY);
+			}
+			if ($arrowPos !== 0 && $bracketPos !== 0) {
+				notice('Invalid chain, expecting a ".", "->" or "[" before "'.$path.'"');
+			}
+			$type = self::TYPE_ANY;
+		}
+		if ($arrowPos === false && $bracketPos === false && $dotPos === false) {
 			$tokens[] = array($type, $path);
 			return $tokens;
 		}
-		if ($arrowPos !== false && ($bracketPos === false || $arrowPos < $bracketPos)) {
+		if ($arrowPos !== false && ($bracketPos === false || $arrowPos < $bracketPos) && ($dotPos === false || $arrowPos < $dotPos) ) {
 			// PROPERTY(OBJECT)
 			if ($arrowPos !== 0) {
 				$tokens[] = array($type, substr($path, 0, $arrowPos));
+			} elseif ($type !== self::TYPE_ANY) {
+				notice('Invalid "->" in in the chain', array('path' => $path));
+
 			}
 //			if ($bracketPos === false) {
 //				$secondArrowPos = self::arrowPosition($path, $arrowPos + 2);
@@ -229,24 +267,32 @@ class PropertyPath extends Object {
 //					return $tokens;
 //				}
 //			}
-			// @todo check for "->" "." or "["
-			return array_merge($tokens, self::compile(substr($path, $arrowPos + 2), self::TYPE_PROPERTY));
+//
+			return array_merge($tokens, self::compilePath(substr($path, $arrowPos + 2), self::TYPE_PROPERTY));
 		}
-		// ELEMENT(ARRAY)
-		if ($bracketPos !== 0) {
-			$tokens[] = array($type, substr($path, 0, $bracketPos));
+		if ($bracketPos !== false && ($dotPos === false || $bracketPos < $dotPos)) {
+			// ELEMENT(ARRAY)
+			if ($bracketPos !== 0) {
+				$tokens[] = array($type, substr($path, 0, $bracketPos));
+			}
+			$closeBracketPos = self::closeBracketPosition($path, $bracketPos + 1);
+			if ($closeBracketPos === false) {
+				warning('Unterminated "[", expecting a "]" in path: "'.$path.'"');
+				return array(array($type, $path)); // return the entire path as identifier
+			}
+			$tokens[] = array(self::TYPE_ELEMENT, substr($path, $bracketPos + 1, $closeBracketPos - $bracketPos - 1));
+			if ($closeBracketPos + 1 == strlen($path)) { // laatste element?
+				return $tokens;
+			}
+			return array_merge($tokens, self::compilePath(substr($path, $closeBracketPos + 1), self::TYPE_CHAIN));
 		}
-		$closeBracketPos = self::closeBracketPosition($path, $bracketPos + 1);
-		if ($closeBracketPos === false) {
-			warning('Unterminated "[", expecting a "]" in path: "'.$path.'"');
-			return array(array($type, $path)); // return the entire path as identifier
+		// ANY (ARRAY or OBJECT)
+		if ($dotPos !== 0) {
+			$tokens[] = array($type, substr($path, 0, $dotPos));
+		} else {
+			notice('Use "." for chaining, not at the beginning', array('path' => $path));
 		}
-		$tokens[] = array(self::TYPE_ELEMENT, substr($path, $bracketPos + 1, $closeBracketPos - $bracketPos - 1));
-//		if ($closeBracketPos + 1 == strlen($path)) { // laatste element?
-//			return $tokens;
-//		}
-		// @todo check for "->" "." or "["
-		return array_merge($tokens, self::compile(substr($path, $closeBracketPos + 1)));
+		return array_merge($tokens, self::compilePath(substr($path, $dotPos), self::TYPE_CHAIN));
 	}
 
 	// @todo check escaped positions

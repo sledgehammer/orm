@@ -13,7 +13,7 @@ class PropertyPathTests extends \UnitTestCase {
 		$property = PropertyPath::TYPE_PROPERTY;
 
 		$this->assertEqual(PropertyPath::compile('any'), array(array($any, 'any')));
-//		$this->assertEqual(PropertyPath::compile('.any'), array(array($any, 'any'))); // dot notation a invalid start?
+		$this->assertEqual(PropertyPath::compile('any1.any2'), array(array($any, 'any1'), array($any, 'any2')));
 		$this->assertEqual(PropertyPath::compile('[element]'), array(array($element, 'element')));
 		$this->assertEqual(PropertyPath::compile('any[element]'), array(array($any, 'any'), array($element, 'element')));
 		$this->assertEqual(PropertyPath::compile('[element1][element2]'), array(array($element, 'element1'), array($element, 'element2')));
@@ -23,15 +23,25 @@ class PropertyPathTests extends \UnitTestCase {
 		$this->assertEqual(PropertyPath::compile('->property1->property2'), array(array($property, 'property1'), array($property, 'property2')));
 
 		$this->assertEqual(PropertyPath::compile('[element]->property'), array(array($element, 'element'), array($property, 'property')));
-		$this->assertEqual(PropertyPath::compile('any[element]->property'), array(array($any, 'any'),array($element, 'element'), array($property, 'property')));
+		$this->assertEqual(PropertyPath::compile('any[element]->property'), array(array($any, 'any'), array($element, 'element'), array($property, 'property')));
+		$this->assertEqual(PropertyPath::compile('[element]->property.any'), array(array($element, 'element'), array($property, 'property'), array($any, 'any')));
 		$this->assertEqual(PropertyPath::compile('->property[element]'), array(array($property, 'property'), array($element, 'element')));
+		$this->assertEqual(PropertyPath::compile('any->property[element]'), array(array($any, 'any'),  array($property, 'property'), array($element, 'element')));
+		$this->assertEqual(PropertyPath::compile('->property[element].any'), array(array($property, 'property'), array($element, 'element'), array($any, 'any')));
+	}
 
+	function test_compile_warnings() {
+		$any = PropertyPath::TYPE_ANY;
+		$element = PropertyPath::TYPE_ELEMENT;
+		$property = PropertyPath::TYPE_PROPERTY;
 
+		$this->expectError('Use "." for chaining, not at the beginning');
+		$this->assertEqual(PropertyPath::compile('.any'), array(array($any, 'any')));
+		$this->expectError('Invalid chain, expecting a ".", "->" or "[" before "any"');
+		$this->assertEqual(PropertyPath::compile('[element]any'), array(array($element, 'element'), array($any, 'any')));
+		$this->expectError('Invalid "->" in in the chain');
+		$this->assertEqual(PropertyPath::compile('->->property'), array(array($property, 'property')));
 
-//		$this->assertEqual(PropertyPath::compile('any[element1][element2]'), array(array($element, 'element1'), array($element, 'element2')));
-
-		$path = PropertyPath::compile('any.any');
-		dump($path);
 	}
 
 	function test_PropertyPath_get() {
