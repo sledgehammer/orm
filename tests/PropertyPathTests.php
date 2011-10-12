@@ -34,14 +34,16 @@ class PropertyPathTests extends \UnitTestCase {
 		$any = PropertyPath::TYPE_ANY;
 		$element = PropertyPath::TYPE_ELEMENT;
 		$property = PropertyPath::TYPE_PROPERTY;
-
+		$this->expectError('Path is empty');
+		$this->assertEqual(PropertyPath::compile(''), array());
 		$this->expectError('Use "." for chaining, not at the beginning');
 		$this->assertEqual(PropertyPath::compile('.any'), array(array($any, 'any')));
 		$this->expectError('Invalid chain, expecting a ".", "->" or "[" before "any"');
 		$this->assertEqual(PropertyPath::compile('[element]any'), array(array($element, 'element'), array($any, 'any')));
 		$this->expectError('Invalid "->" in in the chain');
 		$this->assertEqual(PropertyPath::compile('->->property'), array(array($property, 'property')));
-
+		$this->expectError('Unmatched brackets, missing a "]" in path: "[element"');
+		$this->assertEqual(PropertyPath::compile('[element'), array(array($any, '[element')));
 	}
 
 	function test_PropertyPath_get() {
@@ -56,18 +58,18 @@ class PropertyPathTests extends \UnitTestCase {
 		$this->assertEqual(PropertyPath::get($object, '[id]'), null, 'Path "[id]" should NOT work on objects');
 		// force object property
 		$this->expectError('Unexpected type: array, expecting an object');
-		$this->assertEqual(PropertyPath::get($array, '->id'), null, 'Path ".id" should NOT work on arrays');
-		$this->assertEqual(PropertyPath::get($object, '->id'), '2', 'Path ".id" should work on objects');
+		$this->assertEqual(PropertyPath::get($array, '->id'), null, 'Path "->id" should NOT work on arrays');
+		$this->assertEqual(PropertyPath::get($object, '->id'), '2', 'Path "->id" should work on objects');
 		$object->property = array('id' => '3');
 		$this->assertEqual(PropertyPath::get($object, 'property[id]'), '3', 'Path "property[id]" should work on objects');
-		$this->assertEqual(PropertyPath::get($object, '->property[id]'), '3', 'Path ".property[id]" should work on objects');
+		$this->assertEqual(PropertyPath::get($object, '->property[id]'), '3', 'Path "->property[id]" should work on objects');
 		$object->object = (object) array('id' => '4');
-		$this->assertEqual(PropertyPath::get($object, 'object->id'), '4', 'Path "object.id" should work on objects in objects');
-		$this->assertEqual(PropertyPath::get($object, '->object->id'), '4', 'Path ".object.id" should work on objects in objects');
+		$this->assertEqual(PropertyPath::get($object, 'object->id'), '4', 'Path "object->id" should work on objects in objects');
+		$this->assertEqual(PropertyPath::get($object, '->object->id'), '4', 'Path "->object->id" should work on objects in objects');
 		$object->property['element'] = (object) array('id' => '5');
-		$this->assertEqual(PropertyPath::get($object, 'property[element]id'), '5'); // @todo dont allow this notation?
+//		$this->assertEqual(PropertyPath::get($object, 'property[element]id'), '5'); // @todo dont allow this notation?
 		$this->assertEqual(PropertyPath::get($object, 'property[element]->id'), '5');
-		$this->assertEqual(PropertyPath::get($object, '->property[element]id'), '5'); // @todo idem
+//		$this->assertEqual(PropertyPath::get($object, '->property[element]id'), '5'); // @todo idem
 		$this->assertEqual(PropertyPath::get($object, '->property[element]->id'), '5');
 		$this->expectError('Unexpected type: array, expecting an object');
 		$this->assertEqual(PropertyPath::get($object, '->property->element'), null);
