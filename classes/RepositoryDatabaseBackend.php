@@ -251,7 +251,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		}
 		if ($db instanceof \mysqli) {
 			if ($db->affected_rows != 1) {
-				throw new \Exception('Removing "'.$config['model'].': '.implode('-', $id).'" failed, '.$db->affected_rows.' rows were affected');
+				throw new \Exception('Removing "'.implode('-', $id).'" from "'.$config['table'].' failed, '.$db->affected_rows.' rows were affected');
 			}
 		} else {
 			notice('Implement affected_rows for '.get_class($db));

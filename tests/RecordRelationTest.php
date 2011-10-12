@@ -41,8 +41,6 @@ class RecordRelationTest extends DatabaseTestCase {
 
 	function test_hasMany_array_access() {
 		$customer = getRepository(__CLASS__)->getCustomer(2, true);
-//		dump($customer);
-//		restore_error_handler();
 		$order = clone $customer->orders[0];
 		$this->assertEqual($order->product, 'Walter PPK 9mm');
 		$customer->orders[0]->product = 'Magnum';
@@ -71,7 +69,6 @@ class RecordRelationTest extends DatabaseTestCase {
 		$this->assertEqual(count($customer->orders), 3, '1 item removed');
 		getRepository(__CLASS__)->saveCustomer($customer);
 		$this->assertLastQuery('DELETE FROM orders WHERE id = 7');
-       	//dump($customer->orders);
 	}
 
 	function test_hasMany_table_values() {
@@ -92,7 +89,9 @@ class RecordRelationTest extends DatabaseTestCase {
 			17 => 'Wodka Martini',
 		);
 		// @todo Support complex hasMany relations
-		$this->expectError('Saving changes in complex hasMany relations are not (yet) supported.');
+//		$this->expectError('Saving changes in complex hasMany relations are not (yet) supported.');
+		$this->expectError('Unable to save the change "Wodka Martini" in Customer->products[17]');
+		$this->expectError('Unable to remove item[3]: "Spycam" from Customer->products');
 		getRepository(__CLASS__)->saveCustomer($customer);
     }
 

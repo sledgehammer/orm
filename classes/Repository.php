@@ -74,7 +74,20 @@ class Repository extends Object {
 		$index = $this->resolveIndex($id, $config);
 		$object = @$this->objects[$model][$index];
 		if ($object !== null) {
-			return $object['instance'];
+			$instance = $object['instance'];
+			if ($preload) {
+				foreach ($config->belongsTo as $property => $relation) {
+					if ($instance->$property instanceof BelongsToPlaceholder) {
+						$this->loadAssociation($model, $instance, $property, true);
+					}
+				}
+				foreach ($config->hasMany as $property => $relation) {
+					if ($instance->$property instanceof HasManyPlaceholder) {
+						$this->loadAssociation($model, $instance, $property, true);
+					}
+				}
+			}
+			return $instance;
 		}
 		$this->objects[$model][$index] = array(
 			'state' => 'retrieving',
@@ -94,14 +107,12 @@ class Repository extends Object {
 		$this->objects[$model][$index]['instance'] = $instance;
 		if ($preload) {
 			foreach ($config->belongsTo as $property => $relation) {
-				$value = $instance->$property;
-				if ($value instanceof BelongsToPlaceholder) {
+				if ($instance->$property instanceof BelongsToPlaceholder) {
 					$this->loadAssociation($model, $instance, $property, true);
 				}
 			}
 			foreach ($config->hasMany as $property => $relation) {
-				$value = $instance->$property;
-				if ($value instanceof HasManyPlaceholder) {
+				if ($instance->$property instanceof HasManyPlaceholder) {
 					$this->loadAssociation($model, $instance, $property, true);
 				}
 			}
@@ -364,10 +375,15 @@ class Repository extends Object {
 						continue;
 					}
 					$belongsToProperty = $hasMany['property'];
-					foreach ($collection as $item) {
+					foreach ($collection as $key => $item) {
 						// Connect the items to the instance
-						$item->$belongsToProperty = $instance;
-						$this->save($hasMany['model'], $item, $relationSaveOptions);
+						if (is_object($item)) {
+							$item->$belongsToProperty = $instance;
+							$this->save($hasMany['model'], $item, $relationSaveOptions);
+						} elseif ($item !== array_value($old, $key)) {
+							warning('Unable to save the change "'.$item.'" in '.$config->name.'->'.$property.'['.$key.']');
+						}
+
 					}
 					if (value($options['keep_missing_related_instances']) == false) {
 						// Delete items that are no longer in the relation
@@ -375,9 +391,13 @@ class Repository extends Object {
 							if ($collection === null && count($old) > 0) {
 								notice('Unexpected type NULL for property "'.$property.'", expecting an array or Iterator');
 							}
-							foreach ($old as $item) {
+							foreach ($old as $key => $item) {
 								if (array_search($item, $collection, true) === false) {
-									$this->delete($hasMany['model'], $item);
+									if (is_object($item)) {
+										$this->delete($hasMany['model'], $item);
+									} else {
+										warning('Unable to remove item['.$key.']: "'.$item.'" from '.$config->name.'->'.$property);
+									}
 								}
 							}
 						}
