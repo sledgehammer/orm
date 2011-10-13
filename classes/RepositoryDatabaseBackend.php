@@ -334,6 +334,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				$line = preg_replace('/^  |,$/', '', $line); // "  " & "," weghalen
 				$line = str_replace('NOT ', 'NOT_', $line);
 				$line = str_replace(' KEY', '_KEY', $line);
+				$line = str_replace('CHARACTER SET', 'CHARACTER_SET', $line);
 				$parts = explode(' ', $line);
 				if (substr($parts[0], 0, 1) == '`') { // Column description
 					$column = substr($parts[0], 1, -1);
@@ -398,6 +399,10 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 									$comment .= ' ';
 								}
 								$config['columns'][$column]['comment'] = $comment;
+								break;
+
+							case 'CHARACTER_SET':
+								$i++; // ignore value
 								break;
 
 							default:
