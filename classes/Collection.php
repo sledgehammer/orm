@@ -4,19 +4,23 @@
  *
  * @package Record
  */
+
 namespace SledgeHammer;
+use \ArrayIterator;
+
 class Collection extends Object implements \Iterator, \Countable, \ArrayAccess {
 
 	/**
 	 * @var Iterator
 	 */
 	protected $iterator;
+
 	/**
 	 * @param \Iterator|array $iterator
 	 */
 	function __construct($iterator) {
 		if (is_array($iterator)) {
-			$this->iterator = new \ArrayIterator($iterator);
+			$this->iterator = new ArrayIterator($iterator);
 		} else {
 			$this->iterator = $iterator;
 		}
@@ -28,6 +32,10 @@ class Collection extends Object implements \Iterator, \Countable, \ArrayAccess {
 	 */
 	function asArray() {
 		return iterator_to_array($this);
+	}
+
+	function select($valueField, $keyField = null) {
+		return new CollectionView(clone $this, $valueField, $keyField);
 	}
 
 	/**
@@ -46,7 +54,6 @@ class Collection extends Object implements \Iterator, \Countable, \ArrayAccess {
 			}
 			// $data[$key] = $item; @todo check if its not an index array
 			$data[] = $item;
-
 		}
 		return new Collection($data);
 	}
@@ -57,16 +64,19 @@ class Collection extends Object implements \Iterator, \Countable, \ArrayAccess {
 	 *
 	 * @return mixed
 	 */
-	public function current() {
+	function current() {
 		return $this->iterator->current();
 	}
-	public function key() {
+
+	function key() {
 		return $this->iterator->key();
 	}
-	public function next() {
+
+	function next() {
 		return $this->iterator->next();
 	}
-	public function rewind() {
+
+	function rewind() {
 		if ($this->iterator instanceof \Iterator) {
 			return $this->iterator->rewind();
 		}
@@ -74,40 +84,52 @@ class Collection extends Object implements \Iterator, \Countable, \ArrayAccess {
 		$type = ($type == 'object') ? get_class($this->iterator) : $type;
 		throw new \Exception(''.$type.' is not an Iterator');
 	}
-	public function valid() {
+
+	function valid() {
 		return $this->iterator->valid();
 	}
 
 	// Countable function
-	public function count() {
+
+	function count() {
 		return count($this->iterator);
 	}
 
 	// ArrayAccess functions
-	public function offsetExists($offset) {
-		if (($this->iterator instanceof \ArrayIterator) == false) {
-			$this->iterator = new \ArrayIterator(iterator_to_array($this->iterator));
+
+	function offsetExists($offset) {
+		if (($this->iterator instanceof ArrayIterator) == false) {
+			$this->iterator = new ArrayIterator(iterator_to_array($this->iterator));
 		}
 		return $this->iterator->offsetExists($offset);
 	}
-	public function offsetGet($offset) {
-		if (($this->iterator instanceof \ArrayIterator) == false) {
-			$this->iterator = new \ArrayIterator(iterator_to_array($this->iterator));
+
+	function offsetGet($offset) {
+		if (($this->iterator instanceof ArrayIterator) == false) {
+			$this->iterator = new ArrayIterator(iterator_to_array($this->iterator));
 		}
 		return $this->iterator->offsetGet($offset);
 	}
-	public function offsetSet($offset, $value) {
-		if (($this->iterator instanceof \ArrayIterator) == false) {
-			$this->iterator = new \ArrayIterator(iterator_to_array($this->iterator));
+
+	function offsetSet($offset, $value) {
+		if (($this->iterator instanceof ArrayIterator) == false) {
+			$this->iterator = new ArrayIterator(iterator_to_array($this->iterator));
 		}
 		return $this->iterator->offsetSet($offset, $value);
 	}
-	public function offsetUnset($offset) {
-		if (($this->iterator instanceof \ArrayIterator) == false) {
-			$this->iterator = new \ArrayIterator(iterator_to_array($this->iterator));
+
+	function offsetUnset($offset) {
+		if (($this->iterator instanceof ArrayIterator) == false) {
+			$this->iterator = new ArrayIterator(iterator_to_array($this->iterator));
 		}
 		return $this->iterator->offsetUnset($offset);
 	}
 
+	function __clone() {
+		$this->iterator = new ArrayIterator(iterator_to_array($this->iterator));
+//		$this->iterator = clone $this->iterator; // doesn't clone the data (in case of the ArrayIterator)
+	}
+
 }
+
 ?>
