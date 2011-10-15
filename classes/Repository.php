@@ -200,7 +200,7 @@ class Repository extends Object {
 					}
 				}
 			}
-			$items = $collection->asArray();
+			$items = $collection->toArray();
 			$this->objects[$model][$index]['hadMany'][$property] = $items; // Add a copy for change detection
 			$instance->$property = $items;
 			return;

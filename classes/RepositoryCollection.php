@@ -1,8 +1,8 @@
 <?php
-
 /**
  * RepositoryCollection
  *
+ * @package Record
  */
 namespace SledgeHammer;
 class RepositoryCollection extends Collection {
