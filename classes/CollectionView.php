@@ -35,8 +35,8 @@ class CollectionView extends Collection {
 	}
 
 	public function where($conditions) {
-		if ($this->valueField === null && $this->iterator instanceof Collection) { // The valueField is not set, pass the conditions to the original collection. 
-			return new CollectionView($this->iterator->where($conditions), null, $this->keyField);
+		if ($this->valueField === null && $this->data instanceof Collection) { // The valueField is not set, pass the conditions to the original collection. 
+			return new CollectionView($this->data->where($conditions), null, $this->keyField);
 		}
 		return parent::where($conditions);
 	}

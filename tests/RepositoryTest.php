@@ -96,7 +96,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 1, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
 		$this->assertEqual($order2->customer->name, "James Bond", 'Lazy-load the correct data');
-		$this->assertLastQuery('SELECT * FROM customers WHERE id = "2"');
+		$this->assertLastQuery('SELECT * FROM customers WHERE id = 2');
 		$this->assertFalse($order2->customer instanceof BelongsToPlaceholder, 'The placeholder should be replaced with a real object');
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
@@ -117,7 +117,6 @@ class RepositoryTest extends DatabaseTestCase {
 
 		$customers = $repo->getCustomerCollection();
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT, 'Delay queries until collections access');
-//		$this->assertEqual($customerArray, $compare);
 		$this->assertEqual(count($customers), 2, 'Collection should contain all customers');
 		$customerArray = iterator_to_array($customers);
 		$this->assertEqual($customerArray[0]->name, 'Bob Fanger');
@@ -145,7 +144,7 @@ class RepositoryTest extends DatabaseTestCase {
 		foreach ($c1->orders as $order) {
 			$this->assertEqual($order->product, 'Kop koffie', 'Only 1 order expected');
 		}
-		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = "1"');
+		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = 1');
 		$this->assertEqual(gettype($c1->orders), 'array', 'The orders property should be replaced with an array');
 		$this->assertEqual($c1->orders[0]->product, 'Kop koffie', 'Contents should match the order from customer 1');
 		$this->assertEqual(count($c1->orders), 1, 'Should only contain the order from customer 1');
@@ -210,10 +209,10 @@ class RepositoryTest extends DatabaseTestCase {
 		// remove by instance
 		$repo->deleteOrder($order1);
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2);
-		$this->assertLastQuery('DELETE FROM orders WHERE id = "1"');
+		$this->assertLastQuery('DELETE FROM orders WHERE id = 1');
 		// remove by id
 		$repo->deleteOrder('2');
-		$this->assertLastQuery('DELETE FROM orders WHERE id = "2"');
+		$this->assertLastQuery('DELETE FROM orders WHERE id = 2');
 
 	}
 
@@ -228,7 +227,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 1, 'Saving an unmodified instance shouldn\'t generate a query');
 		$c1->occupation = 'Webdeveloper';
 		$repo->saveCustomer($c1);
-		$this->assertLastQuery('UPDATE customers SET occupation = "Webdeveloper" WHERE id = "1"');
+		$this->assertLastQuery("UPDATE customers SET occupation = 'Webdeveloper' WHERE id = 1");
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2, 'Sanity Check');
 		$repo->saveCustomer($c1); // Check if the updated data is now bound to the instance
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2, 'Saving an unmodified instance shouldn\'t generate a query');
@@ -255,9 +254,9 @@ class RepositoryTest extends DatabaseTestCase {
 		$c2->orders[] = $repo->createOrder(array('product' => 'Scuba gear'));
 		unset($c2->orders[1]);
 		$repo->saveCustomer($c2);
-		$this->assertQuery('UPDATE orders SET product = "Walther PPK" WHERE id = "2"');
-		$this->assertQuery('INSERT INTO orders (customer_id, product) VALUES ("2", "Scuba gear")');
-		$this->assertQuery('DELETE FROM orders WHERE id = "3"');
+		$this->assertQuery("UPDATE orders SET product = 'Walther PPK' WHERE id = 2");
+		$this->assertQuery("INSERT INTO orders (customer_id, product) VALUES (2, 'Scuba gear')");
+		$this->assertQuery('DELETE FROM orders WHERE id = 3');
 	}
 
 	function test_AutoCompleteHelper() {
@@ -285,11 +284,11 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEqual($c1->name, 'Bob Fanger');
 		$c1->name = 'Charlie Fanger';
 		$repo->saveCustomer($c1);
-		$this->assertLastQuery('UPDATE customers SET name = "Charlie Fanger" WHERE id = "1"');
+		$this->assertLastQuery("UPDATE customers SET name = 'Charlie Fanger' WHERE id = 1");
 		$c1->orders = array();
 		$repo->saveCustomer($c1);
 		$repo->deleteCustomer($c1);
-		$this->assertLastQuery('DELETE FROM customers WHERE id = "1"');
+		$this->assertLastQuery('DELETE FROM customers WHERE id = 1');
 	}
 
 	/**

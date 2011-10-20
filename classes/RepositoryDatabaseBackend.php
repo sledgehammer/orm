@@ -141,8 +141,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 			}
 			$sql->where[] = $db->quoteIdentifier($key) . ' = ' . $db->quote($id[$key]);
 		}
-
-		return $db->fetch_row($sql);
+		return $db->fetchRow($sql);
 	}
 
 	/**
@@ -218,7 +217,9 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		if (count($config['primaryKeys']) == 1) {
 			$idColumn = $config['primaryKeys'][0];
 			if ($data[$idColumn] === null) {
-				if ($db instanceof \mysqli) {
+				if ($db instanceof \PDO) {
+					$data[$idColumn] = $result;
+				} elseif ($db instanceof \mysqli) {
 					$data[$idColumn] = $db->insert_id;
 				} else {
 					notice('Implement insert_id for '.get_class($db));
@@ -249,7 +250,11 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		if ($result == false) {
 			throw new \Exception('Deleting record "' . implode(' + ', $id) . '" failed');
 		}
-		if ($db instanceof \mysqli) {
+		if ($db instanceof \PDO) {
+			if ($result !== 1) {
+				throw new \Exception('Removing "'.implode('-', $id).'" from "'.$config['table'].' failed, '.$result.' rows were affected');
+			}
+		} elseif ($db instanceof \mysqli) {
 			if ($db->affected_rows != 1) {
 				throw new \Exception('Removing "'.implode('-', $id).'" from "'.$config['table'].' failed, '.$db->affected_rows.' rows were affected');
 			}
@@ -258,16 +263,23 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		}
 	}
 
+	/**
+	 *
+	 * @param type $sql
+	 * @param string $dbLink
+	 * @throws \PDOException
+	 * @return void
+	 */
 	private function execute($sql, $dbLink) {
 		$db = getDatabase($dbLink);
-		$setting = $db->throw_exception_on_error;
-		$db->throw_exception_on_error = true;
+		$errmode = $db->getAttribute(\PDO::ATTR_ERRMODE);
+		$db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 		try {
-			$result = $db->query($sql);
-			$db->throw_exception_on_error = $setting;
+			$result = $db->exec($sql);
+			$db->setAttribute(\PDO::ATTR_ERRMODE, $errmode);
 			return $result;
 		} catch (\Exception $e) {
-			$db->throw_exception_on_error = $setting;
+			$db->setAttribute(\PDO::ATTR_ERRMODE, $errmode);
 			throw $e;
 		}
 	}
@@ -324,7 +336,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 			  $config['schema']['default_values'][$column] = $field['Default'];
 			  }
 			  } */
-			$showCreate = $db->fetch_row('SHOW CREATE TABLE ' . $table);
+			$showCreate = $db->fetchRow('SHOW CREATE TABLE ' . $table);
 			$createSyntax = $showCreate['Create Table'];
 			$lines = explode("\n", $createSyntax);
 

@@ -31,7 +31,7 @@ class RepositoryCollection extends Collection {
 		return $repo->convert($this->model, $data);
 	}
 	public function where($conditions) {
-		if ($this->iterator instanceof Collection) {
+		if ($this->data instanceof Collection) {
 			$convertedConditions = array();
 			foreach ($conditions as $field => $value) {
 				if (isset($this->mapping[$field])) {
@@ -40,7 +40,7 @@ class RepositoryCollection extends Collection {
 				}
 			}
 			if (count($convertedConditions) != 0) { // There are conditions the low-level collection can handle?  
-				$collection = new RepositoryCollection($this->iterator->where($convertedConditions), $this->model, $this->repository, $this->mapping);
+				$collection = new RepositoryCollection($this->data->where($convertedConditions), $this->model, $this->repository, $this->mapping);
 				if (count($conditions) == 0) {
 					return $collection;
 				}
