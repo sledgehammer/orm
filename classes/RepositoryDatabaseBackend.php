@@ -218,7 +218,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 			$idColumn = $config['primaryKeys'][0];
 			if ($data[$idColumn] === null) {
 				if ($db instanceof \PDO) {
-					$data[$idColumn] = $result;
+					$data[$idColumn] = $db->lastInsertId();
 				} elseif ($db instanceof \mysqli) {
 					$data[$idColumn] = $db->insert_id;
 				} else {

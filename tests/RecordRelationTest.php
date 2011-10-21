@@ -27,7 +27,7 @@ class RecordRelationTest extends DatabaseTestCase {
 		$this->assertEqual(count($customer->orders), 1);
 
 //		$this->assertQueryCount(4, 'Zodra de gegevens nodig zijn de DECRIBE & SELECT uitvoeren');
-		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = "1"');
+		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = 1');
 		$related = $customer->orders;
 
 		foreach ($related as $id => $orders) {
@@ -63,8 +63,8 @@ class RecordRelationTest extends DatabaseTestCase {
 //		$this->assertEqual($customer->orders[7]->product, 'Wodka Martini'); // No longer has key based on ID, is just an array
 		$this->assertEqual(count($customer->orders), 4, 'There should be 4 items in the relation');
 		getRepository(__CLASS__)->saveCustomer($customer);
-		$this->assertQuery('INSERT INTO orders (customer_id, id, product) VALUES ("2", 7, "Wodka Martini")'); // The "id" comes after the "customer_id" because the belongsTo are mapped before the normal properties
-		$this->assertQuery('INSERT INTO orders (customer_id, product) VALUES ("2", "New product")');
+		$this->assertQuery("INSERT INTO orders (customer_id, id, product) VALUES (2, 7, 'Wodka Martini')"); // The "id" comes after the "customer_id" because the belongsTo are mapped before the normal properties
+		$this->assertQuery("INSERT INTO orders (customer_id, product) VALUES (2, 'New product')");
 		unset($customer->orders[3]);
 		$this->assertEqual(count($customer->orders), 3, '1 item removed');
 		getRepository(__CLASS__)->saveCustomer($customer);

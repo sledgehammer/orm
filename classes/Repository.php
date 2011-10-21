@@ -517,8 +517,7 @@ class Repository extends Object {
 		}
 		foreach ($config->hasMany as $property => $relation) {
 			if (isset($relation['convert'])) {
-				$collection = new Collection(PropertyPath::get($from, $relation['convert']));
-				$collection->bind($relation['model'], $this->id);
+				$collection = new RepositoryCollection(PropertyPath::get($from, $relation['convert']), $relation['model'], $this->id);
 				PropertyPath::set($to, $property, $collection);
 			} else {
 				$to->$property = new HasManyPlaceholder(array(

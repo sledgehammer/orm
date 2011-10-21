@@ -42,7 +42,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 //		$this->assertEqual($record->getId(), null);
 
 		$record->save();
-		$this->assertLastQuery('INSERT INTO customers (name, occupation) VALUES ("Naam", "Beroep")'); // Controleer de query
+		$this->assertLastQuery("INSERT INTO customers (name, occupation) VALUES ('Naam', 'Beroep')"); // Controleer de query
 		$this->assertEqual($record->getChanges(), array());
 		$this->assertEqual($record->id, 3);
 //		$this->assertEqual($record->getId(), 3);
@@ -59,7 +59,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 		)));
 		$record->save();
 		$this->assertEqual($record->getChanges(), array());
-		$this->assertQuery('UPDATE customers SET name = "Andere naam" WHERE id = 3');
+		$this->assertQuery("UPDATE customers SET name = 'Andere naam' WHERE id = 3");
 		$this->assertTableContents('customers', array(
 			array('id' => '1', 'name' => 'Bob Fanger', 'occupation'=> 'Software ontwikkelaar'),
 			array('id' => '2', 'name' => 'James Bond', 'occupation' => 'Spion'),
@@ -89,7 +89,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 		$record->name = 'Ing. Bob Fanger';
 		$record->occupation = 'Software developer';
 		$record->save();
-		$this->assertQuery('UPDATE customers SET name = "Ing. Bob Fanger", occupation = "Software developer" WHERE id = "1"');
+		$this->assertQuery("UPDATE customers SET name = 'Ing. Bob Fanger', occupation = 'Software developer' WHERE id = 1");
 		$this->assertTableContents('customers', array(
 			array('id' => '1', 'name' => 'Ing. Bob Fanger', 'occupation'=> 'Software developer'),
 			array('id' => '2', 'name' => 'James Bond', 'occupation' => 'Spion'),
@@ -110,7 +110,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 		$this->getDatabase()->query('DELETE FROM orders WHERE customer_id = 1');
 		$record = $this->getCustomer(1);
 		$record->delete();
-		$this->assertLastQuery('DELETE FROM customers WHERE id = "1"');
+		$this->assertLastQuery('DELETE FROM customers WHERE id = 1');
 		$this->expectError('A deleted Record has no properties');
 		$record->occupation = 'DELETED?';
 		try {
@@ -161,7 +161,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 	function test_all_with_array() {
 		$collection = $this->getAllCustomers()->where(array('name' => 'James Bond'));
 		$this->assertEqual(count($collection), 1);
-		$this->assertLastQuery('SELECT * FROM customers WHERE name = "James Bond"');
+		$this->assertLastQuery("SELECT * FROM customers WHERE name = 'James Bond'");
 	}
 
 	function test_all_with_sprintf() {
