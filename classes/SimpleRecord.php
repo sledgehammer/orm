@@ -6,51 +6,90 @@
  */
 namespace SledgeHammer;
 class SimpleRecord extends Record {
-	
-	function __construct($table, $id = '__STATIC__', $options = array()) {
-		$options = array_merge($options, array('table' => $table));
-		if ($id === '__STATIC__') {
-			parent::__construct($id, $options);
-			return;
-		}
-		if ($table === '__INSTANCE__' || $table === '__STATIC__') {
-			$options = $id;
-			$id = $table;
-		}
-		// @todo $options[??] setting bedenken voor het gebruik inladen van alle kolommen uit de query (ipv de tabel)
-		if (array_value($options, 'propertiesByValues') && $id === '__INSTANCE__') {
-			if (empty($options['values'])) {
-				throw new \Exception('Can\'t create an Instance without $options["values"]');
-			}
-			$properties =  array_keys($options['values']);
-		} else {
-			// @todo Waarom niet altijd de properties uit de Tabel gebruiken? is betrouwbaarder dan $options['values']
-			$dbLink = isset($options['dbLink']) ? $options['dbLink'] : 'default';
-			$info = getDatabase($dbLink)->tableInfo($options['table']);
-			$properties = $info['columns'];
-		}
-		$this->_mode = '__SET_PROPERTY';
-		foreach ($properties as $property) {
-			$this->$property = null;
-		}
-		unset($options['propertiesByValues']);
-		parent::__construct($id, $options);
-	}
 
-	function __set($property, $value) {
-		if ($this->_mode == '__SET_PROPERTY') {
-			$this->$property = $value; // Eigenschap toevoegen aan het object
-			return;
+	/**
+	 *
+	 * @param string $model
+	 * @param mixed $id
+	 * @param array $options array(
+	 *   'repository' => (string) "default"
+	 *   'preload' => (bool) false
+	 * )
+	 * @return SimpleRecord
+	 */
+	static function findById($model, $id, $options = array()) {
+		$repository = value($options['repository']) ?: 'default';
+		$repo = getRepository($repository);
+		$instance = $repo->get($model, $id, value($options['preload']));
+		if ($instance instanceof SimpleRecord) {
+			$instance->_state = 'retrieved';
+			$instance->_repository = $repository;
+			$instance->_model = $model;
+			return $instance;
 		}
-		parent::__set($property, $value);
+		throw new \Exception('Model "'.$model.'" isn\'t configured as SimpleRecord');
+	}
+	/**
+	 *
+	 * @param string $model
+	 * @param array $options
+	 * @return Collection
+	 */
+	static function all($model, $options = array()) {
+		$repository = value($options['repository']) ?: 'default';
+		$repo = getRepository($repository);
+		return $repo->loadCollection($model);
 	}
 
 	/**
-	 * Een SimpleRecord heeft altijd alle kolommen die uit de database gehaald worden. (By design)
-	 * @return true
+	 *
+	 * @param string $model (required)
+	 * @param array $values
+	 * @param array $options array(
+	 *   'repository' => (string) "default"
+	 * )
+	 * @return SimpleRecord
 	 */
-	protected function validateRecord($exclude = array()) {
-		return true;
+	static function create($model = null, $values = array(), $options = array()) {
+		$repository = value($options['repository']) ?: 'default';
+		$repo = getRepository($repository);
+		$instance = $repo->create($model, $values);
+		if ($instance instanceof SimpleRecord) {
+			$instance->_state = 'new';
+			$instance->_repository = $repository;
+			$instance->_model = $model;
+			return $instance;
+		}
+		throw new \Exception('Model "'.$model.'" isn\'t configured as SimpleRecord');
+	}
+
+	function delete() {
+		if ($this->_model == 'SimpleRecord') {
+		 	throw new \Exception('Model unknown, instance not loaded using SimpleRecord methods');
+		}
+		return parent::delete();
+	}
+
+	function save() {
+		if ($this->_model == 'SimpleRecord') {
+		 	throw new \Exception('Model unknown, instance not loaded or created using SimpleRecord methods');
+		}
+		return parent::save();
+	}
+
+	function getChanges() {
+		if ($this->_model == 'SimpleRecord') {
+		 	throw new \Exception('Model unknown, instance not loaded or created using SimpleRecord methods');
+		}
+		return parent::getChanges();
+	}
+
+	public function __set($property, $value) {
+		if ($this->_state == 'constructed') {
+			$this->$property = $value;
+		} else {
+			return parent::__set($property, $value);
+		}
 	}
 }
 ?>

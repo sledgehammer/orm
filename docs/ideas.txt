@@ -35,6 +35,13 @@ $iteratorWrapper = new IteratorWrapper(view); of new IteratorWrapper(complextype
 $iteratorWrapper->setData($realIterator);
 
 
+The "new Record(id)" problem:
+  Because the "new" keyword will always create a new instance there can be multiple instances for the same record.
+  This is incompatible with the Repositories view (1 record == 1 instance).
+
+  Solution:
+    When a second (or third, etc) "new" is used, remove _all_ properties and connect them with the "real" instance via __get() & __set()
+
  AFGEKEURDE IDEEEN
 -------------------
 

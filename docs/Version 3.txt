@@ -7,6 +7,7 @@ ORM Duties/Goals
    - Create/Update
  * Protect againt SQL injection
  * OOP aproach to database records.
+  - Easily fetch related records
 
 
 Looking back on Version 2
@@ -14,20 +15,20 @@ Looking back on Version 2
 The good:
 + protection against sql injection 
 + Lazy relations
-+ new RecordClass($id);
 + columns as properties (a object is a row in the db)
 + relations as properties
 + Only save/update the changes
-+ config for the customer in the customer class (no boilerplate mapper classes of xml configurations)
-+ A record (instance) object cant modify other records
++ config for the customer in the customer class (no boilerplate mapper classes or xml configurations)
++ A record (instance) object can't modify other records
 + Column/property validation (no silent dataloss)
-+ Quick & dirty with SimpleRecord
++ Quick & dirty with SimpleRecord's auto-configuration
 + Strict: No first() method, find() returns 1 object or an exception
++ AutoCompletion. [with the "new RecordClass($id)" syntax];
 
 Shady:
 + Dual mode, a alternative/difficult concept.
 + Not POCO
-+ AutoCompletion for the static mode
++ AutoCompletion not aware of static/instance mode
 + No support for greedy relations
 
 Bad:
@@ -52,8 +53,9 @@ The class should determines the structure.
 Full support for IDE autocompletion
 
 Only one instance per row.
-  $c1 = new Customer(1);
-  $c2 = new Customer(1); // $c2 becomes a reference to $c1;
+  $x = new Customer(1);
+  $y = new Customer(1); // $y becomes a reference to $x;
+(Became $repository->getCustomer(1), the "new" keyword will allway generate a new/seperate instance)
 
 ORM can save and retrieves POCO (Plain Old Class Objects)
 
@@ -66,25 +68,25 @@ Don't depend on SQL, but allow it.
   Allowing SQL for the datasources that support is powerfull (great featureset with great performance). 
   
 
-Supports multiple sources. 
+Supports for multiple backends. 
   $player->tweets (player from db, tweets from the twitter API)
 
 
 
 Concept descriptions
----------
+---------------------
 
 POCO (Plain Old Class Objects)
   the save() / delete() methods dont make sense on all (record) objects.
   Also no inheritance of interface required.
 
   No direct connection between datasource and object?
-  aka support for multiple database connections for the same class.
+  aka support for multiple database/repository connections for the same class.
 
 
 
-Thoughts on LINQ / Entity
--------------------------
+Thoughts on LINQ / Entity / underscore
+---------------------------------------
 
 linq is nice, entity has migration issues (citation needed)
 
@@ -103,6 +105,8 @@ Implementation ideas
  column "city" to property "address/city" translates to $x->address->city; // or "address.city"? or "address->city"?
  // is 'address' a array, stdClass, ArrayObject or custom class? 
  // Getting autocompletion to work: @var AddresStruct public $address
+
+Became "address->city" for objects and "address[city]" for arrays in PropertyPath.
 
 = Repository =
 Loading and Saving logic outside the Record object.
@@ -133,10 +137,10 @@ $t->findAll($criteria);
 $t->add($o); //insert
 $t->update($o);
 $t->delete($id);
-$t->deleteAll($criteria);
+$t->deleteAll($criteria); // Won't be implemented, would enable big mistakes in client code
 // Filtering/List
 $rs = $t->all();
-$rs->where('x = 2');
+$rs = $t->all()->where('x = 2');
 foreach($rs as $record) {}
 
 
@@ -145,13 +149,19 @@ Repository API
 $repository = getRepository('default');
 $customer = $repository->getCustomer($id);
 $customer = $repository->findCustomer($criteria);
+  became $customer = $repository->getCustomerCollection()->where($criteria);
+  should become $repository->getCustomers()->where($criteria);
+    but both options wouldn't force 1 result (or an Exception).
+
 $repository->saveCustomer($customer);
 $table = $repository->getCustomersTable();
-$repository->saveAll()?
+  
+$repository->saveAll()? namespace conflict with the "All" model?
+  Wouldn't this generate multiple save() call per (belongsTo/hasMany) instance? 
 
 
 Record API
------------.
+-----------
 @property $_recordConfig => array('repository' => 'default', 'table' => 'customer', 'hasMany' => array(), 'belongsTo' => array())
 or
 @return RecordConfig
@@ -166,11 +176,8 @@ GenericRecord::find()
 GenericRecord::findAll()
 GenericRecord->save()
 GenericRecord->delete()
-GenericRecord::deleteAll()
-(private)GenriceRecord->_state = 'NEW'|'EXISTING'|'DELETED'
+(private)GenericRecord->_state = 'NEW'|'EXISTING'|'DELETED'
 GenericRecord::$repository;
-
-
 
 
 SimpleRecord
@@ -189,6 +196,6 @@ injecting lazy-loaded relations.
 
 Rejected ideas
 ---------------
-Autogenerator repositories based on database connection.
+Autogenerate repositories based on database connection.
 'default' => new DbRepo(getDatabase('default'));
-*Because* we can use one Repository instance to handle multiple database connections/schema's
+*Because* we can use one Repository instance to handle multiple database connections/schema's/backends

@@ -10,64 +10,70 @@ class RecordRelationTest extends DatabaseTestCase {
 	 */
 	function fillDatabase($db) {
 		$db->import(dirname(__FILE__).'/rebuild_test_database.sql', $error);
-//		set_error_handler('SledgeHammer\ErrorHandler_trigger_error_callback');
+		$repo = new Repository();
+		$backend = new RepositoryDatabaseBackend(array($this->dbLink));
+		$customer = $backend->configs['Customer'];
+		$customer->hasMany['products'] = $customer->hasMany['orders'];
+		$customer->hasMany['products']['filters'] = array('CollectionView' => array('valueField' => 'product', 'keyField' => 'id'));
+		$repo->registerBackend($backend);
+		$GLOBALS['Repositories'][__CLASS__] = $repo;
 	}
 
 	function test_hasMany_iterator() {
-		$customer = $this->getCustomer(1);
-       	$this->assertQueryCount(2, 'Geen queries bij het defineren van een relatie'); // Verwacht een SELECT & DESCRIBE
-       	$related = $customer->orders;
-		$this->assertQueryCount(2, 'Geen queries voor het opvragen van de relatie');
-		//dump($related);
-		
-		$this->assertEqual($related->count(), 1);
-		$this->assertQueryCount(4, 'Zodra de gegevens nodig zijn de DECRIBE & SELECT uitvoeren');
-		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = "1"');
+		$customer = getRepository(__CLASS__)->getCustomer(1);
+//		$this->assertQueryCount(2, 'Geen queries bij het defineren van een relatie'); // Verwacht een SELECT & DESCRIBE
+//		$this->assertQueryCount(2, 'Geen queries voor het opvragen van de relatie');
+
+		$this->assertEqual(count($customer->orders), 1);
+
+//		$this->assertQueryCount(4, 'Zodra de gegevens nodig zijn de DECRIBE & SELECT uitvoeren');
+		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = 1');
+		$related = $customer->orders;
+
 		foreach ($related as $id => $orders) {
-			$this->assertEqual($id, 1);
+//			$this->assertEqual($id, 1); // no longer the default (array != dictionany in json, etc)
 			$this->assertEqual($orders->product, 'Kop koffie');
 		}
-		$customer->orders[] = $this->createBestelling(array('product' => 'New product', 'id'=> 5));
-		$array = iterator_to_array($customer->orders);
-		$this->assertEqual(value($array[5]->product), 'New product', 'The iterator should include the "additions"');
+		$customer->orders[] = getRepository(__CLASS__)->createOrder(array('product' => 'New product', 'id'=> 5));
+//		$array = iterator_to_array($customer->orders); // no longer an iterator (incompatible with poco)
+//		$this->assertEqual(value($array[5]->product), 'New product', 'The iterator should include the "additions"'); // no longer able to set the key based on id (it's  just an array)
 	}
 
 	function test_hasMany_array_access() {
-		$customer = $this->getCustomer(2);
-		$orders = clone $customer->orders[2];
-		$this->assertEqual($orders->product, 'Walter PPK 9mm');
-		$customer->orders[2]->product = 'Magnum';
-		$this->assertEqual($customer->orders[2]->product, 'Magnum', 'Remember changes');
-		$customer->orders[2] = $orders;
-		$this->assertEqual($orders->product, 'Walter PPK 9mm');
-		try {
-			$customer->orders[3] = $orders;
-			$this->fail('Setting a relation with an ID that doesn\'t match should throw an Exception');
-		} catch (\Exception $e) {
-			$this->assertEqual($e->getMessage(), 'Key: "3" doesn\'t match the keyColumn: "2"');
-       	}
-		if ($customer->orders->count() != 2) {
-			$this->fail('Sanity check failed');
-		}
-		$customer->orders[] = $this->createBestelling(array('product' => 'New product')); // Product zonder ID
-		$customer->orders[] = $this->createBestelling(array('id' => 7, 'product' => 'Wodka Martini'));
-		$this->assertEqual($customer->orders[7]->product, 'Wodka Martini');
-		$this->assertEqual($customer->orders->count(), 4, 'There should be 4 items in the relation');
-		$customer->save();
-		$this->assertQuery('INSERT INTO orders (id, customer_id, product) VALUES (7, "2", "Wodka Martini")');
+		$customer = getRepository(__CLASS__)->getCustomer(2, true);
+		$order = clone $customer->orders[0];
+		$this->assertEqual($order->product, 'Walter PPK 9mm');
+		$customer->orders[0]->product = 'Magnum';
+		$this->assertEqual($customer->orders[0]->product, 'Magnum', 'Remember changes');
+//		$customer->orders[0] = $order; // after clone a order is no longer connected to the repository
+//		$this->assertEqual($order->product, 'Walter PPK 9mm');
+		// Relation errors are no longer detected on-access, its just an array
+//		try {
+//			$customer->orders[2] = $order;
+//			$this->fail('Setting a relation with an ID that doesn\'t match should throw an Exception');
+//		} catch (\Exception $e) {
+//			$this->assertEqual($e->getMessage(), 'Key: "3" doesn\'t match the keyColumn: "2"');
+//       	}
+//		if (count($customer->orders) != 2) {
+//			$this->fail('Sanity check failed');
+//		}
 
-		$this->assertQuery('INSERT INTO orders (customer_id, product) VALUES ("2", "New product")');
+		$customer->orders[] = getRepository(__CLASS__)->createOrder(array('product' => 'New product')); // Product zonder ID
+		$customer->orders[] = getRepository(__CLASS__)->createOrder(array('id' => 7, 'product' => 'Wodka Martini'));
+//		$this->assertEqual($customer->orders[7]->product, 'Wodka Martini'); // No longer has key based on ID, is just an array
+		$this->assertEqual(count($customer->orders), 4, 'There should be 4 items in the relation');
+		getRepository(__CLASS__)->saveCustomer($customer);
+		$this->assertQuery("INSERT INTO orders (customer_id, id, product) VALUES (2, 7, 'Wodka Martini')"); // The "id" comes after the "customer_id" because the belongsTo are mapped before the normal properties
+		$this->assertQuery("INSERT INTO orders (customer_id, product) VALUES (2, 'New product')");
 		unset($customer->orders[3]);
-		$this->assertEqual($customer->orders->count(), 3, '1 item removed');
-		$customer->save();
-		$this->assertLastQuery('DELETE FROM orders WHERE id = "3"');
-       	//dump($customer->orders);
+		$this->assertEqual(count($customer->orders), 3, '1 item removed');
+		getRepository(__CLASS__)->saveCustomer($customer);
+		$this->assertLastQuery('DELETE FROM orders WHERE id = 7');
 	}
 
 	function test_hasMany_table_values() {
-		$customer = $this->getCustomer(2);
-		$products = iterator_to_array($customer->products);
-		$this->assertEqual($products, array(
+		$customer = getRepository(__CLASS__)->getCustomer(2, true);
+		$this->assertEqual($customer->products, array(
 			2 => 'Walter PPK 9mm',
 			3 => 'Spycam',
 		));
@@ -76,61 +82,25 @@ class RecordRelationTest extends DatabaseTestCase {
 		$this->assertFalse(isset($customer->products[5]));
 		// @todo Test add & delete
 		$customer->products[8] = 'New product';
-		//dump($customer->products);
 		//
 		// Test import
 		$customer->products = array(
 			2 => 'Walter PPK 9mm',
 			17 => 'Wodka Martini',
 		);
-		$customer->save();
-		//dump($customer->products);
+		// @todo Support complex hasMany relations
+//		$this->expectError('Saving changes in complex hasMany relations are not (yet) supported.');
+		$this->expectError('Unable to save the change "Wodka Martini" in Customer->products[17]');
+		$this->expectError('Unable to remove item[3]: "Spycam" from Customer->products');
+		getRepository(__CLASS__)->saveCustomer($customer);
     }
 
-
-	/**
-	 * @return Record  Een customer-record in INSTANCE/INSERT mode
-	 */
-	private function createCustomer($values = array()) {
-		$this->getStaticRecord()->create(array());
-	}
-
-	/**
-	 * @return Record  Een customer-record in INSTANCE/UPDATE mode
-	 */
-	private function getCustomer($id) {
-		return $this->getStaticCustomer()->find($id);
-   	}
-
-	/**
-	 * @return Record  Een customer-record in STATIC mode
-	 */
-	private function getStaticCustomer() {
-		return new SimpleRecord('customers', '__STATIC__', array(
-			'dbLink' => $this->dbLink,
-			'hasMany' => array(
-				'orders' => new RecordRelation('orders', 'customer_id', array(
-					'dbLink' => $this->dbLink,
-				)),
-				'products' => new RecordRelation('orders', 'customer_id', array(
-					'dbLink' => $this->dbLink,
-					'valueProperty' => 'product',
-				)),
-			)
-		));
-	}
-	
-	/**
-	 * @return Record
-	 */
-	private function createBestelling($values = array()) {
-		return $this->getStaticBestelling()->create($values);
-	}
-
-	private function getStaticBestelling() {
-		return new SimpleRecord('orders', '__STATIC__', array(
-			'dbLink' => $this->dbLink,
-		));
+	function test_custom_relation() {
+//		$hasMany = array('products' => new RecordRelation('orders', 'customer_id', array(
+//			'dbLink' => $this->dbLink,
+//			'valueProperty' => 'product',
+//		)));
+//		$this->fail();
 	}
 }
 ?>

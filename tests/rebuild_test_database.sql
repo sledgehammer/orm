@@ -4,7 +4,7 @@
 -- Tabel met een auto_increment ID
 CREATE TABLE customers (
 	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY ,
-	name VARCHAR(25) NOT NULL ,
+	name VARCHAR(25) NOT NULL DEFAULT "John Doe",
 	occupation TEXT NOT NULL
 ) ENGINE = InnoDB;
 

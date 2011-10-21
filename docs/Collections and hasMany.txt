@@ -31,15 +31,15 @@ Collections
 * Allow (additional) filtering.
 * Are Lazy loaded (are promise to a resultset)
 * Allow SQL but that issn't the primary API. (class DatabaseCollection extends Collection)
-    $collection->sql->where('RAND() > 0.5'); // Example of custom SQL
+    $collection->sql = $collection->sql->where('RAND() > 0.5'); // Example of custom SQL
 
 Fluent interface
   Uses the Linq-extension-methods names:     @link http://msdn.microsoft.com/en-us/library/bb383977.aspx
-    $sortedCollection = $collection->orderBy('propertyname'); //an orderByDescending()
+    $sortedCollection = $collection->orderBy('propertyname'); //and orderByDescending()
   Copy implementation from underscore.php
   The fluent interface works diverent than the SQL interface:
-    SQL methods modify the base object and return this.
-    Collection methods return a new collection without modifing this. 
+    Collection methods return a new collection without modifing the current instance. 
+    Changed the SQL class to do the same. See blogpost: http://stackoverflow.com/questions/1103985/method-chaining-why-is-it-a-good-practice-or-not/7215149#7215149
 
 Collections can be used without an repository.
   The collection class must be able to replace the data with an (model)instance OR don't allow additional filtering or sorting (by modifing the SQL object imposible).
