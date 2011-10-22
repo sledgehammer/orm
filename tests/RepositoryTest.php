@@ -16,7 +16,7 @@ class RepositoryTest extends DatabaseTestCase {
 	}
 	/**
 	 *
-	 * @param SledgeHammer\MySQLiDatabase $db
+	 * @param SledgeHammer\Database $db
 	 */
 	public function fillDatabase($db) {
 		$db->import(dirname(__FILE__).'/rebuild_test_database.sql', $error_message);
