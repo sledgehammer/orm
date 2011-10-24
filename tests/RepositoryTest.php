@@ -14,6 +14,7 @@ class RepositoryTest extends DatabaseTestCase {
 			$this->applicationRepositories = $GLOBALS['Repositories'];
 		}
 	}
+
 	/**
 	 *
 	 * @param SledgeHammer\Database $db
@@ -290,6 +291,38 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->deleteCustomer($c1);
 		$this->assertLastQuery('DELETE FROM customers WHERE id = 1');
 	}
+
+	function test_sqlite() {
+		$dbFile = TMP_DIR.'RepositoryTest.sqlite';
+		if (file_exists($dbFile)) {
+			unlink($dbFile);
+		}
+		$GLOBALS['Databases']['sqlite'] = new Database('sqlite:'.$dbFile);
+		$db = getDatabase('sqlite');
+		$createQueries = explode(';', file_get_contents(dirname(__FILE__).'/rebuild_test_database.sql'));
+		// Import test database
+		foreach ($createQueries as $sql) {
+			$sql = trim($sql);
+			if ($sql == '') {
+				continue;;
+			}
+			// Covert MySQL syntax to SQLite syntax
+			$sql = str_replace('AUTO_INCREMENT PRIMARY KEY', ' PRIMARY KEY AUTOINCREMENT', $sql);
+			$sql = str_replace(' INT ', ' INTEGER ', $sql);
+			$sql = str_replace(' ENGINE = InnoDB', '', $sql);
+			if (substr($sql, 0, 7) == 'INSERT ') {
+				$sql = substr($sql, 0, strpos($sql, '),')).')';
+			}
+			$db->query($sql);
+		}
+		$repo = new RepositoryTester();
+		$repo->registerBackend(new RepositoryDatabaseBackend('sqlite'));
+		$c1 = $repo->getCustomer(1);
+		$this->assertEqual($c1->name, 'Bob Fanger', 'SQLite compatible');
+		$c1->occupation = 'Web developer';
+		$repo->saveCustomer($c1);
+	}
+
 
 	/**
 	 * Get a Customer instance where all the properties are still placeholders

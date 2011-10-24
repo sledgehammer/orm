@@ -308,9 +308,28 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	}
 
 	private function getSchema($dbLink) {
-		$schema = array();
 
 		$db = getDatabase($dbLink);
+		$driver = $db->getAttribute(\PDO::ATTR_DRIVER_NAME);
+		if ($driver == 'mysql') {
+			return $this->getSchemaMySql($dbLink);
+		} elseif($driver == 'sqlite') {
+			return $this->getSchemaSqlite($dbLink);
+
+		} else {
+			warning('PDO driver: "'.$driver.'" not supported');
+			return false;
+		}
+	}
+
+	/**
+	 * Extract the Database schema from a MySQL database
+	 * @param string $dbLink
+	 * @return array  schema definition
+	 */
+	private function getSchemaMySql($dbLink) {
+		$db = getDatabase($dbLink);
+		$schema = array();
 		$result = $db->query('SHOW TABLES');
 		foreach ($result as $row) {
 			$table = current($row);
@@ -460,6 +479,66 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					}
 //					dump($line);
 				}
+			}
+			unset($config);
+		}
+		return $schema;
+	}
+
+	/**
+	 * Extract the Database schema from a Sqlite database
+	 * @param string $dbLink
+	 * @return array  schema definition
+	 */
+	private function getSchemaSqlite($dbLink) {
+		$db = getDatabase($dbLink);
+		$schema = array();
+		$result = $db->query('SELECT tbl_name FROM sqlite_master WHERE type = "table" AND name != "sqlite_sequence"')->fetchAll();
+		// Pass 1: columns
+		foreach ($result as $row) {
+			$table = $row['tbl_name'];
+
+			$schema[$table] = array(
+				'table' => $table,
+				'columns' => array(),
+				'primaryKeys' => array(),
+			);
+			$config = &$schema[$table];
+			if (array_key_exists('referencedBy', $config) == false) {
+				$config['referencedBy'] = array();
+			}
+
+			$columns = $db->query('PRAGMA table_info('.$table.')');
+			foreach ($columns as $column) {
+				$name = $column['name'];
+				$config['columns'][$name] = array(
+					'type' => $column['type'],
+					'null' => ($column['notnull'] == '0'),
+				);
+				if ($column['dflt_value'] !== null) {
+					$config['columns'][$name]['default'] = $column['dflt_value'];
+				}
+
+				if ($column['pk']) {
+					$config['primaryKeys'][] = $name;
+				}
+			}
+		}
+		// Pass 2: relations
+		foreach ($result as $row) {
+			$table = $row['tbl_name'];
+			$config = &$schema[$table];
+
+			$foreignKeys = $db->query('PRAGMA foreign_key_list('.$table.')');
+			foreach ($foreignKeys as $key) {
+				$schema[$table]['columns'][$key['from']]['foreignKeys'][] = array(
+					'table' => $key['table'],
+					'column' => $key['to'],
+				);
+				$schema[$key['table']]['referencedBy'][] = array(
+					'table' => $table,
+					'column' => $key['from'],
+				);
 			}
 			unset($config);
 		}
