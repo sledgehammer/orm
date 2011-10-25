@@ -610,11 +610,9 @@ class Repository extends Object {
 			}
 			if ($config->class === null) { // No class found?
 				// Generate class
-				$namespace = 'SledgeHammer\Generated\\';
-				if (isset($GLOBALS['Repositories']['default']) && $GLOBALS['Repositories']['default']->id == $this->id) {
-					$namespace .= 'Repository';
-				} else {
-					$namespace .= $this->id;
+				$namespace = 'Generated';
+				if (empty($GLOBALS['Repositories']['default']) || $GLOBALS['Repositories']['default']->id != $this->id) {
+					$namespace .= '\\'.$this->id;
 				}
 				$php = "namespace ".$namespace.";\nclass ".$config->name." extends \SledgeHammer\Object {\n";
 				$properties = array_merge(array_keys($config->properties), array_keys($config->belongsTo), array_keys($config->hasMany));
@@ -622,7 +620,7 @@ class Repository extends Object {
 					$php .= "\tpublic $".$property.";\n";
 				}
 				$php .= "}";
-				if (ENVIRONMENT == 'development' && $namespace == 'SledgeHammer\Generated\Repository') {
+				if (ENVIRONMENT == 'development' && $namespace == 'Generated') {
 					// Write autoComplete helper
 					// @todo Only write file when needed, aka validate $this->autoComplete
 					mkdirs(TMP_DIR.'AutoComplete');
@@ -647,24 +645,13 @@ class Repository extends Object {
 			// Validate AutoCompleteHelper
 			$autoComplete = array(
 				'class' => $config->class,
+				'properties' => implode(', ', array_keys($config->properties)),
 			);
-			$dirty = false;
-			if (empty($this->autoComplete[$config->name])) {
+			if (empty($this->autoComplete[$config->name]) || $this->autoComplete[$config->name] != $autoComplete) {
 				$this->autoComplete[$config->name] = $autoComplete;
-				$dirty = true;
-			} else {
-				foreach ($this->autoComplete[$config->name] as $key => $value) {
-					if ($autoComplete[$key] != $value) {
-						$this->autoComplete[$config->name][$key] = $value;
-						$dirty = true;
-					}
-				}
-			}
-			if ($dirty) {
 				mkdirs(TMP_DIR.'AutoComplete');
 				write_ini_file($autoCompleteFile, $this->autoComplete, 'Repository AutoComplete config');
 				$this->writeAutoCompleteHelper(TMP_DIR.'AutoComplete/DefaultRepository.php', 'DefaultRepository', 'SledgeHammer\AutoComplete');
-
 			}
 		}
 	}
