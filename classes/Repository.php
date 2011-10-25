@@ -501,8 +501,22 @@ class Repository extends Object {
 					if ($belongsToInstance !== null) {
 						$to->$property = $belongsToInstance;
 					} else {
+						$belongsToConfig = $this->_getConfig($relation['model']);
+						if (array_key_exists('id', $relation) == false) { // id not set?
+							// Infer/Assume that the id is the ID from the model
+							if (count($belongsToConfig->id) == 1) {
+								$relation['id'] = current($belongsToConfig->id);
+								$config->belongsTo[$property] = $relation; // Update config
+							} else {
+								notice('Element '.$config->name.'->belongsTo['.$property.'][id] not set');
+							}
+						}
+						$belongsToIdProperty = array_search($relation['id'], $belongsToConfig->properties);
+						if ($belongsToIdProperty === false) {
+							notice('Column "'.$relation['id'].'" not mapped as property in model "'.$relation['model'].'"', 'Required for '.$config->name.'->belongsTo['.$property.']');
+						}
 						$fields = array(
-							$relation['id'] => $belongsToId, // @todo reverse mapping
+							$belongsToIdProperty => $belongsToId,
 						);
 						$to->$property = new BelongsToPlaceholder(array(
 							'repository' => $this->id,
@@ -611,6 +625,7 @@ class Repository extends Object {
 				if (ENVIRONMENT == 'development' && $namespace == 'SledgeHammer\Generated\Repository') {
 					// Write autoComplete helper
 					// @todo Only write file when needed, aka validate $this->autoComplete
+					mkdirs(TMP_DIR.'AutoComplete');
 					file_put_contents(TMP_DIR.'AutoComplete/'.$config->name.'.php', '<?php '.$php);
 				}
 				eval($php);
@@ -687,7 +702,7 @@ class Repository extends Object {
 	 * @param ModelConfig $config
 	 * @return string
 	 */
-	private function resolveIndex($from, $config = array()) {
+	private function resolveIndex($from, $config = null) {
 		if ((is_string($from) && $from != '') || is_int($from)) {
 			return '{'.$from.'}';
 		}
@@ -729,8 +744,13 @@ class Repository extends Object {
 		}
 		if (is_object($from)) {
 			if ($key !== false) {
-				$id = $from->$key; // @todo check $config->properties
-				if ($id === null) {
+				$idProperty = array_search($key, $config->properties);
+				if ($idProperty === false) {
+					throw new \Exception('ModelConfig->id is not mapped to the instances. Add ModelConfig->properties[name] = "'.$key.'"');
+				}
+				$id = PropertyPath::get($from, $idProperty);
+				if ($id === null) { // Id value not set?
+					// Search in the created instances array
 					foreach ($this->created[$config->name] as $index => $created) {
 						if ($from === $created) {
 							return $index;
@@ -738,7 +758,7 @@ class Repository extends Object {
 					}
 					throw new \Exception('Failed to resolve index, missing property: "'.$key.'"');
 				}
-				return $this->resolveIndex($from->$key);
+				return $this->resolveIndex($from->$idProperty);
 			}
 			throw new \Exception('Not implemented');
 		}
@@ -774,6 +794,15 @@ class Repository extends Object {
 			$php .= "\t */\n";
 			$php .= "\tfunction get".$model.'($id, $preload = false) {'."\n";
 			$php .= "\t\treturn \$this->get('".$model."', \$id, \$preload);\n";
+			$php .= "\t}\n";
+
+			$php .= "\t/**\n";
+			$php .= "\t * Retrieve all ".$model."\n";
+			$php .= "\t *\n";
+			$php .= "\t * @return Collection|".$class."\n";
+			$php .= "\t */\n";
+			$php .= "\tfunction get".$model.'Collection() {'."\n";
+			$php .= "\t\treturn \$this->getCollection('".$model."');\n";
 			$php .= "\t}\n";
 
 			$php .= "\t/**\n";

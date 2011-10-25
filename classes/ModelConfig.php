@@ -25,7 +25,14 @@ class ModelConfig extends Object {
 	 */
 	public $id = array('id');
 	/**
-	 * @var array  Configuration of the belongsTo relation(s)
+	 * Configuration of the belongsTo relation(s)
+	 * @var array  array(
+	 *   $property => array(
+	 *      'reference' => $column  // foreign_key: "product_id"
+	 *      'model' => $modelName   // The foreign model: "Product"
+	 *      'id' => $idColumn (optional) // The id: "id"
+	 *   )
+	 * )
 	 */
 	public $belongsTo = array();
 	/**

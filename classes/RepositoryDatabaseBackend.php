@@ -41,13 +41,13 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	 *
 	 * @param string $dbLink
 	 */
-	function inspectDatabase($dbLink = 'default') {
+	function inspectDatabase($dbLink = 'default', $prefix = '') {
 
 		// Pass 1: Retrieve and parse schema information
-		$schema = $this->getSchema($dbLink);
+		$schema = $this->getSchema($dbLink, $prefix);
 
 		foreach ($schema as $tableName => $table) {
-			$config = new ModelConfig($this->toModel($tableName), array(
+			$config = new ModelConfig($this->toModel($tableName, $prefix), array(
 //				'plural' => $this->toPlural($model),
 				'backendConfig' => $table,
 			));
@@ -77,7 +77,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					}
 					$config->belongsTo[$property] = array(
 						'reference' => $column, // foreignKey
-						'model' => $this->toModel($foreignKey['table']),
+						'model' => $this->toModel($foreignKey['table'], $prefix),
 						'id' => $foreignKey['column'], // primairy key
 					);
 					$config->collectionMapping[$property.'->'.$foreignKey['column']] = $column;
@@ -284,7 +284,10 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		}
 	}
 
-	private function toModel($table) {
+	private function toModel($table, $prefix = '') {
+		if ($prefix != '' && substr($table, 0, strlen($prefix)) == $prefix) {
+			$table = substr($table, strlen($prefix));
+		}
 		// @todo implement mapping
 		return ucfirst($this->toSingular($table));
 	}
@@ -307,14 +310,14 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		return $column;
 	}
 
-	private function getSchema($dbLink) {
+	private function getSchema($dbLink, $prefix = '') {
 
 		$db = getDatabase($dbLink);
 		$driver = $db->getAttribute(\PDO::ATTR_DRIVER_NAME);
 		if ($driver == 'mysql') {
-			return $this->getSchemaMySql($dbLink);
+			return $this->getSchemaMySql($dbLink, $prefix);
 		} elseif($driver == 'sqlite') {
-			return $this->getSchemaSqlite($dbLink);
+			return $this->getSchemaSqlite($dbLink, $prefix);
 
 		} else {
 			warning('PDO driver: "'.$driver.'" not supported');
@@ -327,11 +330,15 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	 * @param string $dbLink
 	 * @return array  schema definition
 	 */
-	private function getSchemaMySql($dbLink) {
+	private function getSchemaMySql($dbLink, $prefix = '') {
 		$db = getDatabase($dbLink);
 		$schema = array();
-		$result = $db->query('SHOW TABLES');
-		foreach ($result as $row) {
+		if ($prefix != '') {
+			$tables = $db->query('SHOW TABLES LIKE '.$db->quote($prefix.'%'));
+		} else {
+			$tables = $db->query('SHOW TABLES');
+		}
+		foreach ($tables as $row) {
 			$table = current($row);
 
 			$schema[$table] = array(
@@ -490,12 +497,16 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	 * @param string $dbLink
 	 * @return array  schema definition
 	 */
-	private function getSchemaSqlite($dbLink) {
+	private function getSchemaSqlite($dbLink, $prefix = '') {
 		$db = getDatabase($dbLink);
 		$schema = array();
-		$result = $db->query('SELECT tbl_name FROM sqlite_master WHERE type = "table" AND name != "sqlite_sequence"')->fetchAll();
+		$sql ='SELECT tbl_name FROM sqlite_master WHERE type = "table" AND name != "sqlite_sequence"';
+		if ($prefix != '') {
+			$sql .= ' tbl_name LIKE '.$db->quote($prefix.'%');
+		}
+		$tables = $db->query($sql)->fetchAll();
 		// Pass 1: columns
-		foreach ($result as $row) {
+		foreach ($tables as $row) {
 			$table = $row['tbl_name'];
 
 			$schema[$table] = array(
@@ -525,7 +536,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 			}
 		}
 		// Pass 2: relations
-		foreach ($result as $row) {
+		foreach ($tables as $row) {
 			$table = $row['tbl_name'];
 			$config = &$schema[$table];
 
