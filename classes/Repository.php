@@ -606,15 +606,9 @@ class Repository extends Object {
 			$to[$relation['reference']] = null;  // Dont set the value yet. (could be overwritten with an mapping?)
 		}
 		// Map to data
-		foreach ($config->properties as $property => $relation) {
-			if (is_string($relation)) { // direct property to column mapping
-				if (property_exists($instance, $property)) {
-					$to[$relation] = $from->$property;
-				} else {
-					throw new \Exception('Invalid mapping type');
-
-				}
-			}
+		foreach ($config->properties as $property => $element) {
+			$value = PropertyPath::get($from, $property);
+			PropertyPath::set($to, $element, $value);
 		}
 		// Map the belongTo to the "*_id" columns.
 		foreach ($config->belongsTo as $property => $relation) {
@@ -659,7 +653,9 @@ class Repository extends Object {
 				}
 				$php = "namespace ".$namespace.";\nclass ".$config->name." extends \SledgeHammer\Object {\n";
 				$properties = array_merge(array_keys($config->properties), array_keys($config->belongsTo), array_keys($config->hasMany));
-				foreach ($properties as $property) {
+				foreach ($properties as $path) {
+					$compiledPath = PropertyPath::compile($path);
+					$property = $compiledPath[0][1];
 					$php .= "\tpublic $".$property.";\n";
 				}
 				$php .= "}";
@@ -789,7 +785,7 @@ class Repository extends Object {
 					}
 					throw new \Exception('Failed to resolve index, missing property: "'.$key.'"');
 				}
-				return $this->resolveIndex($from->$idProperty);
+				return $this->resolveIndex($id);
 			}
 			throw new \Exception('Not implemented');
 		}
