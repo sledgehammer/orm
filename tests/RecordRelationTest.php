@@ -13,8 +13,8 @@ class RecordRelationTest extends DatabaseTestCase {
 		$repo = new Repository();
 		$backend = new RepositoryDatabaseBackend(array($this->dbLink));
 		$customer = $backend->configs['Customer'];
-		$customer->hasMany['products'] = $customer->hasMany['orders'];
-		$customer->hasMany['products']['filters'] = array('CollectionView' => array('valueField' => 'product', 'keyField' => 'id'));
+//		$customer->hasMany['products'] = $customer->hasMany['orders'];
+//		$customer->hasMany['products']['filters'] = array('CollectionView' => array('valueField' => 'product', 'keyField' => 'id'));
 		$repo->registerBackend($backend);
 		$GLOBALS['Repositories'][__CLASS__] = $repo;
 	}
@@ -73,26 +73,27 @@ class RecordRelationTest extends DatabaseTestCase {
 
 	function test_hasMany_table_values() {
 		$customer = getRepository(__CLASS__)->getCustomer(2, true);
-		$this->assertEqual($customer->products, array(
+		$products = collection($customer->orders)->select('product', 'id')->toArray();
+		$this->assertEqual($products, array(
 			2 => 'Walter PPK 9mm',
 			3 => 'Spycam',
 		));
-		$this->assertEqual($customer->products[2], 'Walter PPK 9mm');
-		$this->assertTrue(isset($customer->products[2]));
-		$this->assertFalse(isset($customer->products[5]));
+		$this->assertEqual($products[2], 'Walter PPK 9mm');
+		$this->assertTrue(isset($products[2]));
+		$this->assertFalse(isset($products[5]));
 		// @todo Test add & delete
-		$customer->products[8] = 'New product';
+//		$customer->products[8] = 'New product';
 		//
 		// Test import
-		$customer->products = array(
-			2 => 'Walter PPK 9mm',
-			17 => 'Wodka Martini',
-		);
+//		$customer->products = array(
+//			2 => 'Walter PPK 9mm',
+//			17 => 'Wodka Martini',
+//		);
 		// @todo Support complex hasMany relations
 //		$this->expectError('Saving changes in complex hasMany relations are not (yet) supported.');
-		$this->expectError('Unable to save the change "Wodka Martini" in Customer->products[17]');
-		$this->expectError('Unable to remove item[3]: "Spycam" from Customer->products');
-		getRepository(__CLASS__)->saveCustomer($customer);
+//		$this->expectError('Unable to save the change "Wodka Martini" in Customer->products[17]');
+//		$this->expectError('Unable to remove item[3]: "Spycam" from Customer->products');
+//		getRepository(__CLASS__)->saveCustomer($customer);
     }
 
 	function test_custom_relation() {
