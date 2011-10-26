@@ -80,8 +80,6 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 						'model' => $this->toModel($foreignKey['table'], $prefix),
 						'id' => $foreignKey['column'], // primairy key
 					);
-					$config->collectionMapping[$property.'->'.$foreignKey['column']] = $column;
-					$config->collectionMapping[$property.'.'.$foreignKey['column']] = $column;
 					$config->defaults[$property] = null;
 				}
 			}

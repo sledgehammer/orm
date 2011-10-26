@@ -35,6 +35,12 @@ class Repository extends Object {
 	protected $backends = array();
 	private $autoComplete;
 
+	/**
+	 * Used to speedup the execution RepostoryCollection->where() statements. (allows db WHERE statements)
+	 * @var array
+	 */
+	private $collectionMappings = array();
+
 	function __construct() {
 		$this->id = uniqid('R');
 		$GLOBALS['Repositories'][$this->id] = $this; // Register this Repository to the Repositories pool.
@@ -162,7 +168,7 @@ class Repository extends Object {
 	function loadCollection($model) {
 		$config = $this->_getConfig($model);
 		$collection = $this->_getBackend($config->backend)->all($config->backendConfig);
-		return new RepositoryCollection($collection, $model, $this->id, $config->collectionMapping);
+		return new RepositoryCollection($collection, $model, $this->id, $this->collectionMappings[$model]);
 	}
 
 	function loadAssociation($model, $instance, $property, $preload = false) {
@@ -191,15 +197,6 @@ class Repository extends Object {
 			$id = $instance->{$config->id[0]};
 			$foreignProperty = $hasMany['property'].'->'.$hasMany['id'];
 			$collection = $this->loadCollection($hasMany['model'])->where(array($foreignProperty => $id));
-			if (isset($hasMany['filters'])) {
-				foreach ($hasMany['filters'] as $filter => $filterOptions) {
-					if ($filter == 'CollectionView') {
-						$collection = new CollectionView($collection, value($filterOptions['valueField']), value($filterOptions['keyField']));
-					} else {
-						throw new \Exception('Filter: "'.$filter.'" not supported');
-					}
-				}
-			}
 			$items = $collection->toArray();
 			$this->objects[$model][$index]['hadMany'][$property] = $items; // Add a copy for change detection
 			$instance->$property = $items;
@@ -424,11 +421,74 @@ class Repository extends Object {
 			throw new \Exception('RepositoryBackend "'.$backend->identifier.'" already registered');
 		}
 		$this->backends[$backend->identifier] = $backend;
+		// Pass 1: Register configs
 		foreach ($backend->configs as $config) {
 			if ($config->backend === null) {
 				$config->backend = $backend->identifier;
 			}
 			$this->register($config);
+		}
+		// Pass 2: Validate and correct configs
+		foreach ($backend->configs as $backendConfig) {
+			$config = $this->configs[$backendConfig->name];
+			foreach ($config->id as $idIndex => $idColumn) {
+				$idProperty = array_search($idColumn, $config->properties);
+				if ($idProperty === false) {
+					warning('Invalid config: '.$config->name.'->id['.$idIndex.']: "'.$idColumn.'" isn\'t mapped as a property');
+				}
+			}
+			foreach ($config->belongsTo as $property => $belongsTo) {
+				$validationError = false;
+				if (empty ($belongsTo['model'])) {
+					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set';
+				} elseif (empty ($belongsTo['reference']) && empty($belongsTo['convert'])) {
+					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] is missing a [reference] or [convert] element';
+				} elseif (isset($relation['convert']) && isset($relation['reference'])) {
+					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] can\'t contain both a [reference] and a [convert] element';
+				} elseif (empty($belongsTo['id'])) { // id not set, but (target)model is configured?
+					if (empty($this->configs[$belongsTo['model']])) {
+						$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] couldn\'t be inferred, because model "'.$belongsTo['model'].'" isn\'t registerd';
+					} else {
+						// Infer/Assume that the id is the ID from the model
+						if (count($belongsToConfig->id) == 1) {
+							$config->belongsTo[$property]['id'] = current($belongsToConfig->id); // Update config
+						} else {
+							$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] not set and can\'t be inferred (for a complex key)';
+						}
+					}
+				}
+				if (isset($belongsTo['reference']) && isset($belongsTo['id'])) {
+					// Add foreign key to the collection mapping
+					$this->collectionMappings[$config->name][$property.'->'.$belongsTo['id']] = $belongsTo['reference'];
+					$this->collectionMappings[$config->name][$property.'.'.$belongsTo['id']] = $belongsTo['reference'];
+				}
+				// @todo Add collectionMapping for "convert" relations
+				if (empty($this->configs[$belongsTo['model']])) {
+//					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] "'.$belongsTo['model'].'" isn\'t registerd';
+				} 
+				// Remove invalid relations
+				if ($validationError) {
+					warning($validationError);
+					unset($config->belongsTo[$property]);
+				}
+			}
+			foreach ($config->hasMany as $property => $hasMany) {
+				$validationError = false;
+				if (empty ($hasMany['model'])) {
+					$validationError = 'Invalid config: '.$config->name.'->hasMany['.$property.'][model] not set';
+				} elseif (empty($hasMany['property'])) {
+					// @todo Infer property (lookup belongsTo)
+					$validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][property] not set';
+				} elseif (empty($hasMany['id'])) { // id not set?
+					// @todo Infer  the id is the ID from the model
+ 					$validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][id] not set';
+				}
+				// Remove invalid relations
+				if ($validationError) {
+					warning($validationError);
+					unset($config->hasMany[$property]);
+				}
+			}
 		}
 	}
 
@@ -493,30 +553,16 @@ class Repository extends Object {
 			} else {
 				$belongsToId = $from[$relation['reference']];
 				if ($belongsToId !== null) {
-					if (empty($relation['model'])) {
-						warning('Unable to determine model for property "'.$property.'"');
+					if (empty($relation['model'])) { // No model given?
+						throw new \Exception('Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set');
 					}
 					$belongsToIndex = $this->resolveIndex($belongsToId);
 					$belongsToInstance = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
 					if ($belongsToInstance !== null) {
 						$to->$property = $belongsToInstance;
 					} else {
-						$belongsToConfig = $this->_getConfig($relation['model']);
-						if (array_key_exists('id', $relation) == false) { // id not set?
-							// Infer/Assume that the id is the ID from the model
-							if (count($belongsToConfig->id) == 1) {
-								$relation['id'] = current($belongsToConfig->id);
-								$config->belongsTo[$property] = $relation; // Update config
-							} else {
-								notice('Element '.$config->name.'->belongsTo['.$property.'][id] not set');
-							}
-						}
-						$belongsToIdProperty = array_search($relation['id'], $belongsToConfig->properties);
-						if ($belongsToIdProperty === false) {
-							notice('Column "'.$relation['id'].'" not mapped as property in model "'.$relation['model'].'"', 'Required for '.$config->name.'->belongsTo['.$property.']');
-						}
 						$fields = array(
-							$belongsToIdProperty => $belongsToId,
+							$relation['id'] => $belongsToId,
 						);
 						$to->$property = new BelongsToPlaceholder(array(
 							'repository' => $this->id,
@@ -592,10 +638,7 @@ class Repository extends Object {
 		if (isset($this->configs[$config->name])) {
 			warning('Overwriting model: "'.$config->name.'"'); // @todo? Allow overwritting models? or throw Exception?
 		}
-		// Create reversed mapping for the collection based on the properties mapping
-		foreach ($config->properties as $property => $column) {
-			$config->collectionMapping[$column] = $property;
-		}
+		$this->collectionMappings[$config->name] = $config->properties; // Add properties to the collectionMapping
 //		$config = clone $config;
 		if (empty($config->class)) {
 			$config->class = $this->baseClass; // @todo generate custom class, based on mapping
@@ -630,6 +673,7 @@ class Repository extends Object {
 				$config->class = $namespace.'\\'.$config->name;
 			}
 		}
+
 		$this->configs[$config->name] = $config;
 		$this->created[$config->name] = array();
 		// Generate or update the AutoComplete Helper for the default repository?
