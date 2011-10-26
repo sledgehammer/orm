@@ -57,7 +57,7 @@ class Repository extends Object {
 			if (count($arguments) > 0) {
 				notice('Too many arguments, expecting none', $arguments);
 			}
-			return $this->loadCollection($matches[1]);
+			return $this->all($matches[1]);
 		}
 		if (preg_match('/^(get|save|delete|create)(.+)$/', $method, $matches)) {
 			$method = $matches[1];
@@ -165,7 +165,7 @@ class Repository extends Object {
 	 * @param string $model
 	 * @return Collection
 	 */
-	function loadCollection($model) {
+	function all($model) {
 		$config = $this->_getConfig($model);
 		$collection = $this->_getBackend($config->backend)->all($config->backendConfig);
 		return new RepositoryCollection($collection, $model, $this->id, $this->collectionMappings[$model]);
@@ -196,7 +196,7 @@ class Repository extends Object {
 			}
 			$id = $instance->{$config->id[0]};
 			$foreignProperty = $hasMany['property'].'->'.$hasMany['id'];
-			$collection = $this->loadCollection($hasMany['model'])->where(array($foreignProperty => $id));
+			$collection = $this->all($hasMany['model'])->where(array($foreignProperty => $id));
 			$items = $collection->toArray();
 			$this->objects[$model][$index]['hadMany'][$property] = $items; // Add a copy for change detection
 			$instance->$property = $items;

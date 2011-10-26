@@ -1,4 +1,9 @@
 <?php
+/**
+ * Record functions
+ *
+ * @package Record
+ */
 namespace SledgeHammer;
 
 /**

@@ -8,14 +8,16 @@ abstract class Record extends Object {
 
 	protected $_model;
 	protected $_state = 'unconstructed';
-	protected $_repository = 'default';
+	protected $_repository;
 
 	function __construct() {
 		$this->_state = 'constructed';
 		if ($this->_model === null) {
-			// Detect modelname based on the classname
-			$parts = explode('\\', get_class($this));
-			$this->_model = array_pop($parts);
+			$this->_model = static::_getModel();
+		}
+		if (count(func_get_args()) != 0) {
+			$model = $this->_model;
+			throw new \Exception('No parameters not allowed for "new '.get_class($this).'()", use $'.strtolower($model).' = repository->get'.$model.'($id); or  $'.strtolower($model).' = '.$model.'::find($id)');
 		}
 	}
 
@@ -29,15 +31,57 @@ abstract class Record extends Object {
 	 * @return Record
 	 */
 	static function create($values = array(), $options = array()) {
-		$repository = value($options['repository']) ?: 'default';
-		$repo = getRepository($repository);
-		$instance = $repo->create($this->_model, $values);
-		if ($instance instanceof Record) {
-			$instance->_state = 'new';
-			$instance->_repository = $repository;
-			return $instance;
+		$model = static::_getModel($options);
+		$repositoryId = static::_getRepostoryId($options);
+		$repo = getRepository($repositoryId);
+		$instance = $repo->create($model, $values);
+		if (get_class($instance) != get_called_class()) {
+			throw new \Exception('Model "'.$model.'"('.get_class($instance).') isn\'t configured as "'.get_called_class());
 		}
-		throw new \Exception('Model "'.$this->_model.'" isn\'t configured as Record');
+		$instance->_model = $model;
+		$instance->_repository = $repositoryId;
+		$instance->_state = 'new';
+		return $instance;
+	}
+
+	/**
+	 * 
+	 * @param type $conditions
+	 * @param array $options 
+	 * @return Record
+	 */
+	static function find($conditions, $options = array()) {
+		$model = static::_getModel($options);
+		$repositoryId = static::_getRepostoryId($options);
+		$repo = getRepository($repositoryId);
+		if (is_array($conditions)) {
+			$collection = $repo->all($model)->where($conditions);
+			$count = $collection->count();
+			if ($count == 0) {
+				throw new \Exception('No "'.$model.'" model matches the conditions');
+			}
+			if ($count != 1) {
+				throw new \Exception('More than 1 "'.$model.'" model matches the conditions');
+			}
+			$collection->rewind();
+			$instance = $collection->current();
+		} else {
+			$instance = $repo->get($model, $conditions);
+		}
+		if (get_class($instance) != get_called_class()) {
+			throw new \Exception('Model "'.$model.'"('.get_class($instance).') isn\'t configured as "'.get_called_class());
+		}
+		$instance->_model = $model;
+		$instance->_repository = $repositoryId;
+		$instance->_state = 'retrieved';
+		return $instance;
+	}
+
+	static function all($options = array()) {
+		$model = static::_getModel($options);
+		$repositoryId = static::_getRepostoryId($options);
+		$repo = getRepository($repositoryId);
+		return $repo->all($model);
 	}
 
 	function __get($property) {
@@ -87,5 +131,41 @@ abstract class Record extends Object {
 		$repo = getRepository($this->_repository);
 		return $repo->diff($this->_model, $this);
 	}
+	
+	protected static function _getModel($options = array()) {
+		if (isset($options['model'])) {
+			// Use the model given in the parameters
+			return $options['model'];
+		}
+		$class = get_called_class();
+		$properties = get_class_vars($class);
+		if ($properties['_model'] !== null) {
+			return $properties['_model'];
+		} else {
+			// Detect modelname based on the classname
+			$parts = explode('\\', $class);
+			return array_pop($parts);
+		}
+	}
+	/**
+	 *
+	 * @param array $options
+	 * @return Repository
+	 */
+	protected static function _getRepostoryId($options = array()) {
+		if (isset($options['repository'])) {
+			// Use the repository given in the parameters
+			return $options['repository'];
+		}
+		$class = get_called_class();
+		$properties = get_class_vars($class);
+		if ($properties['_repository'] !== null) {
+			// Use the repository defined in de subclass
+			return $properties['_repository'];
+		}
+		return 'default'; // Use the default repository
+		
+	}
+		
 }
 ?>

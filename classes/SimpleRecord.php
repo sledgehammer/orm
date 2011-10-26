@@ -8,26 +8,20 @@ namespace SledgeHammer;
 class SimpleRecord extends Record {
 
 	/**
-	 *
 	 * @param string $model
-	 * @param mixed $id
+	 * @param mixed $conditions
 	 * @param array $options array(
 	 *   'repository' => (string) "default"
 	 *   'preload' => (bool) false
 	 * )
 	 * @return SimpleRecord
 	 */
-	static function findById($model, $id, $options = array()) {
-		$repository = value($options['repository']) ?: 'default';
-		$repo = getRepository($repository);
-		$instance = $repo->get($model, $id, value($options['preload']));
-		if ($instance instanceof SimpleRecord) {
-			$instance->_state = 'retrieved';
-			$instance->_repository = $repository;
-			$instance->_model = $model;
-			return $instance;
+	static function find($model, $conditions = null, $options = array()) {
+		if (count(func_get_args()) < 2) {
+			warning('SimpleRecord::find() requires minimal 2 parameters', 'SimpleRecord::find($model, $conditions, $options = array()');
 		}
-		throw new \Exception('Model "'.$model.'" isn\'t configured as SimpleRecord');
+		$options['model'] = $model;
+		return parent::find($conditions, $options);
 	}
 	/**
 	 *
@@ -35,10 +29,12 @@ class SimpleRecord extends Record {
 	 * @param array $options
 	 * @return Collection
 	 */
-	static function all($model, $options = array()) {
-		$repository = value($options['repository']) ?: 'default';
-		$repo = getRepository($repository);
-		return $repo->loadCollection($model);
+	static function all($model = null, $options = array()) {
+		if (count(func_get_args()) < 1) {
+			warning('SimpleRecord::all() requires minimal 1 parameter', 'SimpleRecord::all($model, $options = array()');
+		}
+		$options['model'] = $model;
+		return parent::all($options);
 	}
 
 	/**
@@ -51,42 +47,16 @@ class SimpleRecord extends Record {
 	 * @return SimpleRecord
 	 */
 	static function create($model = null, $values = array(), $options = array()) {
-		$repository = value($options['repository']) ?: 'default';
-		$repo = getRepository($repository);
-		$instance = $repo->create($model, $values);
-		if ($instance instanceof SimpleRecord) {
-			$instance->_state = 'new';
-			$instance->_repository = $repository;
-			$instance->_model = $model;
-			return $instance;
+		if (count(func_get_args()) < 2) {
+			warning('SimpleRecord::create() requires minimal 1 parameter', 'SimpleRecord::create($model, $values = array(), $options = array()');
 		}
-		throw new \Exception('Model "'.$model.'" isn\'t configured as SimpleRecord');
-	}
-
-	function delete() {
-		if ($this->_model == 'SimpleRecord') {
-		 	throw new \Exception('Model unknown, instance not loaded using SimpleRecord methods');
-		}
-		return parent::delete();
-	}
-
-	function save() {
-		if ($this->_model == 'SimpleRecord') {
-		 	throw new \Exception('Model unknown, instance not loaded or created using SimpleRecord methods');
-		}
-		return parent::save();
-	}
-
-	function getChanges() {
-		if ($this->_model == 'SimpleRecord') {
-		 	throw new \Exception('Model unknown, instance not loaded or created using SimpleRecord methods');
-		}
-		return parent::getChanges();
+		$options['model'] = $model;
+		return parent::create($values, $options);
 	}
 
 	public function __set($property, $value) {
 		if ($this->_state == 'constructed') {
-			$this->$property = $value;
+			$this->$property = $value; // Add properties on the fly (in the construction fase)
 		} else {
 			return parent::__set($property, $value);
 		}
