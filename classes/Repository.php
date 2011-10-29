@@ -26,6 +26,10 @@ class Repository extends Object {
 	protected $objects = array();
 
 	/**
+	 * @var array  Mapping of plural notation to singular.
+	 */
+	protected $plurals = array();
+	/**
 	 * @var array  references to instances that are not yet added to the backend
 	 */
 	protected $created = array();
@@ -53,15 +57,18 @@ class Repository extends Object {
 	 * @return mixed
 	 */
 	function __call($method, $arguments) {
-		if (preg_match('/^get(.+)Collection$/', $method, $matches)) {
-			if (count($arguments) > 0) {
-				notice('Too many arguments, expecting none', $arguments);
-			}
-			return $this->all($matches[1]);
-		}
-		if (preg_match('/^(get|save|delete|create)(.+)$/', $method, $matches)) {
+		if (preg_match('/^(get|all|save|delete|create)(.+)$/', $method, $matches)) {
 			$method = $matches[1];
 			array_unshift($arguments, $matches[2]);
+			if ($method == 'all') {
+				if (empty($this->plurals[$arguments[0]])) {
+					if (isset($this->configs[$arguments[0]])) {
+						warning('Use plural form "'.array_search($arguments[0], $this->plurals).'"');
+					}
+				} else {
+					$arguments[0] = $this->plurals[$arguments[0]];
+				}
+			}
 			return call_user_func_array(array($this, $method), $arguments);
 		}
 		return parent::__call($method, $arguments);
@@ -161,6 +168,7 @@ class Repository extends Object {
 	}
 
 	/**
+	 * Retrieve all instances for the specified model
 	 *
 	 * @param string $model
 	 * @return Collection
@@ -169,6 +177,7 @@ class Repository extends Object {
 		$config = $this->_getConfig($model);
 		$collection = $this->_getBackend($config->backend)->all($config->backendConfig);
 		return new RepositoryCollection($collection, $model, $this->id, $this->collectionMappings[$model]);
+		 
 	}
 
 	function loadAssociation($model, $instance, $property, $preload = false) {
@@ -669,8 +678,12 @@ class Repository extends Object {
 				$config->class = $namespace.'\\'.$config->name;
 			}
 		}
+		if ($config->plural === null) {
+			$config->plural = Inflector::pluralize($config->name);
+		}
 
 		$this->configs[$config->name] = $config;
+		$this->plurals[$config->plural] = $config->name;
 		$this->created[$config->name] = array();
 		// Generate or update the AutoComplete Helper for the default repository?
 		if (ENVIRONMENT == 'development' && isset($GLOBALS['Repositories']['default']) && $GLOBALS['Repositories']['default']->id == $this->id) {
@@ -719,7 +732,7 @@ class Repository extends Object {
 		if ($config !== null) {
 			return $config;
 		}
-		throw new \Exception('Model "'.$model.'" not configured');
+		throw new InfoException('Unknown model: "'.$model.'"', array('Available models' => implode(array_keys($this->configs), ', ')));
 	}
 
 	/**
@@ -824,12 +837,12 @@ class Repository extends Object {
 			$php .= "\t}\n";
 
 			$php .= "\t/**\n";
-			$php .= "\t * Retrieve all ".$model."\n";
+			$php .= "\t * Retrieve all ".$config->plural."\n";
 			$php .= "\t *\n";
 			$php .= "\t * @return Collection|".$class."\n";
 			$php .= "\t */\n";
-			$php .= "\tfunction get".$model.'Collection() {'."\n";
-			$php .= "\t\treturn \$this->getCollection('".$model."');\n";
+			$php .= "\tfunction all".$config->plural.'() {'."\n";
+			$php .= "\t\treturn \$this->all('".$model."');\n";
 			$php .= "\t}\n";
 
 			$php .= "\t/**\n";

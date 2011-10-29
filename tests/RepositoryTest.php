@@ -69,7 +69,7 @@ class RepositoryTest extends DatabaseTestCase {
 			$repo->getCustomer(1);
 			$this->fail('An Exception should be thrown');
 		} catch (\Exception $e) {
-			$this->assertEqual($e->getMessage(), 'Model "Customer" not configured', 'Repository should be empty');
+			$this->assertEqual($e->getMessage(), 'Unknown model: "Customer"', 'Repository should be empty');
 		}
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 		$this->assertTrue($repo->isConfigured('Customer'), 'Sanity check');
@@ -112,11 +112,11 @@ class RepositoryTest extends DatabaseTestCase {
 		//	$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
 	}
 
-	function test_getWildcardCollection() {
+	function test_allWildcard() {
 		$repo = new RepositoryTester();
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 
-		$customers = $repo->getCustomerCollection();
+		$customers = $repo->allCustomers();
 		$this->assertQueryCount(self::INSPECT_QUERY_COUNT, 'Delay queries until collections access');
 		$this->assertEqual(count($customers), 2, 'Collection should contain all customers');
 		$customerArray = iterator_to_array($customers);
@@ -270,12 +270,12 @@ class RepositoryTest extends DatabaseTestCase {
 		$methods = array_diff(get_public_methods($class), get_public_methods('SledgeHammer\Repository'));
 		$this->assertEqual($methods, array(
 			'getCustomer',
-			'getCustomerCollection',
+			'allCustomers',
 			'saveCustomer',
 			'createCustomer',
 			'deleteCustomer',
 			'getOrder',
-			'getOrderCollection',
+			'allOrders',
 			'saveOrder',
 			'createOrder',
 			'deleteOrder',

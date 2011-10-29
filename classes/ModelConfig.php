@@ -13,6 +13,11 @@ class ModelConfig extends Object {
 	 */
 	public $name;
 	/**
+	 *
+	 * @var string  The name of the model in plural from.
+	 */
+	public $plural;
+	/**
 	 * @var string  The full classname
 	 */
 	public $class;

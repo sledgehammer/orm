@@ -47,8 +47,13 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		$schema = $this->getSchema($dbLink, $prefix);
 
 		foreach ($schema as $tableName => $table) {
-			$config = new ModelConfig($this->toModel($tableName, $prefix), array(
-//				'plural' => $this->toPlural($model),
+			if ($prefix != '' && substr($tableName, 0, strlen($prefix)) == $prefix) {
+				$plural = ucfirst(substr($tableName, strlen($prefix))); // Strip prefix
+			} else {
+				$plural = ucfirst($tableName);
+			}
+			$config = new ModelConfig($this->modelize($tableName, $prefix), array(
+				'plural' => $plural,
 				'backendConfig' => $table,
 			));
 			$config->backendConfig['dbLink'] = $dbLink;
@@ -58,7 +63,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				$default = @$info['default'];
 				$config->defaults[$column] = $default;
 				if (empty($info['foreignKeys'])) {
-					$property = $this->toProperty($column);
+					$property = $this->variablize($column);
 					$config->properties[$property] = $column;
 				} else {
 					if (count($info['foreignKeys']) > 1) {
@@ -77,7 +82,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					}
 					$config->belongsTo[$property] = array(
 						'reference' => $column, // foreignKey
-						'model' => $this->toModel($foreignKey['table'], $prefix),
+						'model' => $this->modelize($foreignKey['table'], $prefix),
 						'id' => $foreignKey['column'], // primairy key
 					);
 					$config->defaults[$property] = null;
@@ -89,12 +94,12 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		foreach ($this->configs as $config) {
 			$table = $schema[$config->backendConfig['table']];
 			foreach ($table['referencedBy'] as $reference) {
-				$property = $this->toProperty($reference['table']);
+				$property = $this->variablize($reference['table']);
 				if (array_key_exists($property, $config->properties)) {
 					notice('Unable to use "' . $property . '" for hasMany relation config');
 					break;
 				}
-				$model = $this->toModel($reference['table']);
+				$model = $this->modelize($reference['table'], $prefix);
 				$belongsToModel = $this->configs[$model];
 				foreach ($belongsToModel->belongsTo as $belongsToProperty => $belongsTo) {
 					if ($belongsTo['model'] == $config->name && $belongsTo['reference'] == $reference['column']) {
@@ -282,28 +287,26 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		}
 	}
 
-	private function toModel($table, $prefix = '') {
+	/**
+	 * Create a model name from a plural table name.
+	 *
+	 * @param string $table
+	 * @param string $prefix  Database/table prefix
+	 * @return string 
+	 */
+	private function modelize($table, $prefix = '') {
 		if ($prefix != '' && substr($table, 0, strlen($prefix)) == $prefix) {
-			$table = substr($table, strlen($prefix));
+			$table = substr($table, strlen($prefix)); // Strip prefix
 		}
-		// @todo implement mapping
-		return ucfirst($this->toSingular($table));
+		return ucfirst(Inflector::singularize($table));
 	}
 
-	private function toPlural($singular) {
-		return $singular . 's';
-	}
-
-	private function toSingular($plural) {
-		return preg_replace('/s$/', '', $plural);
-	}
-
-	private function toTable($model) {
-		// @todo implement mapping
-		return lcfirst($this->toPlural($model));
-	}
-
-	private function toProperty($column) {
+	/**
+	 * Returns the  columnname as property notation 
+	 * @param string $column
+	 * @return string
+	 */
+	private function variablize($column) {
 		// @todo implement camelCase
 		return $column;
 	}
