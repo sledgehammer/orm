@@ -135,16 +135,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		} else {
 			throw new \Exception('Incomplete id, table: "' . $config['table'] . '" requires: "' . human_implode('", "', $config['primairyKeys']) . '"');
 		}
-		$sql = select('*')->from($config['table']);
-		$sql->where = array('operator' => 'AND');
-
-		foreach ($config['primaryKeys'] as $key) {
-			if (isset($id[$key]) == false) {
-				throw new \Exception('Missing key: "' . $key . '"'); // todo better error
-			}
-			$sql->where[] = $db->quoteIdentifier($key) . ' = ' . $db->quote($id[$key]);
-		}
-		return $db->fetchRow($sql);
+		return $db->fetchRow('SELECT * FROM '.$db->quoteIdentifier($config['table']).' WHERE '.$this->generateWhere($id, $config));
 	}
 
 	/**
@@ -169,27 +160,16 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		$changes = array();
 		foreach ($new as $column => $value) {
 			if ($value !== $old[$column]) { // is the value changed?
-				$changes[] = $db->quoteIdentifier($column) . ' = ' . $db->quote($value);
+				$changes[] = $db->quoteIdentifier($column).' = '.$this->quote($db, $column, $value);
 			}
 		}
 		if (count($changes) == 0) {
 			return $new; // No changes, no query
 		}
-		$where = array();
-
-		foreach ($config['primaryKeys'] as $column) {
-			if (isset($old[$column]) == false) {
-				throw new \Exception('Parameter $old must contain the id field(s)');
-			}
-			$where[] = $db->quoteIdentifier($column) . ' = ' . $db->quote($old[$column]);
-		}
-		if (count($where) == 0) {
-			throw new \Exception('Invalid id');
-		}
-		$sql = 'UPDATE ' . $db->quoteIdentifier($config['table']) . ' SET ' . implode(', ', $changes) . ' WHERE ' . implode(' AND ', $where);
-		$result = $this->execute($sql, $config['dbLink']);
-		if ($result == false) {
-			throw new \Exception('Updating record "' . implode(' + ', $id) . '" failed');
+		$where = $this->generateWhere($old, $config);
+		$result = $db->exec('UPDATE '.$db->quoteIdentifier($config['table']).' SET '.implode(', ', $changes).' WHERE '.$where);
+		if ($result === false) {
+			throw new \Exception('Updating record "'.$where.'"  in "'.$config['table'].'" failed');
 		}
 		return $new;
 	}
@@ -210,12 +190,11 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				continue;
 			}
 			$columns[] = $db->quoteIdentifier($column);
-			$values[] = $db->quote($value);
+			$values[] = $this->quote($db, $column, $value);
 		}
-		$sql = 'INSERT INTO ' . $db->quoteIdentifier($config['table']) . ' (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $values) . ')';
-		$result = $this->execute($sql, $config['dbLink']);
-		if ($result == false) {
-			throw new \Exception('Adding record "' . implode(' + ', $id) . '" failed');
+		$result = $db->exec('INSERT INTO ' . $db->quoteIdentifier($config['table']) . ' (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $values) . ')');
+		if ($result === false) {
+			throw new \Exception('Adding record into "'.$config['table'].'" failed');
 		}
 		if (count($config['primaryKeys']) == 1) {
 			$idColumn = $config['primaryKeys'][0];
@@ -239,27 +218,18 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	 */
 	function delete($row, $config) {
 		$db = getDatabase($config['dbLink']);
-		$where = array();
-		$id = array();
-		foreach ($config['primaryKeys'] as $column) {
-			$id[$column] = $row[$column];
-			$where[] = $db->quoteIdentifier($column) . ' = ' . $db->quote($row[$column]);
-		}
-		if (count($where) == 0) {
-			throw new \Exception('Invalid id');
-		}
-		$sql = 'DELETE FROM ' . $db->quoteIdentifier($config['table']) . ' WHERE ' . implode(' AND ', $where);
-		$result = $this->execute($sql, $config['dbLink']);
-		if ($result == false) {
-			throw new \Exception('Deleting record "' . implode(' + ', $id) . '" failed');
+		$where = $this->generateWhere($row, $config);
+		$result = $db->exec('DELETE FROM '.$db->quoteIdentifier($config['table']).' WHERE '.$where);
+		if ($result === false) {
+			throw new \Exception('Deleting record "'.$where.'"  from "'.$config['table'].'" failed');
 		}
 		if ($db instanceof \PDO) {
 			if ($result !== 1) {
-				throw new \Exception('Removing "'.implode('-', $id).'" from "'.$config['table'].' failed, '.$result.' rows were affected');
+				throw new \Exception('Removing "'.$where.'" from "'.$config['table'].' failed, '.$result.' rows were affected');
 			}
 		} elseif ($db instanceof \mysqli) {
 			if ($db->affected_rows != 1) {
-				throw new \Exception('Removing "'.implode('-', $id).'" from "'.$config['table'].' failed, '.$db->affected_rows.' rows were affected');
+				throw new \Exception('Removing "'.$where.'" from "'.$config['table'].' failed, '.$db->affected_rows.' rows were affected');
 			}
 		} else {
 			notice('Implement affected_rows for '.get_class($db));
@@ -268,23 +238,36 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 	/**
 	 *
-	 * @param type $sql
-	 * @param string $dbLink
-	 * @throws \PDOException
-	 * @return void
+	 * @param array $keys  Array containing the primay keys
+	 * @param array $config
+	 * @return string
 	 */
-	private function execute($sql, $dbLink) {
-		$db = getDatabase($dbLink);
-		$errmode = $db->getAttribute(\PDO::ATTR_ERRMODE);
-		$db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-		try {
-			$result = $db->exec($sql);
-			$db->setAttribute(\PDO::ATTR_ERRMODE, $errmode);
-			return $result;
-		} catch (\Exception $e) {
-			$db->setAttribute(\PDO::ATTR_ERRMODE, $errmode);
-			throw $e;
+	private function generateWhere($keys, $config) {
+		$db = getDatabase($config['dbLink']);
+		$where = array();
+		foreach ($config['primaryKeys'] as $column) {
+			if (isset($keys[$column]) == false) {
+				throw new \Exception('Missing key: "'.$column.'"'); // @todo better error
+			}
+			$where[] = $db->quoteIdentifier($column).' = '.$this->quote($db, $column, $keys[$column]);
 		}
+		if (count($where) == 0) {
+			throw new \Exception('Invalid config, no "primaryKeys" defined');
+		}
+		return implode(' AND', $where);
+	}
+	/**
+	 * Don't put quotes around number for columns that are assumend to be integers ('id' or ending in '_id')
+	 *
+	 * @param Database $db
+	 * @param string $column
+	 * @param mixed $value
+	 */
+	private function quote($db, $column, $value) {
+		if ((is_int($value) || preg_match('/^[123456789]{1}[0-9]*$/', $value)) && ($column == 'id' || substr($column, -3) == '_id')) {
+			return $value;
+		}
+		return $db->quote($value);
 	}
 
 	/**
@@ -292,7 +275,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	 *
 	 * @param string $table
 	 * @param string $prefix  Database/table prefix
-	 * @return string 
+	 * @return string
 	 */
 	private function modelize($table, $prefix = '') {
 		if ($prefix != '' && substr($table, 0, strlen($prefix)) == $prefix) {
@@ -302,7 +285,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	}
 
 	/**
-	 * Returns the  columnname as property notation 
+	 * Returns the  columnname as property notation
 	 * @param string $column
 	 * @return string
 	 */

@@ -8,6 +8,7 @@ ORM Duties/Goals
  * Protect againt SQL injection
  * OOP aproach to database records.
   - Easily fetch related records
+ * Optimize for programmer happiness
 
 
 Looking back on Version 2
@@ -58,6 +59,11 @@ Only one instance per row.
 (Became $repository->getCustomer(1), the "new" keyword will allway generate a new/seperate instance)
 
 ORM can save and retrieves POCO (Plain Old Class Objects)
+
+Clean/short/readable SQL statements.
+  No quotes around integers for ids.
+  Use "*" to select all columns.
+
 
 No performance penalty
 
