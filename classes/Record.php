@@ -2,6 +2,7 @@
 /**
  * Record, an ActiveRecord frontend for the Repository
  *
+ * @package Record
  */
 namespace SledgeHammer;
 abstract class Record extends Object {
@@ -45,9 +46,9 @@ abstract class Record extends Object {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param type $conditions
-	 * @param array $options 
+	 * @param array $options
 	 * @return Record
 	 */
 	static function find($conditions, $options = array()) {
@@ -131,7 +132,7 @@ abstract class Record extends Object {
 		$repo = getRepository($this->_repository);
 		return $repo->diff($this->_model, $this);
 	}
-	
+
 	protected static function _getModel($options = array()) {
 		if (isset($options['model'])) {
 			// Use the model given in the parameters
@@ -164,8 +165,8 @@ abstract class Record extends Object {
 			return $properties['_repository'];
 		}
 		return 'default'; // Use the default repository
-		
+
 	}
-		
+
 }
 ?>
