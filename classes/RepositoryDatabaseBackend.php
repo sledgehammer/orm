@@ -45,7 +45,6 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 		// Pass 1: Retrieve and parse schema information
 		$schema = $this->getSchema($dbLink, $prefix);
-
 		foreach ($schema as $tableName => $table) {
 			if ($prefix != '' && substr($tableName, 0, strlen($prefix)) == $prefix) {
 				$plural = ucfirst(substr($tableName, strlen($prefix))); // Strip prefix
@@ -71,7 +70,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					}
 					$foreignKey = $info['foreignKeys'][0];
 					$property = $column;
-					if (substr($property, -3) == '_id') {
+					if (preg_match('/_id$/i', $property)) {
 						$property = substr($property, 0, -3);
 						if (array_key_exists($property, $table['columns'])) {
 							notice('Unable to use "' . $property . '" for relation config');
@@ -94,7 +93,11 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		foreach ($this->configs as $config) {
 			$table = $schema[$config->backendConfig['table']];
 			foreach ($table['referencedBy'] as $reference) {
-				$property = $this->variablize($reference['table']);
+				$property = $reference['table'];
+				if ($prefix != '' && substr($property, 0, strlen($prefix)) == $prefix) {
+					$property = substr($property, strlen($prefix)); // Strip prefix
+				}
+				$property = $this->variablize($property);
 				if (array_key_exists($property, $config->properties)) {
 					notice('Unable to use "' . $property . '" for hasMany relation config');
 					break;
@@ -324,12 +327,12 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		}
 		foreach ($tables as $row) {
 			$table = current($row);
-
+			$referencedBy = isset($schema[$table]) ? $schema[$table]['referencedBy'] : array();
 			$schema[$table] = array(
 				'table' => $table,
 				'columns' => array(),
 				'primaryKeys' => array(),
-				'referencedBy' => array(),
+				'referencedBy' => $referencedBy,
 			);
 			$config = &$schema[$table];
 			/*
