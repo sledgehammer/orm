@@ -459,6 +459,7 @@ class Repository extends Object {
 						$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] couldn\'t be inferred, because model "'.$belongsTo['model'].'" isn\'t registerd';
 					} else {
 						// Infer/Assume that the id is the ID from the model
+						$belongsToConfig = $this->_getConfig($belongsTo['model']);
 						if (count($belongsToConfig->id) == 1) {
 							$config->belongsTo[$property]['id'] = current($belongsToConfig->id); // Update config
 						} else {
@@ -485,6 +486,8 @@ class Repository extends Object {
 				$validationError = false;
 				if (empty ($hasMany['model'])) {
 					$validationError = 'Invalid config: '.$config->name.'->hasMany['.$property.'][model] not set';
+				} elseif (isset($hasMany['convert'])) {
+					// no additional fields are needed.
 				} elseif (empty($hasMany['property'])) {
 					// @todo Infer property (lookup belongsTo)
 					$validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][property] not set';
