@@ -5,11 +5,16 @@
  * @package Record
  */
 namespace SledgeHammer;
-abstract class Record extends Object {
+
+abstract class Record extends Observer {
 
 	protected $_model;
 	protected $_state = 'unconstructed';
 	protected $_repository;
+	protected $events = array(
+		'load' => array(),
+		'save' => array(),
+	);
 
 	function __construct() {
 		$this->_state = 'constructed';
@@ -72,9 +77,6 @@ abstract class Record extends Object {
 		if (get_class($instance) != get_called_class()) {
 			throw new \Exception('Model "'.$model.'"('.get_class($instance).') isn\'t configured as "'.get_called_class());
 		}
-		$instance->_model = $model;
-		$instance->_repository = $repositoryId;
-		$instance->_state = 'retrieved';
 		return $instance;
 	}
 
@@ -83,23 +85,6 @@ abstract class Record extends Object {
 		$repositoryId = static::_getRepostoryId($options);
 		$repo = getRepository($repositoryId);
 		return $repo->all($model);
-	}
-
-	function __get($property) {
-		if ($this->_state == 'deleted') {
-			notice('A deleted Record has no properties');
-			return null;
-		} else {
-			return parent::__get($property);
-		}
-	}
-
-	function __set($property, $value) {
-		if ($this->_state == 'deleted') {
-			notice('A deleted Record has no properties');
-		} else {
-			return parent::__set($property, $value);
-		}
 	}
 
 	function save() {
@@ -148,6 +133,34 @@ abstract class Record extends Object {
 			return array_pop($parts);
 		}
 	}
+
+	function __get($property) {
+		if ($this->_state == 'deleted') {
+			notice('A deleted Record has no properties');
+			return null;
+		} else {
+			return parent::__get($property);
+		}
+	}
+
+	function __set($property, $value) {
+		if ($this->_state == 'deleted') {
+			notice('A deleted Record has no properties');
+		} else {
+			return parent::__set($property, $value);
+		}
+	}
+
+	protected function onLoad($sender, $options) {
+		if (isset($options['repository'])) {
+			$this->_repository = $options['repository'];
+		}
+		if (isset($options['model'])) {
+			$this->_model = $options['model'];
+		}
+		$this->_state = 'loaded';
+	}
+
 	/**
 	 *
 	 * @param array $options
@@ -165,8 +178,8 @@ abstract class Record extends Object {
 			return $properties['_repository'];
 		}
 		return 'default'; // Use the default repository
-
 	}
 
 }
+
 ?>

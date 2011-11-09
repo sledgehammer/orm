@@ -600,6 +600,12 @@ class Repository extends Object {
 				));
 			}
 		}
+		if ($to instanceof Observer) {
+			$to->fire('load', $this, array(
+				'repository' => $this->id,
+				'model' => $config->name,
+			));
+		}
 		return $to;
 	}
 
