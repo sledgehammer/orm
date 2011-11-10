@@ -6,7 +6,7 @@
  */
 namespace SledgeHammer;
 
-abstract class Record extends Observer {
+abstract class Record extends Observable {
 
 	protected $_model;
 	protected $_state = 'unconstructed';
@@ -14,6 +14,7 @@ abstract class Record extends Observer {
 	protected $events = array(
 		'load' => array(),
 		'save' => array(),
+		'saveComplete' => array(),
 	);
 
 	function __construct() {

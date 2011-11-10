@@ -13,8 +13,8 @@ class Repository extends Object {
 
 	protected $id;
 	protected $namespaces = array('', 'SledgeHammer\\');
-
 	public $baseClass = null;
+
 	/**
 	 * @var array  registerd models: array(model => config)
 	 */
@@ -29,10 +29,12 @@ class Repository extends Object {
 	 * @var array  Mapping of plural notation to singular.
 	 */
 	protected $plurals = array();
+
 	/**
 	 * @var array  references to instances that are not yet added to the backend
 	 */
 	protected $created = array();
+
 	/**
 	 * @var array registerd backends
 	 */
@@ -177,7 +179,6 @@ class Repository extends Object {
 		$config = $this->_getConfig($model);
 		$collection = $this->_getBackend($config->backend)->all($config->backendConfig);
 		return new RepositoryCollection($collection, $model, $this->id, $this->collectionMappings[$model]);
-		 
 	}
 
 	function loadAssociation($model, $instance, $property, $preload = false) {
@@ -320,6 +321,9 @@ class Repository extends Object {
 				throw new \Exception('The instance is not bound to this Repository');
 			}
 			$this->objects[$model][$index]['state'] = 'saving';
+			if ($instance instanceof Observable && $instance->hasEvent('save')) {
+				$instance->fire('save', $this);
+			}
 
 			// Save belongsTo
 			if (value($options['ignore_relations']) == false) {
@@ -334,8 +338,8 @@ class Repository extends Object {
 			$data = $this->convertToData($object['instance'], $config);
 			if ($previousState == 'new') {
 				$object['data'] = $this->_getBackend($config->backend)->add($data, $config->backendConfig);
-				unset ($this->created[$config->name][$index]);
-				unset ($this->objects[$config->name][$index]);
+				unset($this->created[$config->name][$index]);
+				unset($this->objects[$config->name][$index]);
 				$changes = array_diff($object['data'], $data);
 				if (count($changes) > 0) {
 					foreach ($changes as $column => $value) {
@@ -389,7 +393,6 @@ class Repository extends Object {
 						} elseif ($item !== array_value($old, $key)) {
 							warning('Unable to save the change "'.$item.'" in '.$config->name.'->'.$property.'['.$key.']');
 						}
-
 					}
 					if (value($options['keep_missing_related_instances']) == false) {
 						// Delete items that are no longer in the relation
@@ -412,6 +415,9 @@ class Repository extends Object {
 				}
 			}
 			$this->objects[$model][$index]['state'] = 'saved';
+			if ($instance instanceof Observable && $instance->hasEvent('saveComplete')) {
+				$instance->fire('saveComplete', $this);
+			}
 		} catch (\Exception $e) {
 			$this->objects[$model][$index]['state'] = $previousState; // @todo Or is an error state more appropriate?
 			throw $e;
@@ -448,9 +454,9 @@ class Repository extends Object {
 			}
 			foreach ($config->belongsTo as $property => $belongsTo) {
 				$validationError = false;
-				if (empty ($belongsTo['model'])) {
+				if (empty($belongsTo['model'])) {
 					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set';
-				} elseif (empty ($belongsTo['reference']) && empty($belongsTo['convert'])) {
+				} elseif (empty($belongsTo['reference']) && empty($belongsTo['convert'])) {
 					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] is missing a [reference] or [convert] element';
 				} elseif (isset($relation['convert']) && isset($relation['reference'])) {
 					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] can\'t contain both a [reference] and a [convert] element';
@@ -475,7 +481,7 @@ class Repository extends Object {
 				// @todo Add collectionMapping for "convert" relations
 				if (empty($this->configs[$belongsTo['model']])) {
 //					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] "'.$belongsTo['model'].'" isn\'t registerd';
-				} 
+				}
 				// Remove invalid relations
 				if ($validationError) {
 					warning($validationError);
@@ -484,7 +490,7 @@ class Repository extends Object {
 			}
 			foreach ($config->hasMany as $property => $hasMany) {
 				$validationError = false;
-				if (empty ($hasMany['model'])) {
+				if (empty($hasMany['model'])) {
 					$validationError = 'Invalid config: '.$config->name.'->hasMany['.$property.'][model] not set';
 				} elseif (isset($hasMany['convert'])) {
 					// no additional fields are needed.
@@ -493,7 +499,7 @@ class Repository extends Object {
 					$validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][property] not set';
 				} elseif (empty($hasMany['id'])) { // id not set?
 					// @todo Infer  the id is the ID from the model
- 					$validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][id] not set';
+					$validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][id] not set';
 				}
 				// Remove invalid relations
 				if ($validationError) {
@@ -552,7 +558,7 @@ class Repository extends Object {
 		if ($index === null) {
 			$index = $this->resolveIndex($data, $config);
 		} elseif (empty($this->objects[$config->name][$index])) {
-			throw new \Exception('Invalid index: "'.$index.'"');		} else {
+			throw new \Exception('Invalid index: "'.$index.'"');
 		}
 		// Map the data onto the instance
 		foreach ($config->properties as $targetPath => $sourcePath) {
@@ -774,7 +780,7 @@ class Repository extends Object {
 					}
 					throw new \Exception('Failed to resolve index, missing key: "'.$key.'"');
 				}
-				$index ='{';
+				$index = '{';
 				foreach ($config->id as $field) {
 					if (isset($from[$field])) {
 						$value = $from[$field];
@@ -891,6 +897,7 @@ class Repository extends Object {
 		$php .= "}";
 		return file_put_contents($filename, $php);
 	}
+
 }
 
 ?>
