@@ -191,12 +191,19 @@ class Repository extends Object {
 		}
 		$belongsTo = array_value($config->belongsTo, $property);
 		if ($belongsTo !== null) {
-			$id = $object['data'][$belongsTo['reference']];
-			if ($id === null) {
-				dump($object);
-				throw new \Exception('Now what?');
+			$referencedId = $object['data'][$belongsTo['reference']];
+			if ($referencedId === null) {
+				throw new \Exception('Unexpected id value: null'); // set property to NULL? or leave it alone?
 			}
-			$instance->$property = $this->get($belongsTo['model'], $id, $preload);
+			if ($belongsTo['useIndex']) {
+				$instance->$property = $this->get($belongsTo['model'], $referencedId, $preload);
+				return;
+			}
+			$instances = $this->all($belongsTo['model'])->where(array($belongsTo['id'] => $referencedId));
+			if (count($instances) != 1) {
+				throw new InfoException('Multiple instances found for key "'.$referencedId.'" for belongsTo '.$model.'->belongsTo['.$property.'] references to non-id field: "'.$belongsTo['id'].'"');
+			}
+			$instance->$property = $instances[0];
 			return;
 		}
 		$hasMany = array_value($config->hasMany, $property);
@@ -454,34 +461,50 @@ class Repository extends Object {
 			}
 			foreach ($config->belongsTo as $property => $belongsTo) {
 				$validationError = false;
+
 				if (empty($belongsTo['model'])) {
 					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set';
 				} elseif (empty($belongsTo['reference']) && empty($belongsTo['convert'])) {
 					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] is missing a [reference] or [convert] element';
 				} elseif (isset($relation['convert']) && isset($relation['reference'])) {
 					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] can\'t contain both a [reference] and a [convert] element';
-				} elseif (empty($belongsTo['id'])) { // id not set, but (target)model is configured?
-					if (empty($this->configs[$belongsTo['model']])) {
-						$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] couldn\'t be inferred, because model "'.$belongsTo['model'].'" isn\'t registerd';
-					} else {
-						// Infer/Assume that the id is the ID from the model
-						$belongsToConfig = $this->_getConfig($belongsTo['model']);
-						if (count($belongsToConfig->id) == 1) {
-							$config->belongsTo[$property]['id'] = current($belongsToConfig->id); // Update config
+				}
+				if (isset($belongsTo['reference'])) {
+					if (empty($belongsTo['id'])) { // id not set, but (target)model is configured?
+						if (empty($this->configs[$belongsTo['model']])) {
+							$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] couldn\'t be inferred, because model "'.$belongsTo['model'].'" isn\'t registerd';
 						} else {
-							$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] not set and can\'t be inferred (for a complex key)';
+							$belongsToConfig = $this->_getConfig($belongsTo['model']);
+							// Infer/Assume that the id is the ID from the model
+							if (count($belongsToConfig->id) == 1) {
+								$belongTo['id'] = current($belongsToConfig->id);
+								$config->belongsTo[$property]['id'] = $belongsTo['id'];// Update config
+							} else {
+								$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] not set and can\'t be inferred (for a complex key)';
+							}
 						}
 					}
+					if (isset($belongsTo['reference']) && isset($belongsTo['useIndex']) == false) {
+						if (empty($this->configs[$belongsTo['model']])) {
+							$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][useIndex] couldn\'t be inferred, because model "'.$belongsTo['model'].'" isn\'t registerd';
+						} else {
+							$belongsToConfig = $this->_getConfig($belongsTo['model']);
+							// Is the foreign key is linked to the model id
+							$belongsTo['useIndex'] = (count($belongsToConfig->id) == 1 && $belongsTo['id'] == current($belongsToConfig->id));
+							$config->belongsTo[$property]['useIndex'] = $belongsTo['useIndex'];// Update config
+						}
+					}
+					if (isset($belongsTo['id'])) {
+						// Add foreign key to the collection mapping
+						$this->collectionMappings[$config->name][$property.'->'.$belongsTo['id']] = $belongsTo['reference'];
+						$this->collectionMappings[$config->name][$property.'.'.$belongsTo['id']] = $belongsTo['reference'];
+					}
 				}
-				if (isset($belongsTo['reference']) && isset($belongsTo['id'])) {
-					// Add foreign key to the collection mapping
-					$this->collectionMappings[$config->name][$property.'->'.$belongsTo['id']] = $belongsTo['reference'];
-					$this->collectionMappings[$config->name][$property.'.'.$belongsTo['id']] = $belongsTo['reference'];
-				}
-				// @todo Add collectionMapping for "convert" relations
+				// @todo Add collectionMapping for "convert" relations?
 				if (empty($this->configs[$belongsTo['model']])) {
 //					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] "'.$belongsTo['model'].'" isn\'t registerd';
 				}
+
 				// Remove invalid relations
 				if ($validationError) {
 					warning($validationError);
@@ -574,8 +597,12 @@ class Repository extends Object {
 					if (empty($relation['model'])) { // No model given?
 						throw new \Exception('Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set');
 					}
-					$belongsToIndex = $this->resolveIndex($belongsToId);
-					$belongsToInstance = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
+					if ($belongsTo['useIndex']) {
+						$belongsToIndex = $this->resolveIndex($belongsToId);
+						$belongsToInstance = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
+					} else {
+						$belongsToInstance = null;
+					}
 					if ($belongsToInstance !== null) {
 						$to->$property = $belongsToInstance;
 					} else {
