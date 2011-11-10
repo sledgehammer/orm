@@ -18,7 +18,7 @@ class ModelConfig extends Object {
 	 */
 	public $plural;
 	/**
-	 * @var string  The full classname
+	 * @var string|null|false  The full classname (null: AutoDetect class, false: Autogenerate class)
 	 */
 	public $class;
 	/**

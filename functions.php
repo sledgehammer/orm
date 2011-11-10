@@ -10,7 +10,7 @@ namespace SledgeHammer;
  * Get a Repository by ID
  * This allows instances to reference a Repository by id instead of a full php reference. Keeping the (var_)dump clean.
  *
- * @return AutoComplete\DefaultRepository
+ * @return \Generated\DefaultRepository
  */
 function getRepository($id = 'default') {
 	if (isset($GLOBALS['Repositories'][$id])) {

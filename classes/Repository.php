@@ -12,8 +12,10 @@ namespace SledgeHammer;
 class Repository extends Object {
 
 	protected $id;
+	/**
+	 * @var array  Namespaces that are searched for the classname
+	 */
 	protected $namespaces = array('', 'SledgeHammer\\');
-	public $baseClass = null;
 
 	/**
 	 * @var array  registerd models: array(model => config)
@@ -597,7 +599,7 @@ class Repository extends Object {
 					if (empty($relation['model'])) { // No model given?
 						throw new \Exception('Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set');
 					}
-					if ($belongsTo['useIndex']) {
+					if ($relation['useIndex']) {
 						$belongsToIndex = $this->resolveIndex($belongsToId);
 						$belongsToInstance = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
 					} else {
@@ -686,21 +688,23 @@ class Repository extends Object {
 		$this->collectionMappings[$config->name] = $config->properties; // Add properties to the collectionMapping
 //		$config = clone $config;
 		if (empty($config->class)) {
-			$config->class = $this->baseClass; // @todo generate custom class, based on mapping
-			$AutoLoader = $GLOBALS['AutoLoader'];
-			foreach ($this->namespaces as $namespace) {
-				$class = $namespace.$config->name;
-				if (class_exists($class, false) || $AutoLoader->getFilename($class) !== null) { // Is the class known?
-	//				@todo class compatibility check (Reflection?)
-	//				@todo import config from class?
-					$config->class = $class;
+			if ($config->class === null) { // Detect class
+				$AutoLoader = $GLOBALS['AutoLoader'];
+				foreach ($this->namespaces as $namespace) {
+					$class = $namespace.$config->name;
+					if (class_exists($class, false) || $AutoLoader->getFilename($class) !== null) { // Is the class known?
+		//				@todo class compatibility check (Reflection?)
+		//				@todo import config from class?
+						$config->class = $class;
+					}
 				}
 			}
-			if ($config->class === null) { // No class found?
+			if (empty($config->class)) { // No class found?
 				// Generate class
-				$namespace = 'Generated';
 				if (empty($GLOBALS['Repositories']['default']) || $GLOBALS['Repositories']['default']->id != $this->id) {
-					$namespace .= '\\'.$this->id;
+					$namespace = 'Generated\\'.$this->id;
+				} else {
+					$namespace = 'Generated';
 				}
 				$php = "namespace ".$namespace.";\nclass ".$config->name." extends \SledgeHammer\Object {\n";
 				$properties = array_merge(array_keys($config->properties), array_keys($config->belongsTo), array_keys($config->hasMany));
@@ -710,11 +714,11 @@ class Repository extends Object {
 					$php .= "\tpublic $".$property.";\n";
 				}
 				$php .= "}";
-				if (ENVIRONMENT == 'development' && $namespace == 'Generated') {
+				if (ENVIRONMENT === 'development' && $namespace === 'Generated') {
 					// Write autoComplete helper
 					// @todo Only write file when needed, aka validate $this->autoComplete
 					mkdirs(TMP_DIR.'AutoComplete');
-					file_put_contents(TMP_DIR.'AutoComplete/'.$config->name.'.php', '<?php '.$php);
+					file_put_contents(TMP_DIR.'AutoComplete/'.$config->name.'.php', "<?php \n".$php."\n\n?>");
 				}
 				eval($php);
 				$config->class = $namespace.'\\'.$config->name;
@@ -746,7 +750,7 @@ class Repository extends Object {
 				$this->autoComplete[$config->name] = $autoComplete;
 				mkdirs(TMP_DIR.'AutoComplete');
 				write_ini_file($autoCompleteFile, $this->autoComplete, 'Repository AutoComplete config');
-				$this->writeAutoCompleteHelper(TMP_DIR.'AutoComplete/DefaultRepository.php', 'DefaultRepository', 'SledgeHammer\AutoComplete');
+				$this->writeAutoCompleteHelper(TMP_DIR.'AutoComplete/DefaultRepository.php', 'DefaultRepository', 'Generated');
 			}
 		}
 	}
@@ -865,7 +869,12 @@ class Repository extends Object {
 		}
 		$php .= 'class '.$class.' extends \\'.get_class($this)." {\n\n";
 		foreach ($this->configs as $model => $config) {
-			$class = $config->class;
+			$class = new Text($config->class);
+			if ($class->startsWith($namespace)) {
+				$class = substr($class, strlen($namespace));
+			} else {
+				$class = '\\'.$class; 
+			}
 			$instanceVar = '$'.lcfirst($model);
 			$php .= "\t/**\n";
 			$php .= "\t * Retrieve an ".$model."\n";
