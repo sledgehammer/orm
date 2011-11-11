@@ -581,8 +581,7 @@ class Repository extends Object {
 	 */
 	protected function convertToInstance($data, $config, $index = null) {
 		$class = $config->class;
-		$to = new $class;
-		$from = $data;
+		$instance = new $class;
 		if ($index === null) {
 			$index = $this->resolveIndex($data, $config);
 		} elseif (empty($this->objects[$config->name][$index])) {
@@ -590,14 +589,14 @@ class Repository extends Object {
 		}
 		// Map the data onto the instance
 		foreach ($config->properties as $targetPath => $sourcePath) {
-			PropertyPath::set($to, $targetPath, PropertyPath::get($from, $sourcePath));
+			PropertyPath::set($instance, $targetPath, PropertyPath::get($data, $sourcePath));
 		}
 		foreach ($config->belongsTo as $property => $relation) {
 			if (isset($relation['convert'])) {
-				$value = $this->convert($relation['model'], PropertyPath::get($from, $relation['convert']));
-				PropertyPath::set($to, $property, $value);
+				$value = $this->convert($relation['model'], PropertyPath::get($data, $relation['convert']));
+				PropertyPath::set($instance, $property, $value);
 			} else {
-				$belongsToId = $from[$relation['reference']];
+				$belongsToId = $data[$relation['reference']];
 				if ($belongsToId !== null) {
 					if (empty($relation['model'])) { // No model given?
 						throw new \Exception('Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set');
@@ -609,17 +608,17 @@ class Repository extends Object {
 						$belongsToInstance = null;
 					}
 					if ($belongsToInstance !== null) {
-						$to->$property = $belongsToInstance;
+						$instance->$property = $belongsToInstance;
 					} else {
 						$fields = array(
 							$relation['id'] => $belongsToId,
 						);
-						$to->$property = new BelongsToPlaceholder(array(
+						$instance->$property = new BelongsToPlaceholder(array(
 							'repository' => $this->id,
 							'fields' => $fields,
 							'model' => $config->name,
 							'property' => $property,
-							'container' => $to,
+							'container' => $instance,
 						));
 					}
 				}
@@ -627,24 +626,24 @@ class Repository extends Object {
 		}
 		foreach ($config->hasMany as $property => $relation) {
 			if (isset($relation['convert'])) {
-				$collection = new RepositoryCollection(PropertyPath::get($from, $relation['convert']), $relation['model'], $this->id);
-				PropertyPath::set($to, $property, $collection);
+				$collection = new RepositoryCollection(PropertyPath::get($data, $relation['convert']), $relation['model'], $this->id);
+				PropertyPath::set($instance, $property, $collection);
 			} else {
-				$to->$property = new HasManyPlaceholder(array(
+				$instance->$property = new HasManyPlaceholder(array(
 					'repository' => $this->id,
 					'model' => $config->name,
 					'property' => $property,
-					'container' => $to,
+					'container' => $instance,
 				));
 			}
 		}
-		if ($to instanceof Observer) {
-			$to->fire('load', $this, array(
+		if ($instance instanceof Observable && $instance->hasEvent('save')) {
+			$instance->fire('load', $this, array(
 				'repository' => $this->id,
 				'model' => $config->name,
 			));
 		}
-		return $to;
+		return $instance;
 	}
 
 	/**
