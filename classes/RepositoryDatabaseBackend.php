@@ -5,37 +5,39 @@
  *
  * @package Record
  */
+
 namespace SledgeHammer;
+
 class RepositoryDatabaseBackend extends RepositoryBackend {
 
 	public $identifier = 'database';
+
 	/**
 	 * @var array|ModelConfig
 	 */
 	public $configs = array();
 
 	/**
-	 *
-	 * @param array|string $dbLinks
+	 * @param array|string $databases
 	 */
-	function __construct($options = array()) {
+	function __construct($databases = array()) {
 		$dbLinks = array();
-		if (is_string($options)) { // If options is a string that option is a dbLink
-			$dbLinks = array($options);
-			$options = array();
+		if (is_string($databases)) { // If options is a string that option is a dbLink
+			$dbLinks = array($databases => '');
+			$databases = array();
 		}
-		foreach ($options as $key => $option) {
+		foreach ($databases as $key => $value) {
 			if (is_int($key)) {
-				$dbLinks[] = $option;
+				$dbLinks[$value] = '';
 			} else {
-				$this->$key = $option;
+				$dbLinks[$key] = $value;
 			}
-
 		}
-		foreach ($dbLinks as $dbLink) {
-			$this->inspectDatabase($dbLink);
+		foreach ($dbLinks as $dbLink => $prefix) {
+			$this->inspectDatabase($dbLink, $prefix);
 		}
 	}
+
 	/**
 	 * Create model configs based on the tables in the database schema
 	 *
@@ -52,9 +54,9 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				$plural = ucfirst($tableName);
 			}
 			$config = new ModelConfig($this->modelize($tableName, $prefix), array(
-				'plural' => $plural,
-				'backendConfig' => $table,
-			));
+					'plural' => $plural,
+					'backendConfig' => $table,
+				));
 			$config->backendConfig['dbLink'] = $dbLink;
 			$config->backendConfig['collection'] = array('columns' => array()); // database collection config.
 			$config->id = $table['primaryKeys'];
@@ -71,13 +73,21 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					$foreignKey = $info['foreignKeys'][0];
 					$property = $column;
 					if (preg_match('/_id$/i', $property)) {
-						$property = substr($property, 0, -3);
-						if (array_key_exists($property, $table['columns'])) {
-							notice('Unable to use "' . $property . '" for relation config');
-							$property .= '_id';
-						} else {
-							unset($config->defaults[$column]);
+						$alternativePropertyName = substr($property, 0, -3);
+						if (array_key_exists($alternativePropertyName, $table['columns']) == false) {
+							$property = $alternativePropertyName;
 						}
+					}
+					if (array_key_exists($property, $table['columns']) && $property != $column) {
+						/*
+						$alternativePropertyName = lcfirst($this->modelize($foreignKey['table'], $prefix));
+						if (array_key_exists($alternativePropertyName, $table['columns']) == false) {
+							$property = $alternativePropertyName;
+						} else {
+						*/
+						notice('Unable to use belongsTo["'.$property.'"], an column with the same name exists', array('column' => $info));
+					} else {
+						unset($config->defaults[$column]);
 					}
 					$config->belongsTo[$property] = array(
 						'reference' => $column, // foreignKey
@@ -99,7 +109,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				}
 				$property = $this->variablize($property);
 				if (array_key_exists($property, $config->properties)) {
-					notice('Unable to use "' . $property . '" for hasMany relation config');
+					notice('Unable to use "'.$property.'" for hasMany relation config');
 					break;
 				}
 				$model = $this->modelize($reference['table'], $prefix);
@@ -117,7 +127,6 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				}
 			}
 		}
-
 	}
 
 	/**
@@ -131,12 +140,12 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		$db = getDatabase($config['dbLink']);
 		if (is_array($id)) {
 			if (count($config['primaryKeys']) != count($id)) {
-				throw new \Exception('Incomplete id, table: "' . $config['table'] . '" requires: "' . human_implode('", "', $config['primairyKeys']) . '"');
+				throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primairyKeys']).'"');
 			}
 		} elseif (count($config['primaryKeys']) == 1) {
 			$id = array($config['primaryKeys'][0] => $id); // convert $id to array notation
 		} else {
-			throw new \Exception('Incomplete id, table: "' . $config['table'] . '" requires: "' . human_implode('", "', $config['primairyKeys']) . '"');
+			throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primairyKeys']).'"');
 		}
 		return $db->fetchRow('SELECT * FROM '.$db->quoteIdentifier($config['table']).' WHERE '.$this->generateWhere($id, $config));
 	}
@@ -195,7 +204,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 			$columns[] = $db->quoteIdentifier($column);
 			$values[] = $this->quote($db, $column, $value);
 		}
-		$result = $db->exec('INSERT INTO ' . $db->quoteIdentifier($config['table']) . ' (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $values) . ')');
+		$result = $db->exec('INSERT INTO '.$db->quoteIdentifier($config['table']).' ('.implode(', ', $columns).') VALUES ('.implode(', ', $values).')');
 		if ($result === false) {
 			throw new \Exception('Adding record into "'.$config['table'].'" failed');
 		}
@@ -259,6 +268,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		}
 		return implode(' AND', $where);
 	}
+
 	/**
 	 * Don't put quotes around number for columns that are assumend to be integers ('id' or ending in '_id')
 	 *
@@ -303,9 +313,8 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		$driver = $db->getAttribute(\PDO::ATTR_DRIVER_NAME);
 		if ($driver == 'mysql') {
 			return $this->getSchemaMySql($dbLink, $prefix);
-		} elseif($driver == 'sqlite') {
+		} elseif ($driver == 'sqlite') {
 			return $this->getSchemaSqlite($dbLink, $prefix);
-
 		} else {
 			warning('PDO driver: "'.$driver.'" not supported');
 			return false;
@@ -349,7 +358,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 			  $config['schema']['default_values'][$column] = $field['Default'];
 			  }
 			  } */
-			$showCreate = $db->fetchRow('SHOW CREATE TABLE ' . $table);
+			$showCreate = $db->fetchRow('SHOW CREATE TABLE '.$table);
 			$createSyntax = $showCreate['Create Table'];
 			$lines = explode("\n", $createSyntax);
 
@@ -381,7 +390,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 							case 'DEFAULT':
 								$default = '';
-								while($part = $parts[$i + 1]) {
+								while ($part = $parts[$i + 1]) {
 									$i++;
 									$default .= $part;
 									if (substr($default, 0, 1) != "'") { // Not a quoted string value?
@@ -396,10 +405,13 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 									$config['columns'][$column]['default'] = substr($default, 1, -1); // remove quotes
 								} else {
 									switch ($default) {
-										case 'NULL'; $default = null; break;
-										case 'CURRENT_TIMESTAMP': $default = null; break;
+										case 'NULL';
+											$default = null;
+											break;
+										case 'CURRENT_TIMESTAMP': $default = null;
+											break;
 										default:
-											notice('Unknown default "' . $default . '" in "' . $line . '"');
+											notice('Unknown default "'.$default.'" in "'.$line.'"');
 											break;
 									}
 									$config['columns'][$column]['default'] = $default;
@@ -412,7 +424,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 							case 'COMMENT':
 								$comment = '';
-								while($part = $parts[$i + 1]) {
+								while ($part = $parts[$i + 1]) {
 									$i++;
 									$comment .= $part;
 									if (substr($default, 0, 1) != "'") { // Not a quoted string value?
@@ -431,7 +443,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 								break;
 
 							default:
-								notice('Unknown part "' . $part . '" in "' . $line . '"');
+								notice('Unknown part "'.$part.'" in "'.$line.'"');
 								dump($parts);
 								break;
 						}
@@ -449,11 +461,11 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 						case 'CONSTRAINT':
 							if ($parts[2] != 'FOREIGN_KEY') {
-								notice('Unknown constraint: "' . $line . '"');
+								notice('Unknown constraint: "'.$line.'"');
 								break;
 							}
 							if ($parts[4] != 'REFERENCES') {
-								notice('Unknown foreign key: "' . $line . '"');
+								notice('Unknown foreign key: "'.$line.'"');
 								break;
 							}
 							$column = substr($parts[3], 1, -1);
@@ -467,7 +479,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 							break;
 
 						default:
-							notice('Unknown metadata "' . $parts[0] . '" in "' . $line . '"');
+							notice('Unknown metadata "'.$parts[0].'" in "'.$line.'"');
 							dump($parts);
 							break;
 					}
@@ -487,7 +499,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	private function getSchemaSqlite($dbLink, $prefix = '') {
 		$db = getDatabase($dbLink);
 		$schema = array();
-		$sql ='SELECT tbl_name FROM sqlite_master WHERE type = "table" AND name != "sqlite_sequence"';
+		$sql = 'SELECT tbl_name FROM sqlite_master WHERE type = "table" AND name != "sqlite_sequence"';
 		if ($prefix != '') {
 			$sql .= ' tbl_name LIKE '.$db->quote($prefix.'%');
 		}
@@ -542,6 +554,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		}
 		return $schema;
 	}
+
 }
 
 ?>

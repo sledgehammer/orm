@@ -299,6 +299,9 @@ class Repository extends Object {
 		$data = array();
 		$index = null;
 		$object = null;
+		if (is_object($instance) === false) {
+			throw new \Exception('Invalid parameter $instance, must be an object');
+		}
 		$index = $this->resolveIndex($instance, $config);
 
 		$object = @$this->objects[$model][$index];
