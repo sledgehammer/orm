@@ -111,7 +111,12 @@ class Repository extends Object {
 			'instance' => null,
 			'data' => null,
 		);
-		$data = $this->_getBackend($config->backend)->get($id, $config->backendConfig);
+		try {
+			$data = $this->_getBackend($config->backend)->get($id, $config->backendConfig);
+		} catch (\Exception $e) {
+			unset($this->objects[$model][$index]);
+			throw $e;
+		}
 		$indexFromData = $this->resolveIndex($data, $config);
 		if ($index != $indexFromData) {
 			unset($this->objects[$model][$index]); // cleanup invalid entry

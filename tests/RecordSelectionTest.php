@@ -9,7 +9,7 @@ class RecordSelectionTest extends DatabaseTestCase {
 
 
 	function fillDatabase($db) {
-		$db->import(dirname(__FILE__).'/rebuild_test_database.sql', $error);
+		$db->import(dirname(__FILE__).'/rebuild_test_database.'.$db->getAttribute(\PDO::ATTR_DRIVER_NAME).'.sql', $error);
 		$repo = new Repository();
 		$backend = new RepositoryDatabaseBackend(array($this->dbLink));
 		foreach ($backend->configs as $config) {

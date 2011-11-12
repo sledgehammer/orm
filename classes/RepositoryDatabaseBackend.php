@@ -5,7 +5,6 @@
  *
  * @package Record
  */
-
 namespace SledgeHammer;
 
 class RepositoryDatabaseBackend extends RepositoryBackend {
@@ -46,7 +45,9 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	function inspectDatabase($dbLink = 'default', $prefix = '') {
 
 		// Pass 1: Retrieve and parse schema information
-		$schema = $this->getSchema($dbLink, $prefix);
+		$db = getDatabase($dbLink);
+		$schema = $this->getSchema($db, $prefix);
+
 		foreach ($schema as $tableName => $table) {
 			if ($prefix != '' && substr($tableName, 0, strlen($prefix)) == $prefix) {
 				$plural = ucfirst(substr($tableName, strlen($prefix))); // Strip prefix
@@ -79,12 +80,12 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 						}
 					}
 					if (array_key_exists($property, $table['columns']) && $property != $column) {
-						/*
-						$alternativePropertyName = lcfirst($this->modelize($foreignKey['table'], $prefix));
-						if (array_key_exists($alternativePropertyName, $table['columns']) == false) {
-							$property = $alternativePropertyName;
-						} else {
-						*/
+//						$alternativePropertyName = lcfirst ($this->modelize ($foreignKey['table'], $prefix));
+//						if (array_key_exists ($alternativePropertyName, $table['columns']) == false) {
+//							$property = $alternativePropertyName;
+//						} else {
+//							notice('Unable to use belongsTo["'.$property.'"], an column with the same name exists', array('column' => $info));
+//						}
 						notice('Unable to use belongsTo["'.$property.'"], an column with the same name exists', array('column' => $info));
 					} else {
 						unset($config->defaults[$column]);
@@ -147,7 +148,11 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		} else {
 			throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primairyKeys']).'"');
 		}
-		return $db->fetchRow('SELECT * FROM '.$db->quoteIdentifier($config['table']).' WHERE '.$this->generateWhere($id, $config));
+		$data = $db->fetchRow('SELECT * FROM '.$db->quoteIdentifier($config['table']).' WHERE '.$this->generateWhere($id, $config));
+		if ($data === false) {
+			throw new \Exception('Failed to retrieve "'.$this->generateWhere($id, $config).'" from "'.$config['table'].'"');
+		}
+		return $data;
 	}
 
 	/**
@@ -237,11 +242,11 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		}
 		if ($db instanceof \PDO) {
 			if ($result !== 1) {
-				throw new \Exception('Removing "'.$where.'" from "'.$config['table'].' failed, '.$result.' rows were affected');
+				throw new \Exception('Removing "'.$where.'" from "'.$config['table'].'" failed, '.$result.' rows were affected');
 			}
 		} elseif ($db instanceof \mysqli) {
 			if ($db->affected_rows != 1) {
-				throw new \Exception('Removing "'.$where.'" from "'.$config['table'].' failed, '.$db->affected_rows.' rows were affected');
+				throw new \Exception('Removing "'.$where.'" from "'.$config['table'].'" failed, '.$db->affected_rows.' rows were affected');
 			}
 		} else {
 			notice('Implement affected_rows for '.get_class($db));
@@ -299,6 +304,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 	/**
 	 * Returns the  columnname as property notation
+	 *
 	 * @param string $column
 	 * @return string
 	 */
@@ -307,14 +313,19 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 		return $column;
 	}
 
-	private function getSchema($dbLink, $prefix = '') {
-
-		$db = getDatabase($dbLink);
+	/**
+	 * Get column and relation information from the database.
+	 *
+	 * @param Database $db
+	 * @param string $prefix  Table prefix
+	 * @return array
+	 */
+	private function getSchema($db, $prefix = '') {
 		$driver = $db->getAttribute(\PDO::ATTR_DRIVER_NAME);
 		if ($driver == 'mysql') {
-			return $this->getSchemaMySql($dbLink, $prefix);
+			return $this->getSchemaMySql($db, $prefix);
 		} elseif ($driver == 'sqlite') {
-			return $this->getSchemaSqlite($dbLink, $prefix);
+			return $this->getSchemaSqlite($db, $prefix);
 		} else {
 			warning('PDO driver: "'.$driver.'" not supported');
 			return false;
@@ -323,11 +334,10 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 	/**
 	 * Extract the Database schema from a MySQL database
-	 * @param string $dbLink
+	 * @param Database $db
 	 * @return array  schema definition
 	 */
-	private function getSchemaMySql($dbLink, $prefix = '') {
-		$db = getDatabase($dbLink);
+	private function getSchemaMySql($db, $prefix = '') {
 		$schema = array();
 		if ($prefix != '') {
 			$tables = $db->query('SHOW TABLES LIKE '.$db->quote($prefix.'%'));
@@ -344,20 +354,6 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				'referencedBy' => $referencedBy,
 			);
 			$config = &$schema[$table];
-			/*
-			  $fields = $db->query('DESCRIBE '.$table, 'Field');
-
-			  foreach ($fields as $column => $field) {
-			  if ($field['Key'] == 'PRI') {
-			  $config['primary_keys'][] = $column;
-			  }
-			  $config['columns'][] = $column;
-			  if ($db->server_version < 50100 && $field['Default'] === '') { // Vanaf MySQL 5.1 is de Default waarde NULL ipv "" als er geen default is opgegeven
-			  $config['default_values'][$column] = NULL; // Corrigeer de defaultwaarde "" naar NULL
-			  } else {
-			  $config['schema']['default_values'][$column] = $field['Default'];
-			  }
-			  } */
 			$showCreate = $db->fetchRow('SHOW CREATE TABLE '.$table);
 			$createSyntax = $showCreate['Create Table'];
 			$lines = explode("\n", $createSyntax);
@@ -493,11 +489,10 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 
 	/**
 	 * Extract the Database schema from a Sqlite database
-	 * @param string $dbLink
+	 * @param Database $dbLink
 	 * @return array  schema definition
 	 */
-	private function getSchemaSqlite($dbLink, $prefix = '') {
-		$db = getDatabase($dbLink);
+	private function getSchemaSqlite($db, $prefix = '') {
 		$schema = array();
 		$sql = 'SELECT tbl_name FROM sqlite_master WHERE type = "table" AND name != "sqlite_sequence"';
 		if ($prefix != '') {

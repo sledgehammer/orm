@@ -6,8 +6,22 @@ namespace SledgeHammer;
 class RepositoryTest extends DatabaseTestCase {
 
 	private $applicationRepositories;
-	const INSPECT_QUERY_COUNT = 3; // number of queries it n
 
+	/**
+	 * @var int Number of queries it takes to inspect the test database (mysql: 3, sqlite: 5)
+	 */
+	private $queryCountAfterInspectDatabase;
+
+	public function __construct() {
+		parent::__construct('sqlite');
+//		parent::__construct('mysql');
+		if ($this->getDatabase()->getAttribute(\PDO::ATTR_DRIVER_NAME) == 'mysql') {
+			$this->queryCountAfterInspectDatabase = 3;
+		} else {
+			$this->queryCountAfterInspectDatabase = 5;
+		}
+
+	}
 	function setUp() {
 		parent::setUp();
 		if (isset($GLOBALS['Repositories'])) {
@@ -20,7 +34,7 @@ class RepositoryTest extends DatabaseTestCase {
 	 * @param SledgeHammer\Database $db
 	 */
 	public function fillDatabase($db) {
-		$db->import(dirname(__FILE__).'/rebuild_test_database.sql', $error_message);
+		$db->import(dirname(__FILE__).'/rebuild_test_database.'.$db->getAttribute(\PDO::ATTR_DRIVER_NAME).'.sql', $error);
 	}
 
 	public function tearDown() {
@@ -32,8 +46,8 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo = new RepositoryTester();
 		$this->assertQueryCount(0, 'No queries on contruction');
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
-		$this->assertQuery('SHOW TABLES');
-		$queryCount = self::INSPECT_QUERY_COUNT;
+//		$this->assertQuery('SHOW TABLES'); // sqlite and mysql use different queries
+		$queryCount = $this->queryCountAfterInspectDatabase;
 		$this->assertQueryCount($queryCount, 'Sanity check');
 		$this->assertTrue($repo->isConfigured('Customer'));
 		$this->assertTrue($repo->isConfigured('Order'));
@@ -49,17 +63,35 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEqual($customer1->occupation, "Software ontwikkelaar");
 		$order1 = $repo->getOrder(1);
 		$this->assertEqual($order1->product, 'Kop koffie');
+
+		$driver = $this->getDatabase()->getAttribute(\PDO::ATTR_DRIVER_NAME);
+
+		// Invalid/not-existing ID
+		try {
+			$this->expectError('Row not found');
+			$repo->getCustomer('-1');
+		}  catch (\Exception $e) {
+			$this->assertEqual($e->getMessage(), 'Failed to retrieve "id = \'-1\'" from "customers"');
+		}
 		// id truncation
 		try {
+			if ($driver == 'sqlite') {
+				$this->expectError('Row not found');
+			}
 			$customer1s = $repo->getCustomer('1s');
 			if ($customer1s !== $customer1) {
 				$this->fail('id was truncated, but not detected');
 			} else {
 				$this->fail('id was truncated, but index was corrected');
 			}
-		} catch (\Exception $e)  {
-			$this->assertEqual($e->getMessage(), 'The $id parameter doesn\'t match the retrieved data. {1s} != {1}');
+		} catch (\Exception $e) {
+			if ($driver === 'mysql') {
+				$this->assertEqual($e->getMessage(), 'The $id parameter doesn\'t match the retrieved data. {1s} != {1}');
+			} else {
+				$this->assertEqual($e->getMessage(), 'Failed to retrieve "id = \'1s\'" from "customers"');
+			}
 		}
+
 	}
 
 	function test_getRepository_function() {
@@ -89,23 +121,23 @@ class RepositoryTest extends DatabaseTestCase {
 		$order2 = $repo->getOrder(2);
 		$clone = clone $order2;
 		$this->assertLastQuery('SELECT * FROM orders WHERE id = 2');
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 1, 'A get*() should execute max 1 query');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'A get*() should execute max 1 query');
 		$this->assertEqual($order2->product, 'Walter PPK 9mm');
 		$this->assertEqual(get_class($order2->customer), 'SledgeHammer\BelongsToPlaceholder', 'The customer property should be an placeholder');
 		$this->assertEqual($order2->customer->id, "2");
 		$this->assertEqual(get_class($order2->customer), 'SledgeHammer\BelongsToPlaceholder', 'The placeholder should handle the "id" property');
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 1, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
 		$this->assertEqual($order2->customer->name, "James Bond", 'Lazy-load the correct data');
 		$this->assertLastQuery('SELECT * FROM customers WHERE id = 2');
 		$this->assertFalse($order2->customer instanceof BelongsToPlaceholder, 'The placeholder should be replaced with a real object');
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
 		$order3 = $repo->getOrder(3);
 		$this->assertFalse($order3->customer instanceof BelongsToPlaceholder, 'A loaded instance should be injected directly into the container object');
 		$this->assertEqual($order3->customer->name, "James Bond", 'Lazy-load the correct data');
 		$this->assertLastQuery('SELECT * FROM orders WHERE id = 3');
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 3, 'No customer queries'); //
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 3, 'No customer queries'); //
 
 		$this->expectError('This placeholder belongs to an other (cloned?) container');
 		$this->assertEqual($clone->customer->name, 'James Bond');
@@ -117,7 +149,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->registerBackend(new RepositoryDatabaseBackend($this->dbLink));
 
 		$customers = $repo->allCustomers();
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT, 'Delay queries until collections access');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase, 'Delay queries until collections access');
 		$this->assertEqual(count($customers), 2, 'Collection should contain all customers');
 		$customerArray = iterator_to_array($customers);
 		$this->assertEqual($customerArray[0]->name, 'Bob Fanger');
@@ -131,7 +163,7 @@ class RepositoryTest extends DatabaseTestCase {
 			$counter++;
 		}
 		$this->assertEqual($counter, (2 * 2), '$collection->rewind() works as expected');
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 1, 'Use only 1 query for multiple loops on all customers');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Use only 1 query for multiple loops on all customers');
 		$this->assertLastQuery('SELECT * FROM customers');
 	}
 
@@ -209,7 +241,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$order1 = $repo->getOrder(1);
 		// remove by instance
 		$repo->deleteOrder($order1);
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2);
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2);
 		$this->assertLastQuery('DELETE FROM orders WHERE id = 1');
 		// remove by id
 		$repo->deleteOrder('2');
@@ -225,17 +257,17 @@ class RepositoryTest extends DatabaseTestCase {
 		$c1 = $repo->getCustomer(1);
 		$repo->saveCustomer($c1);
 
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 1, 'Saving an unmodified instance shouldn\'t generate a query');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Saving an unmodified instance shouldn\'t generate a query');
 		$c1->occupation = 'Webdeveloper';
 		$repo->saveCustomer($c1);
 		$this->assertLastQuery("UPDATE customers SET occupation = 'Webdeveloper' WHERE id = 1");
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2, 'Sanity Check');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2, 'Sanity Check');
 		$repo->saveCustomer($c1); // Check if the updated data is now bound to the instance
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 2, 'Saving an unmodified instance shouldn\'t generate a query');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2, 'Saving an unmodified instance shouldn\'t generate a query');
 
 		$order2 = $repo->getOrder(2);
 		$repo->saveOrder($order2); // Don't autoload belongTo properties
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 3, 'Saving an unmodified instance shouldn\'t generate a query');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 3, 'Saving an unmodified instance shouldn\'t generate a query');
 		try {
 			$order2->customer->id = 1; // Changes the id inside the customer object.
 			$repo->saveOrder($order2);
@@ -247,7 +279,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->validate();
 		$order2->customer->id = "2"; // restore customer object
 		$repo->saveOrder($order2); // The belongTo is autoloaded, but unchanged
-		$this->assertQueryCount(self::INSPECT_QUERY_COUNT + 4, 'Saving an unmodified instance shouldn\'t generate a query');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 4, 'Saving an unmodified instance shouldn\'t generate a query');
 
 		$c2 = $repo->getCustomer(2);
 		$this->assertEqual($c2->orders[0]->product, 'Walter PPK 9mm', 'Sanity check');
@@ -258,6 +290,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertQuery("UPDATE orders SET product = 'Walther PPK' WHERE id = 2");
 		$this->assertQuery("INSERT INTO orders (customer_id, product) VALUES (2, 'Scuba gear')");
 		$this->assertQuery('DELETE FROM orders WHERE id = 3');
+		$this->assertEqual($c2->orders[2]->id, '4', 'The id of the instance should be the "lastInsertId()"');
 	}
 
 	function test_AutoCompleteHelper() {
@@ -293,38 +326,6 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->deleteCustomer($c1);
 		$this->assertLastQuery('DELETE FROM customers WHERE id = 1');
 	}
-
-	function test_sqlite() {
-		$dbFile = TMP_DIR.'RepositoryTest.sqlite';
-		if (file_exists($dbFile)) {
-			unlink($dbFile);
-		}
-		$GLOBALS['Databases']['sqlite'] = new Database('sqlite:'.$dbFile);
-		$db = getDatabase('sqlite');
-		$createQueries = explode(';', file_get_contents(dirname(__FILE__).'/rebuild_test_database.sql'));
-		// Import test database
-		foreach ($createQueries as $sql) {
-			$sql = trim($sql);
-			if ($sql == '') {
-				continue;;
-			}
-			// Covert MySQL syntax to SQLite syntax
-			$sql = str_replace('AUTO_INCREMENT PRIMARY KEY', ' PRIMARY KEY AUTOINCREMENT', $sql);
-			$sql = str_replace(' INT ', ' INTEGER ', $sql);
-			$sql = str_replace(' ENGINE = InnoDB', '', $sql);
-			if (substr($sql, 0, 7) == 'INSERT ') {
-				$sql = substr($sql, 0, strpos($sql, '),')).')';
-			}
-			$db->query($sql);
-		}
-		$repo = new RepositoryTester();
-		$repo->registerBackend(new RepositoryDatabaseBackend('sqlite'));
-		$c1 = $repo->getCustomer(1);
-		$this->assertEqual($c1->name, 'Bob Fanger', 'SQLite compatible');
-		$c1->occupation = 'Web developer';
-		$repo->saveCustomer($c1);
-	}
-
 
 	/**
 	 * Get a Customer instance where all the properties are still placeholders
