@@ -11,7 +11,6 @@ namespace SledgeHammer;
 
 class Repository extends Object {
 
-	protected $id;
 	/**
 	 * @var array  Namespaces that are searched for the classname
 	 */
@@ -36,6 +35,11 @@ class Repository extends Object {
 	 * @var array  references to instances that are not yet added to the backend
 	 */
 	protected $created = array();
+
+	/**
+	 * @var string  The unique identifier of this repository
+	 */
+	protected $id;
 
 	/**
 	 * @var array registerd backends
@@ -488,7 +492,7 @@ class Repository extends Object {
 							// Infer/Assume that the id is the ID from the model
 							if (count($belongsToConfig->id) == 1) {
 								$belongTo['id'] = current($belongsToConfig->id);
-								$config->belongsTo[$property]['id'] = $belongsTo['id'];// Update config
+								$config->belongsTo[$property]['id'] = $belongsTo['id']; // Update config
 							} else {
 								$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] not set and can\'t be inferred (for a complex key)';
 							}
@@ -501,7 +505,7 @@ class Repository extends Object {
 							$belongsToConfig = $this->_getConfig($belongsTo['model']);
 							// Is the foreign key is linked to the model id
 							$belongsTo['useIndex'] = (count($belongsToConfig->id) == 1 && $belongsTo['id'] == current($belongsToConfig->id));
-							$config->belongsTo[$property]['useIndex'] = $belongsTo['useIndex'];// Update config
+							$config->belongsTo[$property]['useIndex'] = $belongsTo['useIndex']; // Update config
 						}
 					}
 					if (isset($belongsTo['id'])) {
@@ -539,6 +543,74 @@ class Repository extends Object {
 					warning($validationError);
 					unset($config->hasMany[$property]);
 				}
+			}
+		}
+		// Fase 3: Generate classes based on properties when no class is detected/found
+		foreach ($backend->configs as $config) {
+			if (substr($config->class, 0, 11) === '\\Generated\\') {
+				$parts = explode('\\', $config->class);
+				;
+				$class = array_pop($parts);
+				$namespace = implode('\\', array_slice($parts, 1));
+
+				// Generate class
+				$php = "namespace ".$namespace.";\nclass ".$config->name." extends \SledgeHammer\Object {\n";
+				foreach ($config->properties as $path => $null) {
+					$compiledPath = PropertyPath::compile($path);
+					$property = $compiledPath[0][1];
+					$php .= "\tpublic $".$property.";\n";
+				}
+				foreach ($config->belongsTo as $path => $belongsTo) {
+					$compiledPath = PropertyPath::compile($path);
+					$belongsToConfig = $this->_getConfig($belongsTo['model']);
+					$property = $compiledPath[0][1];
+					$php .= "\t/**\n";
+					$php .= "\t * @var ".$belongsToConfig->class."  The associated ".$belongsToConfig->name."\n";
+					$php .= "\t */\n";
+					$php .= "\tpublic $".$property.";\n";
+				}
+				foreach ($config->hasMany as $path => $hasMany) {
+					$compiledPath = PropertyPath::compile($path);
+					$hasManyConfig = $this->_getConfig($hasMany['model']);
+					$property = $compiledPath[0][1];
+					$php .= "\t/**\n";
+					$php .= "\t * @var array|".$hasManyConfig->class."  An array with the associated ".$hasManyConfig->plural."\n";
+					$php .= "\t */\n";
+					$php .= "\tpublic $".$property.";\n";
+				}
+//				$properties = array_merge(array_keys(), array_keys($config->belongsTo), array_keys($config->hasMany));
+
+				$php .= "}";
+				if (ENVIRONMENT === 'development' && $namespace === 'Generated') {
+					// Write autoComplete helper
+					// @todo Only write file when needed, aka validate $this->autoComplete
+					mkdirs(TMP_DIR.'AutoComplete');
+					file_put_contents(TMP_DIR.'AutoComplete/'.$config->name.'.php', "<?php \n".$php."\n\n?>");
+				}
+				eval($php);
+				$config->class = $namespace.'\\'.$config->name;
+			}
+		}
+		// Fase 4: Generate or update the AutoComplete Helper for the default repository?
+		if (ENVIRONMENT == 'development' && isset($GLOBALS['Repositories']['default']) && $GLOBALS['Repositories']['default']->id == $this->id) {
+			$autoCompleteFile = TMP_DIR.'AutoComplete/repository.ini';
+			if ($this->autoComplete === null) {
+				if (file_exists($autoCompleteFile)) {
+					$this->autoComplete = parse_ini_file($autoCompleteFile, true);
+				} else {
+					$this->autoComplete = array();
+				}
+			}
+			// Validate AutoCompleteHelper
+			$autoComplete = array(
+				'class' => $config->class,
+				'properties' => implode(', ', array_keys($config->properties)),
+			);
+			if (empty($this->autoComplete[$config->name]) || $this->autoComplete[$config->name] != $autoComplete) {
+				$this->autoComplete[$config->name] = $autoComplete;
+				mkdirs(TMP_DIR.'AutoComplete');
+				write_ini_file($autoCompleteFile, $this->autoComplete, 'Repository AutoComplete config');
+				$this->writeAutoCompleteHelper(TMP_DIR.'AutoComplete/DefaultRepository.php', 'DefaultRepository', 'Generated');
 			}
 		}
 	}
@@ -694,72 +766,32 @@ class Repository extends Object {
 		}
 		$this->collectionMappings[$config->name] = $config->properties; // Add properties to the collectionMapping
 //		$config = clone $config;
-		if (empty($config->class)) {
-			if ($config->class === null) { // Detect class
-				$AutoLoader = $GLOBALS['AutoLoader'];
-				foreach ($this->namespaces as $namespace) {
-					$class = $namespace.$config->name;
-					if (class_exists($class, false) || $AutoLoader->getFilename($class) !== null) { // Is the class known?
-		//				@todo class compatibility check (Reflection?)
-		//				@todo import config from class?
-						$config->class = $class;
-					}
+		if ($config->class === null) { // Detect class
+			$config->class = false; // fallback to a generated class
+			$AutoLoader = $GLOBALS['AutoLoader'];
+			foreach ($this->namespaces as $namespace) {
+				$class = $namespace.$config->name;
+				if (class_exists($class, false) || $AutoLoader->getFilename($class) !== null) { // Is the class known?
+					$config->class = $class;
 				}
 			}
-			if (empty($config->class)) { // No class found?
-				// Generate class
-				if (empty($GLOBALS['Repositories']['default']) || $GLOBALS['Repositories']['default']->id != $this->id) {
-					$namespace = 'Generated\\'.$this->id;
-				} else {
-					$namespace = 'Generated';
-				}
-				$php = "namespace ".$namespace.";\nclass ".$config->name." extends \SledgeHammer\Object {\n";
-				$properties = array_merge(array_keys($config->properties), array_keys($config->belongsTo), array_keys($config->hasMany));
-				foreach ($properties as $path) {
-					$compiledPath = PropertyPath::compile($path);
-					$property = $compiledPath[0][1];
-					$php .= "\tpublic $".$property.";\n";
-				}
-				$php .= "}";
-				if (ENVIRONMENT === 'development' && $namespace === 'Generated') {
-					// Write autoComplete helper
-					// @todo Only write file when needed, aka validate $this->autoComplete
-					mkdirs(TMP_DIR.'AutoComplete');
-					file_put_contents(TMP_DIR.'AutoComplete/'.$config->name.'.php', "<?php \n".$php."\n\n?>");
-				}
-				eval($php);
-				$config->class = $namespace.'\\'.$config->name;
+		}
+		if ($config->class === false) { // Should registerBackand generate a class?
+			if (empty($GLOBALS['Repositories']['default']) || $GLOBALS['Repositories']['default']->id != $this->id) {
+				$config->class = '\\Generated\\'.$this->id.'\\'.$config->name; // Multiple Repositories have multiple namespaces
+			} else {
+				$config->class = '\\Generated\\'.$config->name;
 			}
+		}
+		if (substr($config->class, 0, 1) !== '\\') {
+			$config->class = '\\'.$config->class;
 		}
 		if ($config->plural === null) {
 			$config->plural = Inflector::pluralize($config->name);
 		}
-
 		$this->configs[$config->name] = $config;
 		$this->plurals[$config->plural] = $config->name;
 		$this->created[$config->name] = array();
-		// Generate or update the AutoComplete Helper for the default repository?
-		if (ENVIRONMENT == 'development' && isset($GLOBALS['Repositories']['default']) && $GLOBALS['Repositories']['default']->id == $this->id) {
-			$autoCompleteFile = TMP_DIR.'AutoComplete/repository.ini';
-			if ($this->autoComplete === null) {
-				if (file_exists($autoCompleteFile)) {
-					$this->autoComplete = parse_ini_file($autoCompleteFile, true);
-				} else {
-					$this->autoComplete = array();
-				}
-			}
-			// Validate AutoCompleteHelper
-			$autoComplete = array(
-				'class' => $config->class,
-				'properties' => implode(', ', array_keys($config->properties)),
-			);
-			if (empty($this->autoComplete[$config->name]) || $this->autoComplete[$config->name] != $autoComplete) {
-				$this->autoComplete[$config->name] = $autoComplete;
-				mkdirs(TMP_DIR.'AutoComplete');
-				write_ini_file($autoCompleteFile, $this->autoComplete, 'Repository AutoComplete config');
-				$this->writeAutoCompleteHelper(TMP_DIR.'AutoComplete/DefaultRepository.php', 'DefaultRepository', 'Generated');
-			}
-		}
 	}
 
 	/**
@@ -880,7 +912,7 @@ class Repository extends Object {
 			if ($class->startsWith($namespace)) {
 				$class = substr($class, strlen($namespace));
 			} else {
-				$class = '\\'.$class; 
+				$class = '\\'.$class;
 			}
 			$instanceVar = '$'.lcfirst($model);
 			$php .= "\t/**\n";
