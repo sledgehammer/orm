@@ -6,35 +6,44 @@
  * @package Record
  */
 namespace SledgeHammer;
+
 class BelongsToPlaceholder extends Object {
+
 	/**
 	 * @var array
 	 */
-	private $__config;
-	
+	private $__fields;
+
 	/**
-	 *
-	 * @param type $config 
+	 * @var string  repository/model/property
 	 */
-	function __construct($config) {
-		$this->__config = $config;
+	private $__reference;
+
+	/**
+	 * @var stdClass  The instance this placeholder belongs to
+	 */
+	private $__container;
+
+	function __construct($reference, $container, $fields = array()) {
+		$this->__reference = $reference;
+		$this->__container = $container;
+		$this->__fields = $fields;
 	}
-	
-	public function __get($property) {
-		if (array_key_exists($property, $this->__config['fields'])) {
-			return $this->__config['fields'][$property]; // ->id
+
+	function __get($property) {
+		if (array_key_exists($property, $this->__fields)) {
+			return $this->__fields[$property]; // ->id
 		}
 		return $this->__replacePlaceholder()->$property;
 	}
-	
-	public function __set($property, $value) {
+
+	function __set($property, $value) {
 		$this->__replacePlaceholder()->$property = $value;
 	}
-	
-	public function __call($method, $arguments) {
-		return call_user_func_array(array($this->__replacePlaceholder(), $method) , $arguments);
-	}
 
+	function __call($method, $arguments) {
+		return call_user_func_array(array($this->__replacePlaceholder(), $method), $arguments);
+	}
 
 	/**
 	 * Replace the placeholder and return the real object.
@@ -42,16 +51,20 @@ class BelongsToPlaceholder extends Object {
 	 * @return Object
 	 */
 	private function __replacePlaceholder() {
-		$config = $this->__config;
-		$container = $config['container'];
-		$property = $config['property'];
-		if ($container->{$property} !== $this) {
+		$parts = explode('/', $this->__reference);
+		$repositoryId = array_shift($parts);
+		$model = array_shift($parts);
+		$property = implode('/', $parts);
+		$self = PropertyPath::get($this->__container, $property);
+		if ($self !== $this) {
 			notice('This placeholder belongs to an other (cloned?) container');
-			return $container->{$property};
+			return $self;
 		}
-		$repo = getRepository($config['repository']);
-		$repo->loadAssociation($config['model'], $container, $property);
-		return $container->{$property};
+		$repo = getRepository($repositoryId);
+		$repo->loadAssociation($model, $this->__container, $property);
+		return PropertyPath::get($this->__container, $property);
 	}
+
 }
+
 ?>

@@ -690,13 +690,7 @@ class Repository extends Object {
 						$fields = array(
 							$relation['id'] => $belongsToId,
 						);
-						$instance->$property = new BelongsToPlaceholder(array(
-							'repository' => $this->id,
-							'fields' => $fields,
-							'model' => $config->name,
-							'property' => $property,
-							'container' => $instance,
-						));
+						$instance->$property = new BelongsToPlaceholder($this->id.'/'.$config->name.'/'. $property, $instance, $fields);
 					}
 				}
 			}
@@ -706,12 +700,7 @@ class Repository extends Object {
 				$collection = new RepositoryCollection(PropertyPath::get($data, $relation['convert']), $relation['model'], $this->id);
 				PropertyPath::set($instance, $property, $collection);
 			} else {
-				$instance->$property = new HasManyPlaceholder(array(
-					'repository' => $this->id,
-					'model' => $config->name,
-					'property' => $property,
-					'container' => $instance,
-				));
+				$instance->$property = new HasManyPlaceholder($this->id.'/'.$config->name.'/'.$property, $instance);
 			}
 		}
 		if ($instance instanceof Observable && $instance->hasEvent('save')) {

@@ -6,103 +6,115 @@
  * @package Record
  */
 namespace SledgeHammer;
+
 class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Countable {
 
 	/**
-	 * @var array
+	 * @var string|\ArrayIterator  "repository/model/property" 
 	 */
-	private $config;
-	
-	private $iterator;
-	
+	private $__reference;
+
 	/**
-	 *
-	 * @param type $config 
+	 * @var stdClass  The instance this placeholder belongs to
 	 */
-	function __construct($config) {
-		$this->config = $config;
+	private $__container;
+
+	/**
+	 * @var ArrayIterator
+	 */
+	private $__iterator = null;
+
+	function __construct($reference, $container) {
+		$this->__reference = $reference;
+		$this->__container = $container;
 	}
-	// mimic array errors and behaviour
-	public function __get($property) {
-		parent::__get($property);
-	}
-	
-	public function __set($property, $value) {
-		parent::__set($property, $value);
-	}
-	
-	public function __call($method, $arguments) {
-		parent::__call($method, $arguments);
-	}
+
+	// @todo: mimic array errors and behaviour on propery access and method invocation
 	// Array access
-	public function offsetExists($offset) {
+	function offsetExists($offset) {
 		$array = $this->replacePlaceholder();
 		return isset($array[$offset]);
 	}
-	public function offsetGet($offset) {
+
+	function offsetGet($offset) {
 		$array = $this->replacePlaceholder();
 		return $array[$offset];
 	}
-	public function offsetSet($offset, $value) {
+
+	function offsetSet($offset, $value) {
 		$array = &$this->replacePlaceholder();
 		$array[$offset] = $value;
 	}
-	public function offsetUnset($offset) {
+
+	function offsetUnset($offset) {
 		$array = &$this->replacePlaceholder();
 		unset($array[$offset]);
 	}
-	// iterator
-	public function current() {
-		if ($this->iterator === null) {
+
+	// Iterator
+	function rewind() {
+		if ($this->__iterator === null) {
+			$array = $this->replacePlaceholder();
+			$this->__iterator = new \ArrayIterator($array);
+		}
+		$this->__iterator->rewind();
+	}
+
+	function valid() {
+		if ($this->__iterator === null) {
 			throw new \Exception('Not implemented');
 		}
-		return $this->iterator->current();
+		return $this->__iterator->valid();
 	}
-	public function key() {
-		if ($this->iterator === null) {
+
+	function current() {
+		if ($this->__iterator === null) {
 			throw new \Exception('Not implemented');
 		}
-		return $this->iterator->key();
+		return $this->__iterator->current();
 	}
-	public function next() {
-		if ($this->iterator === null) {
+
+	function key() {
+		if ($this->__iterator === null) {
 			throw new \Exception('Not implemented');
 		}
-		return $this->iterator->next();
+		return $this->__iterator->key();
 	}
-	public function rewind() {
-		$array = $this->replacePlaceholder();
-		$this->iterator = new \ArrayIterator($array);
-	}
-	
-	public function valid() {
-		if ($this->iterator === null) {
+
+	function next() {
+		if ($this->__iterator === null) {
 			throw new \Exception('Not implemented');
 		}
-		return $this->iterator->valid();
+		return $this->__iterator->next();
 	}
-	
-	public function count() {
+
+	// Countable
+	function count() {
 		$array = $this->replacePlaceholder();
 		return count($array);
 	}
 
 	/**
 	 * Replace the placeholder and return the array.
+	 *
 	 * @return array
 	 */
 	private function &replacePlaceholder() {
-		$config = $this->config;
-		$container = $config['container'];
-		$property = $config['property'];
-		if ($container->{$property} !== $this) {
+		$parts = explode('/', $this->__reference);
+		$repositoryId = array_shift($parts);
+		$model = array_shift($parts);
+		$property = implode('/', $parts);
+		$self = &PropertyPath::getReference($this->__container, $property);
+		if ($self !== $this) {
 			notice('This placeholder belongs to an other (cloned?) container');
-			return $container->{$property};
+			return $self;
 		}
-		$repo = getRepository($config['repository']);
-		$repo->loadAssociation($config['model'], $container, $property, $this);
-		return $container->{$property};
+		$repo = getRepository($repositoryId);
+		$repo->loadAssociation($model, $this->__container, $property);
+		$self = &PropertyPath::getReference($this->__container, $property);
+		return $self;
 	}
+
 }
 
 ?>
