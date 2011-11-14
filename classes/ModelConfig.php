@@ -51,6 +51,7 @@ class ModelConfig extends Object {
 	 *     'model' => $modelName
 	 *     'property' => $property // The belongsTo property that referrer back
 	 *     'id' => $id             // The id property of this model
+	 *     'conditions' => array() // Additional extra (static) conditions
 	 *   )
 	 * )
 	 */

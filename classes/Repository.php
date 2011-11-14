@@ -225,6 +225,9 @@ class Repository extends Object {
 			$id = $instance->{$config->id[0]};
 			$foreignProperty = $hasMany['property'].'->'.$hasMany['id'];
 			$collection = $this->all($hasMany['model'])->where(array($foreignProperty => $id));
+			if (isset($hasMany['conditions'])) {
+				$collection = $collection->where($hasMany['conditions']);
+			}
 			$items = $collection->toArray();
 			$this->objects[$model][$index]['hadMany'][$property] = $items; // Add a copy for change detection
 			$instance->$property = $items;
@@ -573,7 +576,7 @@ class Repository extends Object {
 					$hasManyConfig = $this->_getConfig($hasMany['model']);
 					$property = $compiledPath[0][1];
 					$php .= "\t/**\n";
-					$php .= "\t * @var array|".$hasManyConfig->class."  An array with the associated ".$hasManyConfig->plural."\n";
+					$php .= "\t * @var ".$hasManyConfig->class."|array  An array with the associated ".$hasManyConfig->plural."\n";
 					$php .= "\t */\n";
 					$php .= "\tpublic $".$property.";\n";
 				}
