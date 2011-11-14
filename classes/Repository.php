@@ -549,7 +549,6 @@ class Repository extends Object {
 		foreach ($backend->configs as $config) {
 			if (substr($config->class, 0, 11) === '\\Generated\\') {
 				$parts = explode('\\', $config->class);
-				;
 				$class = array_pop($parts);
 				$namespace = implode('\\', array_slice($parts, 1));
 
@@ -578,8 +577,6 @@ class Repository extends Object {
 					$php .= "\t */\n";
 					$php .= "\tpublic $".$property.";\n";
 				}
-//				$properties = array_merge(array_keys(), array_keys($config->belongsTo), array_keys($config->hasMany));
-
 				$php .= "}";
 				if (ENVIRONMENT === 'development' && $namespace === 'Generated') {
 					// Write autoComplete helper
@@ -588,7 +585,6 @@ class Repository extends Object {
 					file_put_contents(TMP_DIR.'AutoComplete/'.$config->name.'.php', "<?php \n".$php."\n\n?>");
 				}
 				eval($php);
-				$config->class = $namespace.'\\'.$config->name;
 			}
 		}
 		// Fase 4: Generate or update the AutoComplete Helper for the default repository?
@@ -897,19 +893,13 @@ class Repository extends Object {
 		}
 		$php .= 'class '.$class.' extends \\'.get_class($this)." {\n\n";
 		foreach ($this->configs as $model => $config) {
-			$class = new Text($config->class);
-			if ($class->startsWith($namespace)) {
-				$class = substr($class, strlen($namespace));
-			} else {
-				$class = '\\'.$class;
-			}
 			$instanceVar = '$'.lcfirst($model);
 			$php .= "\t/**\n";
 			$php .= "\t * Retrieve an ".$model."\n";
 			$php .= "\t *\n";
 			$php .= "\t * @param mixed \$id  The ".$model." ID\n";
 			$php .= "\t * @param bool \$preload  Load relations direct\n";
-			$php .= "\t * @return ".$class."\n";
+			$php .= "\t * @return ".$config->class."\n";
 			$php .= "\t */\n";
 			$php .= "\tfunction get".$model.'($id, $preload = false) {'."\n";
 			$php .= "\t\treturn \$this->get('".$model."', \$id, \$preload);\n";
@@ -918,7 +908,7 @@ class Repository extends Object {
 			$php .= "\t/**\n";
 			$php .= "\t * Retrieve all ".$config->plural."\n";
 			$php .= "\t *\n";
-			$php .= "\t * @return Collection|".$class."\n";
+			$php .= "\t * @return Collection|".$config->class."\n";
 			$php .= "\t */\n";
 			$php .= "\tfunction all".$config->plural.'() {'."\n";
 			$php .= "\t\treturn \$this->all('".$model."');\n";
@@ -927,7 +917,7 @@ class Repository extends Object {
 			$php .= "\t/**\n";
 			$php .= "\t * Store the ".$model."\n";
 			$php .= "\t *\n";
-			$php .= "\t * @param ".$class.'  The '.$model." to be saved\n";
+			$php .= "\t * @param ".$config->class.'  The '.$model." to be saved\n";
 			$php .= "\t * @param array \$options {\n";
 			$php .= "\t *   'ignore_relations' => bool  true: Only save the instance,  false: Save all connected instances,\n";
 			$php .= "\t *   'add_unknown_instance' => bool, false: Reject unknown instances. (use \$repository->create())\n";
@@ -943,7 +933,7 @@ class Repository extends Object {
 			$php .= "\t * Create an in-memory ".$model.", ready to be saved.\n";
 			$php .= "\t *\n";
 			$php .= "\t * @param array \$values (optional) Initial contents of the object \n";
-			$php .= "\t * @return ".$class."\n";
+			$php .= "\t * @return ".$config->class."\n";
 			$php .= "\t */\n";
 			$php .= "\tfunction create".$model.'($values = array()) {'."\n";
 			$php .= "\t\treturn \$this->create('".$model."', \$values);\n";
@@ -952,7 +942,7 @@ class Repository extends Object {
 			$php .= "\t/**\n";
 			$php .= "\t * Delete the ".$model."\n";
 			$php .= "\t *\n";
-			$php .= "\t * @param ".$class.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
+			$php .= "\t * @param ".$config->class.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
 			$php .= "\t */\n";
 			$php .= "\tfunction delete".$model.'('.$instanceVar.') {'."\n";
 			$php .= "\t\treturn \$this->delete('".$model."', ".$instanceVar.");\n";
