@@ -223,8 +223,7 @@ class Repository extends Object {
 				throw new \Exception('Complex keys not (yet) supported for hasMany relations');
 			}
 			$id = $instance->{$config->id[0]};
-			$foreignProperty = $hasMany['property'].'->'.$hasMany['id'];
-			$collection = $this->all($hasMany['model'])->where(array($foreignProperty => $id));
+			$collection = $this->all($hasMany['model'])->where(array($hasMany['reference'] => $id));
 			if (isset($hasMany['conditions'])) {
 				$collection = $collection->where($hasMany['conditions']);
 			}
@@ -534,12 +533,9 @@ class Repository extends Object {
 					$validationError = 'Invalid config: '.$config->name.'->hasMany['.$property.'][model] not set';
 				} elseif (isset($hasMany['convert'])) {
 					// no additional fields are needed.
-				} elseif (empty($hasMany['property'])) {
+				} elseif (empty($hasMany['reference'])) {
 					// @todo Infer property (lookup belongsTo)
-					$validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][property] not set';
-				} elseif (empty($hasMany['id'])) { // id not set?
-					// @todo Infer  the id is the ID from the model
-					$validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][id] not set';
+					$validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][reference] not set';
 				}
 				// Remove invalid relations
 				if ($validationError) {

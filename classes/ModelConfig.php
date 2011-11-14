@@ -49,8 +49,7 @@ class ModelConfig extends Object {
 	 * @var array  array(
 	 *   $property => array(
 	 *     'model' => $modelName
-	 *     'property' => $property // The belongsTo property that referrer back
-	 *     'id' => $id             // The id property of this model
+	 *     'reference' => $propertyPath, // The path of the property that is referers to the id of this model. Example: "customer->id"
 	 *     'conditions' => array() // Additional extra (static) conditions
 	 *   )
 	 * )

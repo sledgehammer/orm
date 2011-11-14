@@ -119,8 +119,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					if ($belongsTo['model'] == $config->name && $belongsTo['reference'] == $reference['column']) {
 						$config->hasMany[$property] = array(
 							'model' => $model,
-							'property' => $belongsToProperty,
-							'id' => $belongsTo['id'], // reverse map?
+							'reference' => $belongsToProperty.'->'.$belongsTo['id'],
 						);
 						$config->defaults[$property] = array();
 						break;

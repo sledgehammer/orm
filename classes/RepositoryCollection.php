@@ -13,7 +13,7 @@ class RepositoryCollection extends Collection {
 	protected $mapping;
 
 	/**
-	 * @var bool  True when all raw elements been converted to repository items. (Triggered by ossetSet)
+	 * @var bool  True when all raw elements been converted to repository items. (Triggered by offsetSet)
 	 */
 	private $isConverted = false;
 
@@ -32,10 +32,16 @@ class RepositoryCollection extends Collection {
 	}
 
 	function current() {
+		if ($this->isConverted) {
+			return parent::current();
+		}
 		return $this->convertItem(parent::current());
 	}
 
 	public function offsetGet($offset) {
+		if ($this->isConverted) {
+			return parent::offsetGet($offset);
+		}
 		return $this->convertItem(parent::offsetGet($offset));
 	}
 
