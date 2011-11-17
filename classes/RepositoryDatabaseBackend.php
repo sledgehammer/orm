@@ -363,7 +363,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				$line = preg_replace('/^  |,$/', '', $line); // "  " & "," weghalen
 				$line = str_replace('NOT ', 'NOT_', $line);
 				$line = str_replace(' KEY', '_KEY', $line);
-				$line = str_replace('CHARACTER SET', 'CHARACTER_SET', $line);
+				$line = str_ireplace('CHARACTER SET', 'CHARACTER_SET', $line);
 				$parts = explode(' ', $line);
 				if (substr($parts[0], 0, 1) == '`') { // Column description
 					$column = substr($parts[0], 1, -1);
@@ -376,7 +376,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					for ($i = 2; $i < count($parts); $i++) {
 						$part = $parts[$i];
 
-						switch ($part) {
+						switch (strtoupper($part)) {
 							case 'NOT_NULL';
 								$columnConfig['null'] = false;
 								break;
@@ -413,7 +413,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 								}
 								break;
 
-							case 'unsigned':
+							case 'UNSIGNED':
 								$config['columns'][$column]['type'] = 'unsigned '.$config['columns'][$column]['type'];
 								break;
 
