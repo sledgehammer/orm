@@ -492,7 +492,7 @@ class Repository extends Object {
 				if (isset($belongsTo['reference'])) {
 					if (empty($belongsTo['id'])) { // id not set, but (target)model is configured?
 						if (empty($this->configs[$belongsTo['model']])) {
-							$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] couldn\'t be inferred, because model "'.$belongsTo['model'].'" isn\'t registerd';
+							$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] couldn\'t be inferred, because model "'.$belongsTo['model'].'" isn\'t registered';
 						} else {
 							$belongsToConfig = $this->_getConfig($belongsTo['model']);
 							// Infer/Assume that the id is the ID from the model
@@ -506,7 +506,7 @@ class Repository extends Object {
 					}
 					if (isset($belongsTo['reference']) && isset($belongsTo['useIndex']) == false) {
 						if (empty($this->configs[$belongsTo['model']])) {
-							$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][useIndex] couldn\'t be inferred, because model "'.$belongsTo['model'].'" isn\'t registerd';
+							$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][useIndex] couldn\'t be inferred, because model "'.$belongsTo['model'].'" isn\'t registered';
 						} else {
 							$belongsToConfig = $this->_getConfig($belongsTo['model']);
 							// Is the foreign key is linked to the model id
@@ -522,7 +522,7 @@ class Repository extends Object {
 				}
 				// @todo Add collectionMapping for "convert" relations?
 				if (empty($this->configs[$belongsTo['model']])) {
-//					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] "'.$belongsTo['model'].'" isn\'t registerd';
+//					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] "'.$belongsTo['model'].'" isn\'t registered';
 				}
 
 				// Remove invalid relations
@@ -540,6 +540,23 @@ class Repository extends Object {
 				} elseif (empty($hasMany['reference'])) {
 					// @todo Infer property (lookup belongsTo)
 					$validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][reference] not set';
+				} elseif (isset($hasMany['reference']) && empty($hasMany['belongsTo'])) {
+					$referencePath = PropertyPath::compile($hasMany['reference']);
+					if (count($referencePath) == 1) {
+						// The foreign key is linked directly
+					} elseif (empty($this->configs[$hasMany['model']])) {
+						$validationError = 'Invalid config: '.$config->name.'->hasMany['.$property.'][belongsTo] couldn\'t be inferred, because model "'.$hasMany['model'].'" isn\'t registered';
+					} else {
+						// Infer the belongsTo path based on the model and reference path.
+						$hasManyConfig = $this->configs[$hasMany['model']];
+						$idProperty = array(
+							array_value(array_pop($referencePath), 1)
+						);
+						if ($idProperty == $hasManyConfig->id) {
+							$hasMany['belongsTo'] = PropertyPath::assemble($referencePath);
+							$config->hasMany[$property]['belongsTo'] = $hasMany['belongsTo']; // update config
+						}
+					}
 				}
 				// Remove invalid relations
 				if ($validationError) {
