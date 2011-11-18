@@ -120,6 +120,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 						$config->hasMany[$property] = array(
 							'model' => $model,
 							'reference' => $belongsToProperty.'->'.$belongsTo['id'],
+							'belongsTo' => $belongsToProperty
 						);
 						$config->defaults[$property] = array();
 						break;

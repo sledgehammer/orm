@@ -50,6 +50,7 @@ class ModelConfig extends Object {
 	 *   $property => array(
 	 *     'model' => $modelName
 	 *     'reference' => $propertyPath, // The path of the property that is referers to the id of this model. Example: "customer->id"
+	 *     'belongsTo' => $propertyPath, // The belongsTo path references back to this model. Set this property to implicitly set the foreignkey. Example: "customer"
 	 *     'conditions' => array() // Additional extra (static) conditions
 	 *   )
 	 * )

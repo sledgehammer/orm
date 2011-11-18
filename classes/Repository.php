@@ -407,15 +407,19 @@ class Repository extends Object {
 						}
 						continue;
 					}
-					$belongsToProperty = $hasMany['property'];
-					foreach ($collection as $key => $item) {
-						// Connect the items to the instance
-						if (is_object($item)) {
-							$item->$belongsToProperty = $instance;
-							$this->save($hasMany['model'], $item, $relationSaveOptions);
-						} elseif ($item !== array_value($old, $key)) {
-							warning('Unable to save the change "'.$item.'" in '.$config->name.'->'.$property.'['.$key.']');
+					if (isset($hasMany['belongsTo'])) {
+						$belongsToProperty = $hasMany['belongsTo'];
+						foreach ($collection as $key => $item) {
+							// Connect the items to the instance
+							if (is_object($item)) {
+								$item->$belongsToProperty = $instance;
+								$this->save($hasMany['model'], $item, $relationSaveOptions);
+							} elseif ($item !== array_value($old, $key)) {
+								warning('Unable to save the change "'.$item.'" in '.$config->name.'->'.$property.'['.$key.']');
+							}
 						}
+					} else {
+						notice('Unable to verify/update foreign key'); // @TODO: implement raw fk injection.
 					}
 					if (value($options['keep_missing_related_instances']) == false) {
 						// Delete items that are no longer in the relation
