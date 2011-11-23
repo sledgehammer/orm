@@ -1,12 +1,12 @@
 <?php
 /**
- * Record, an ActiveRecord frontend for the Repository
+ * An ActiveRecord frontend for the Repository
  *
  * @package Record
  */
 namespace SledgeHammer;
 
-abstract class Record extends Observable {
+abstract class ActiveRecord extends Observable {
 
 	protected $_model;
 	protected $_state = 'unconstructed';
@@ -35,7 +35,7 @@ abstract class Record extends Observable {
 	 * @param array $options array(
 	 *   'repository' => (string) "default"
 	 * )
-	 * @return Record
+	 * @return ActiveRecord
 	 */
 	static function create($values = array(), $options = array()) {
 		$model = static::_getModel($options);
@@ -55,7 +55,7 @@ abstract class Record extends Observable {
 	 *
 	 * @param type $conditions
 	 * @param array $options
-	 * @return Record
+	 * @return ActiveRecord	
 	 */
 	static function find($conditions, $options = array()) {
 		$model = static::_getModel($options);

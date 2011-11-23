@@ -1,11 +1,12 @@
 <?php
 /**
- * Een Record die zelf (object)eigenschappen aanmaakt aan de hand van de kolommen in de database.
+ * An ActiveRecord with (generated) properties based on the ModelConfig->properties.
+ * Add the ActiveRecord interface to any Repository model, but will lose AutoCompletion support for propertynames.
  *
  * @package Record
  */
 namespace SledgeHammer;
-class SimpleRecord extends Record {
+class SimpleRecord extends ActiveRecord {
 
 	/**
 	 * @param string $model
