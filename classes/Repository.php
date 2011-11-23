@@ -17,7 +17,7 @@ class Repository extends Object {
 	protected $namespaces = array('', 'SledgeHammer\\');
 
 	/**
-	 * @var array  registerd models: array(model => config)
+	 * @var array  registered models: array(model => config)
 	 */
 	protected $configs = array();
 
@@ -42,7 +42,7 @@ class Repository extends Object {
 	protected $id;
 
 	/**
-	 * @var array registerd backends
+	 * @var array registered backends
 	 */
 	protected $backends = array();
 	private $autoComplete;
@@ -59,13 +59,14 @@ class Repository extends Object {
 	}
 
 	/**
-	 * Catch methods
+	 * Handle get$Model(), all$Models(), save$Model(), create$Model() and delete$Model() methods.
+     *
 	 * @param string $method
 	 * @param array $arguments
 	 * @return mixed
 	 */
 	function __call($method, $arguments) {
-		if (preg_match('/^(get|all|save|delete|create)(.+)$/', $method, $matches)) {
+		if (preg_match('/^(get|all|save|create|delete)(.+)$/', $method, $matches)) {
 			$method = $matches[1];
 			array_unshift($arguments, $matches[2]);
 			if ($method == 'all') {
