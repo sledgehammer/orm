@@ -4,7 +4,7 @@
  */
 namespace SledgeHammer;
 
-class RepositoryTest extends DatabaseTestCase {
+class RepositoryTests extends DatabaseTestCase {
 
 	private $applicationRepositories;
 

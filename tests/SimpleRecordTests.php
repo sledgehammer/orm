@@ -5,7 +5,7 @@
  * @package Record
  */
 namespace SledgeHammer;
-class SimpleRecordTest extends DatabaseTestCase {
+class SimpleRecordTests extends DatabaseTestCase {
 
 	/**
 	 * var Record $customer  Een customer-record in STATIC mode

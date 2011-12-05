@@ -3,7 +3,7 @@
  * Test de functionaliteit van Record (via de GenericRecord class)
  */
 namespace SledgeHammer;
-class RecordRelationTest extends DatabaseTestCase {
+class RecordRelationTests extends DatabaseTestCase {
 
 	/**
 	 * Elke test_* met een schone database beginnen
