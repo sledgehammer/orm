@@ -110,7 +110,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				}
 				$property = $this->variablize($property);
 				if (array_key_exists($property, $config->properties)) {
-					notice('Unable to use "'.$property.'" for hasMany relation config');
+					notice('Unable to use '.$config->name.'->hasMany['.$property.'] a property with the same name exists');
 					break;
 				}
 				$model = $this->modelize($reference['table'], $prefix);
@@ -365,6 +365,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				$line = str_replace('NOT ', 'NOT_', $line);
 				$line = str_replace(' KEY', '_KEY', $line);
 				$line = str_ireplace('CHARACTER SET', 'CHARACTER_SET', $line);
+				$line = str_replace('  ', ' ', $line);
 				$parts = explode(' ', $line);
 				if (substr($parts[0], 0, 1) == '`') { // Column description
 					$column = substr($parts[0], 1, -1);
