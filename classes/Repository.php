@@ -17,7 +17,7 @@ class Repository extends Object {
 	protected $namespaces = array('', 'SledgeHammer\\');
 
 	/**
-	 * @var array  registered models: array(model => config)
+	 * @var array|ModelConfig  registered models: array(model => config)
 	 */
 	protected $configs = array();
 
@@ -498,7 +498,7 @@ class Repository extends Object {
 							$belongsToConfig = $this->_getConfig($belongsTo['model']);
 							// Infer/Assume that the id is the ID from the model
 							if (count($belongsToConfig->id) == 1) {
-								$belongTo['id'] = current($belongsToConfig->id);
+								$belongsTo['id'] = current($belongsToConfig->id);
 								$config->belongsTo[$property]['id'] = $belongsTo['id']; // Update config
 							} else {
 								$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] not set and can\'t be inferred (for a complex key)';
@@ -619,15 +619,17 @@ class Repository extends Object {
 				}
 			}
 			// Validate AutoCompleteHelper
-			$autoComplete = array(
-				'class' => $config->class,
-				'properties' => implode(', ', array_keys($config->properties)),
-			);
-			if (empty($this->autoComplete[$config->name]) || $this->autoComplete[$config->name] != $autoComplete) {
-				$this->autoComplete[$config->name] = $autoComplete;
-				mkdirs(TMP_DIR.'AutoComplete');
-				write_ini_file($autoCompleteFile, $this->autoComplete, 'Repository AutoComplete config');
-				$this->writeAutoCompleteHelper(TMP_DIR.'AutoComplete/DefaultRepository.php', 'DefaultRepository', 'Generated');
+			foreach ($backend->configs as $config) {
+				$autoComplete = array(
+					'class' => $config->class,
+					'properties' => implode(', ', array_keys($config->properties)),
+				);
+				if (empty($this->autoComplete[$config->name]) || $this->autoComplete[$config->name] != $autoComplete) {
+					$this->autoComplete[$config->name] = $autoComplete;
+					mkdirs(TMP_DIR.'AutoComplete');
+					write_ini_file($autoCompleteFile, $this->autoComplete, 'Repository AutoComplete config');
+					$this->writeAutoCompleteHelper(TMP_DIR.'AutoComplete/DefaultRepository.php', 'DefaultRepository', 'Generated');
+				}
 			}
 		}
 	}
