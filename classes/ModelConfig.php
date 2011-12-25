@@ -2,7 +2,6 @@
 /**
  * Model configuration class, a formal definition of a Repository model.
  *
- *
  * @package Record
  */
 namespace SledgeHammer;
@@ -22,7 +21,7 @@ class ModelConfig extends Object {
 	 */
 	public $class;
 	/**
-	 * @var array  Direct mapping of properties to the backend data structure
+	 * @var array  Direct mapping of properties to the backend data structure. array($column => $property)
 	 */
 	public $properties = array();
 	/**

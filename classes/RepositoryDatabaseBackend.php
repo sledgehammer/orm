@@ -66,7 +66,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 				$config->defaults[$column] = $default;
 				if (empty($info['foreignKeys'])) {
 					$property = $this->variablize($column);
-					$config->properties[$property] = $column;
+					$config->properties[$column] = $property;
 				} else {
 					if (count($info['foreignKeys']) > 1) {
 						notice('Multiple foreign-keys per column not supported');
@@ -109,7 +109,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					$property = substr($property, strlen($prefix)); // Strip prefix
 				}
 				$property = $this->variablize($property);
-				if (array_key_exists($property, $config->properties)) {
+				if (in_array($property, $config->properties)) {
 					notice('Unable to use '.$config->name.'->hasMany['.$property.'] a property with the same name exists');
 					break;
 				}

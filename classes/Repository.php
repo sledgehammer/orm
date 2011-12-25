@@ -475,8 +475,9 @@ class Repository extends Object {
 		foreach ($backend->configs as $backendConfig) {
 			$config = $this->configs[$backendConfig->name];
 			foreach ($config->id as $idIndex => $idColumn) {
-				$idProperty = array_search($idColumn, $config->properties);
-				if ($idProperty === false) {
+				if (isset($config->properties[$idColumn])) {
+					$idProperty = $config->properties[$idColumn];
+				} else {
 					warning('Invalid config: '.$config->name.'->id['.$idIndex.']: "'.$idColumn.'" isn\'t mapped as a property');
 				}
 			}
@@ -575,7 +576,7 @@ class Repository extends Object {
 
 				// Generate class
 				$php = "namespace ".$namespace.";\nclass ".$config->name." extends \SledgeHammer\Object {\n";
-				foreach ($config->properties as $path => $null) {
+				foreach ($config->properties as $path) {
 					$compiledPath = PropertyPath::compile($path);
 					$property = $compiledPath[0][1];
 					$php .= "\tpublic $".$property.";\n";
@@ -622,7 +623,7 @@ class Repository extends Object {
 			foreach ($backend->configs as $config) {
 				$autoComplete = array(
 					'class' => $config->class,
-					'properties' => implode(', ', array_keys($config->properties)),
+					'properties' => implode(', ', $config->properties),
 				);
 				if (empty($this->autoComplete[$config->name]) || $this->autoComplete[$config->name] != $autoComplete) {
 					$this->autoComplete[$config->name] = $autoComplete;
@@ -684,7 +685,7 @@ class Repository extends Object {
 			throw new \Exception('Invalid index: "'.$index.'"');
 		}
 		// Map the data onto the instance
-		foreach ($config->properties as $targetPath => $sourcePath) {
+		foreach ($config->properties as  $sourcePath => $targetPath) {
 			PropertyPath::set($instance, $targetPath, PropertyPath::get($data, $sourcePath));
 		}
 		foreach ($config->belongsTo as $property => $relation) {
@@ -746,7 +747,7 @@ class Repository extends Object {
 			$to[$relation['reference']] = null;  // Dont set the value yet. (could be overwritten with an mapping?)
 		}
 		// Map to data
-		foreach ($config->properties as $property => $element) {
+		foreach ($config->properties as $element => $property) {
 			$value = PropertyPath::get($from, $property);
 			PropertyPath::set($to, $element, $value);
 		}
@@ -772,7 +773,7 @@ class Repository extends Object {
 		if (isset($this->configs[$config->name])) {
 			warning('Overwriting model: "'.$config->name.'"'); // @todo? Allow overwritting models? or throw Exception?
 		}
-		$this->collectionMappings[$config->name] = $config->properties; // Add properties to the collectionMapping
+		$this->collectionMappings[$config->name] = array_flip($config->properties); // Add properties to the collectionMapping
 //		$config = clone $config;
 		if ($config->class === null) { // Detect class
 			$config->class = false; // fallback to a generated class
@@ -877,11 +878,10 @@ class Repository extends Object {
 		}
 		if (is_object($from)) {
 			if ($key !== false) {
-				$idProperty = array_search($key, $config->properties);
-				if ($idProperty === false) {
+				if (empty ($config->properties[$key])) {
 					throw new \Exception('ModelConfig->id is not mapped to the instances. Add ModelConfig->properties[name] = "'.$key.'"');
 				}
-				$id = PropertyPath::get($from, $idProperty);
+				$id = PropertyPath::get($from, $config->properties[$key]);
 				if ($id === null) { // Id value not set?
 					// Search in the created instances array
 					foreach ($this->created[$config->name] as $index => $created) {
