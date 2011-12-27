@@ -346,7 +346,7 @@ class Repository extends Object {
 			}
 			$this->objects[$model][$index]['state'] = 'saving';
 			if ($instance instanceof Observable && $instance->hasEvent('save')) {
-				$instance->fire('save', $this);
+				$instance->trigger('save', $this);
 			}
 
 			// Save belongsTo
@@ -444,7 +444,7 @@ class Repository extends Object {
 			}
 			$this->objects[$model][$index]['state'] = 'saved';
 			if ($instance instanceof Observable && $instance->hasEvent('saveComplete')) {
-				$instance->fire('saveComplete', $this);
+				$instance->trigger('saveComplete', $this);
 			}
 		} catch (\Exception $e) {
 			$this->objects[$model][$index]['state'] = $previousState; // @todo Or is an error state more appropriate?
@@ -723,7 +723,7 @@ class Repository extends Object {
 			}
 		}
 		if ($instance instanceof Observable && $instance->hasEvent('save')) {
-			$instance->fire('load', $this, array(
+			$instance->trigger('load', $this, array(
 				'repository' => $this->id,
 				'model' => $config->name,
 			));
