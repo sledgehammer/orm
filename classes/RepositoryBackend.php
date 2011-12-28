@@ -30,7 +30,7 @@ abstract class RepositoryBackend extends Object {
 	 * Retrieve all available model-data
 	 *
 	 * @param array $config
-	 * @return Collection
+	 * @return \Traversable|array
 	 */
 	function all($config) {
 		throw new \Exception('Method: '.get_class($this).'->all() not implemented');

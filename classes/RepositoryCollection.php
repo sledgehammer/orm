@@ -1,6 +1,8 @@
 <?php
 /**
- * RepositoryCollection
+ * RepositoryCollection a Collection containing repository instances.
+ *
+ * Will contain the raw \Traversable|array from the backend and will convert the data
  *
  * @package Record
  */
@@ -18,10 +20,9 @@ class RepositoryCollection extends Collection {
 	private $isConverted = false;
 
 	/**
-	 *
-	 * @param Collection $collection
+	 * @param \Traversable|array $data
 	 * @param string $model
-	 * @param string $repository 
+	 * @param string $repository
 	 * @param array $mapping data => object  mapping (reverse from modelConfig mapping)
 	 */
 	function __construct($collection, $model, $repository = 'default', $mapping = array()) {
@@ -68,7 +69,7 @@ class RepositoryCollection extends Collection {
 					unset($conditions[$field]);
 				}
 			}
-			if (count($convertedConditions) != 0) { // There are conditions the low-level collection can handle?  
+			if (count($convertedConditions) != 0) { // There are conditions the low-level collection can handle?
 				$collection = new RepositoryCollection($this->data->where($convertedConditions), $this->model, $this->repository, $this->mapping);
 				if (count($conditions) == 0) {
 					return $collection;
@@ -79,10 +80,22 @@ class RepositoryCollection extends Collection {
 		return parent::where($conditions);
 	}
 
+	public function toArray() {
+		if ($this->isConverted) {
+			return $this->data;
+		}
+		$repo = getRepository($this->repository);
+		foreach ($this->data as $key => $item) {
+			$this->data[$key] = $repo->convert($this->model, $item);
+		}
+		$this->isConverted = true;
+		return $this->data;
+	}
+
 	/**
 	 * Convert the raw data to an repository object
 	 * @param mixed $item
-	 * @return object 
+	 * @return object
 	 */
 	private function convertItem($item) {
 		if ($this->isConverted) {

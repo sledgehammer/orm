@@ -178,7 +178,7 @@ class RepositoryTests extends DatabaseTestCase {
 			$this->assertEqual($order->product, 'Kop koffie', 'Only 1 order expected');
 		}
 		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = 1');
-		$this->assertEqual(gettype($c1->orders), 'array', 'The orders property should be replaced with an array');
+		$this->assertIsA($c1->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
 		$this->assertEqual($c1->orders[0]->product, 'Kop koffie', 'Contents should match the order from customer 1');
 		$this->assertEqual(count($c1->orders), 1, 'Should only contain the order from customer 1');
 
@@ -186,7 +186,8 @@ class RepositoryTests extends DatabaseTestCase {
 		$c2 = $repo->getCustomer(2);
 		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
 		$this->assertEqual(count($c2->orders), 2, 'Should only contain the order from customer 2');
-		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
+
 	}
 
 	function test_hasManyArrayAccessInterface() {
@@ -197,28 +198,29 @@ class RepositoryTests extends DatabaseTestCase {
 		$this->assertEqual($c2->orders[0]->product, 'Walter PPK 9mm', 'Get by array offset');
 		$this->assertEqual($c2->orders[1]->product, 'Spycam', 'Get by array offset 1');
 		$this->assertEqual(count($c2->orders), 2, 'Should only contain the order from customer 2');
-		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
+
 
 		$c2 = $this->getDirtyCustomer(2);
 		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'Sainity check');
 		$this->assertTrue(isset($c2->orders[1]), 'array offset exists');
-		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
 
 		$c2 = $this->getDirtyCustomer(2);
 		$this->assertFalse(isset($c2->orders[3]), 'array offset doesn\'t exist');
-		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
 
 		$c2 = $this->getDirtyCustomer(2);
 		$c2->orders[0] = 'test';
 		$this->assertEqual($c2->orders[0], 'test', 'Set by array offset');
-		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
 
 
 		$c2 = $this->getDirtyCustomer(2);
 		$clone = clone $c2;
 		unset($c2->orders[0]);
 		$this->assertEqual(count($c2->orders), 1, 'Unset by array offset');
-		$this->assertEqual(gettype($c2->orders), 'array', 'The orders property should be replaced with an array');
+		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
 
 		$this->expectError('This placeholder belongs to an other (cloned?) container');
 		$this->assertEqual($clone->orders[1]->product, 'Spycam');
@@ -231,7 +233,7 @@ class RepositoryTests extends DatabaseTestCase {
 
 		$order = $repo->getOrder(2, true);
 		$this->assertFalse($order->customer instanceof BelongsToPlaceholder, 'Should not be a BelongsToPlaceholder');
-		$this->assertIsA($order->customer->orders, 'array', 'Should not be a HasManyPlaceholder');
+		$this->assertIsA($order->customer->orders, 'SledgeHammer\Collection', 'Should not be a HasManyPlaceholder');
 	}
 
 	function test_removeWildcard() {

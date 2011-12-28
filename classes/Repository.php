@@ -220,6 +220,10 @@ class Repository extends Object {
 		}
 		$hasMany = array_value($config->hasMany, $property);
 		if ($hasMany !== null) {
+			if (isset($this->objects[$model][$index]['hadMany'][$property])) {
+				$instance->$property = collection($this->objects[$model][$index]['hadMany'][$property]);
+				return;
+			}
 			if (count($config->id) != 1) {
 				throw new \Exception('Complex keys not (yet) supported for hasMany relations');
 			}
@@ -228,9 +232,8 @@ class Repository extends Object {
 			if (isset($hasMany['conditions'])) {
 				$collection = $collection->where($hasMany['conditions']);
 			}
-			$items = $collection->toArray();
-			$this->objects[$model][$index]['hadMany'][$property] = $items; // Add a copy for change detection
-			$instance->$property = $items;
+			$this->objects[$model][$index]['hadMany'][$property] = $collection->toArray(); // Add a items for change detection
+			$instance->$property = $collection;
 			return;
 		}
 		throw new \Exception('No association found for  '.$model.'->'.$property);
@@ -595,7 +598,7 @@ class Repository extends Object {
 					$hasManyConfig = $this->_getConfig($hasMany['model']);
 					$property = $compiledPath[0][1];
 					$php .= "\t/**\n";
-					$php .= "\t * @var ".$hasManyConfig->class."|array  An array with the associated ".$hasManyConfig->plural."\n";
+					$php .= "\t * @var ".$hasManyConfig->class."|\SledgeHammer\Collection  A collection with the associated ".$hasManyConfig->plural."\n";
 					$php .= "\t */\n";
 					$php .= "\tpublic $".$property.";\n";
 				}

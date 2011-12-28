@@ -4,14 +4,14 @@ hasMany behaves like an array and should only load data from the database on-acc
 (Common) use cases are:
   Adding an object/value to the collection.
   Removing an object/value from the colllection.
-  Retrieving a specific object/value 
-  Looping through all items 
+  Retrieving a specific object/value
+  Looping through all items
   Filter the items
   Sort the items
 
-Approach
+Approaches
 --------------------
-1. Use placeholder and replace the placeholder with an array on-acces.
+1. Use placeholder and replace the placeholder with an array on-access.
   POCO friendly, doesnt have an api other than ArrayAccess.
   Loads all items, even when they aren't accessed (but better performance in the "loop all" scenario?)
   Use only 1 query for all items.
@@ -25,6 +25,8 @@ special function to convert the placeholder into an array:
 SledgeHammer\replace_placeholder($model->items);
     Or does "reset($model->items);" work?
 
+2. Use a placeholder and replace the placeholder with a collection on-access.
+  Add an event-listener to the collection and aid change-detection in the Repository->save()
 
 Collections
 ------------
@@ -37,35 +39,33 @@ Fluent interface
   Uses the Linq-extension-methods names:     @link http://msdn.microsoft.com/en-us/library/bb383977.aspx
     $sortedCollection = $collection->orderBy('propertyname'); //and orderByDescending()
   Copy implementation from underscore.php
-  The fluent interface works diverent than the SQL interface:
-    Collection methods return a new collection without modifing the current instance. 
+  The fluent interface works different than the SQL interface:
+    Collection methods return a new collection without modifing the current instance.
     Changed the SQL class to do the same. See blogpost: http://stackoverflow.com/questions/1103985/method-chaining-why-is-it-a-good-practice-or-not/7215149#7215149
 
 Collections can be used without an repository.
   The collection class must be able to replace the data with an (model)instance OR don't allow additional filtering or sorting (by modifing the SQL object imposible).
   Therefor collections work with repositories based on dependancy injection.
   Injecting which model and reposity with the $collection->bind() method. (alt. bindModel() ? bindRepository() ?)
- 
+
 
 Todo research
-----------------  
+----------------
 Can lambda functions be reverse engineerd?
   converting:
-    function($model) { return ($model->property == "value"); } 
-  to 
+    function($model) { return ($model->property == "value"); }
+  to
 	WHERE property = "value"
 
 Rejected approaches
 ------------------
- 1. Use an array-like object 
+ 1. Use an array-like object (Tailored for HasMany)
   Almost POCO
   Tempting to write saving logic inside the hasMany class instead of the Repository class
-  Complex logic to prevent loading
-  Complex saving logic
-  Only prevents converting data into objects, because no queries are prevented
+  Complex logic to prevent loading (DatabaseCollections are lazy, but this should not be a requirement for other backend collections)
+  Only prevents converting data into objects, because no queries/requests are prevented (compared to placeholder)
   Harder to implement, an array has builtin errors/notices.
   Can support filter and sorting methods.
 
-  Because: Adds complexity with (very) little gain. 
+  Because: Adds complexity with (very) little gain.
     If the filter and sorting methods are needed you can access the Collection directly with $repo->get***Collection()
-  
