@@ -573,6 +573,10 @@ class Repository extends Object {
 		// Fase 3: Generate classes based on properties when no class is detected/found
 		foreach ($backend->configs as $config) {
 			if (substr($config->class, 0, 11) === '\\Generated\\') {
+				if (class_exists($config->class, false)) {
+					notice('Skipped generating class: "'.$config->class.'", a class with the same name exists');
+					continue;
+				}
 				$parts = explode('\\', $config->class);
 				$class = array_pop($parts);
 				$namespace = implode('\\', array_slice($parts, 1));

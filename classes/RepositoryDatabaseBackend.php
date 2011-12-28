@@ -1,7 +1,7 @@
 <?php
 /**
  * Repository backend for database records
- * @todo Validate datatypes before retrievin or removing records, because '12a' will be sillently truncated by mysql to 12
+ * @todo Validate datatypes before retrieving or removing records, because '12a' will be sillently truncated by mysql to 12
  *
  * @package Record
  */
@@ -9,7 +9,7 @@ namespace SledgeHammer;
 
 class RepositoryDatabaseBackend extends RepositoryBackend {
 
-	public $identifier = 'database';
+	public $identifier = 'db';
 
 	/**
 	 * @var array|ModelConfig
@@ -22,6 +22,7 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	function __construct($databases = array()) {
 		$dbLinks = array();
 		if (is_string($databases)) { // If options is a string that option is a dbLink
+			$this->identifier = $databases.'_db';
 			$dbLinks = array($databases => '');
 			$databases = array();
 		}
@@ -42,19 +43,20 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	 *
 	 * @param string $dbLink
 	 */
-	function inspectDatabase($dbLink = 'default', $prefix = '') {
+	function inspectDatabase($dbLink = 'default', $tablePrefix = '') {
 
 		// Pass 1: Retrieve and parse schema information
 		$db = getDatabase($dbLink);
-		$schema = $this->getSchema($db, $prefix);
+		$schema = $this->getSchema($db, $tablePrefix);
 
+		$models = array();
 		foreach ($schema as $tableName => $table) {
-			if ($prefix != '' && substr($tableName, 0, strlen($prefix)) == $prefix) {
-				$plural = ucfirst(substr($tableName, strlen($prefix))); // Strip prefix
+			if ($tablePrefix != '' && substr($tableName, 0, strlen($tablePrefix)) == $tablePrefix) {
+				$plural = ucfirst(substr($tableName, strlen($tablePrefix))); // Strip prefix
 			} else {
 				$plural = ucfirst($tableName);
 			}
-			$config = new ModelConfig($this->modelize($tableName, $prefix), array(
+			$config = new ModelConfig($this->modelize($tableName, $tablePrefix), array(
 					'plural' => $plural,
 					'backendConfig' => $table,
 				));
@@ -92,33 +94,42 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 					}
 					$config->belongsTo[$property] = array(
 						'reference' => $column, // foreignKey
-						'model' => $this->modelize($foreignKey['table'], $prefix),
+						'model' => $this->modelize($foreignKey['table'], $tablePrefix),
 						'id' => $foreignKey['column'], // primairy key
 					);
 					$config->defaults[$property] = null;
 				}
 			}
-			$this->configs[$config->name] = $config;
+			$models[$tableName] = $config;
+			if (isset($this->configs[$config->name])) {
+				notice('Model "'.$config->name.'" (for the "'.$tableName.'" table) is defined in both "'.$this->configs[$config->name]->backendConfig['dbLink'].'" and "'.$dbLink.'" ');
+				$suffix = 2;
+				while(isset($this->configs[$config->name.'_'.$suffix])) {
+					$suffix++;
+				}
+				$this->configs[$config->name.'_'.$suffix] = $config;
+			} else {
+				$this->configs[$config->name] = $config;
+			}
 		}
 		// Pass 2:
 		foreach ($this->configs as $config) {
 			$table = $schema[$config->backendConfig['table']];
 			foreach ($table['referencedBy'] as $reference) {
 				$property = $reference['table'];
-				if ($prefix != '' && substr($property, 0, strlen($prefix)) == $prefix) {
-					$property = substr($property, strlen($prefix)); // Strip prefix
+				if ($tablePrefix != '' && substr($property, 0, strlen($tablePrefix)) == $tablePrefix) {
+					$property = substr($property, strlen($tablePrefix)); // Strip prefix
 				}
 				$property = $this->variablize($property);
 				if (in_array($property, $config->properties)) {
 					notice('Unable to use '.$config->name.'->hasMany['.$property.'] a property with the same name exists');
 					break;
 				}
-				$model = $this->modelize($reference['table'], $prefix);
-				$belongsToModel = $this->configs[$model];
+				$belongsToModel = $models[$reference['table']];
 				foreach ($belongsToModel->belongsTo as $belongsToProperty => $belongsTo) {
 					if ($belongsTo['model'] == $config->name && $belongsTo['reference'] == $reference['column']) {
 						$config->hasMany[$property] = array(
-							'model' => $model,
+							'model' => $belongsToModel->name,
 							'reference' => $belongsToProperty.'->'.$belongsTo['id'],
 							'belongsTo' => $belongsToProperty
 						);
@@ -493,10 +504,10 @@ class RepositoryDatabaseBackend extends RepositoryBackend {
 	 * @param Database $dbLink
 	 * @return array  schema definition
 	 */
-	private function getSchemaSqlite($db, $prefix = '') {
+	private function getSchemaSqlite($db, $prefix = false) {
 		$schema = array();
 		$sql = 'SELECT tbl_name FROM sqlite_master WHERE type = "table" AND name != "sqlite_sequence"';
-		if ($prefix != '') {
+		if ($prefix) {
 			$sql .= ' tbl_name LIKE '.$db->quote($prefix.'%');
 		}
 		$tables = $db->query($sql)->fetchAll();
