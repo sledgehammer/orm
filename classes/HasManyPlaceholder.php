@@ -1,7 +1,7 @@
 <?php
 /**
  * This Placeholder facilitates lazy loading of hasMany relations.
- * A HasManyPlaceholder object behaves like an array containing all related objects from the repository, but only retrieves the objects on-access or on-change.
+ * A HasManyPlaceholder object behaves like an Collection containing all related objects from the repository, but only retrieves the objects on-access or on-change.
  *
  * @package Record
  */
@@ -10,7 +10,7 @@ namespace SledgeHammer;
 class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Countable {
 
 	/**
-	 * @var string|\ArrayIterator  "repository/model/property" 
+	 * @var string "repository/model/property"
 	 */
 	private $__reference;
 
@@ -20,99 +20,106 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 	private $__container;
 
 	/**
-	 * @var ArrayIterator
+	 * @var Collection
 	 */
-	private $__iterator = null;
+	private $__collection = null;
 
 	function __construct($reference, $container) {
 		$this->__reference = $reference;
 		$this->__container = $container;
 	}
 
+	function __call($method, $args) {
+		$this->replacePlaceholder();
+		return call_user_func_array(array($this->__collection, $method), $args);
+	}
+
 	// @todo: mimic array errors and behaviour on propery access and method invocation
 	// Array access
 	function offsetExists($offset) {
-		$array = $this->replacePlaceholder();
-		return isset($array[$offset]);
+		$this->replacePlaceholder();
+		$this->__collection->offsetExists($offset);
+
 	}
 
 	function offsetGet($offset) {
-		$array = $this->replacePlaceholder();
-		return $array[$offset];
+		$this->replacePlaceholder();
+		$this->__collection->offsetGet($offset);
 	}
 
 	function offsetSet($offset, $value) {
-		$array = &$this->replacePlaceholder();
-		$array[$offset] = $value;
+		$this->replacePlaceholder();
+		$this->__collection->offsetSet($offset, $value);
 	}
 
 	function offsetUnset($offset) {
-		$array = &$this->replacePlaceholder();
-		unset($array[$offset]);
+		$this->replacePlaceholder();
+		$this->__collection->offsetUnset($offset);
 	}
+
 
 	// Iterator
 	function rewind() {
-		if ($this->__iterator === null) {
-			$array = $this->replacePlaceholder();
-			$this->__iterator = new \ArrayIterator($array);
+		if ($this->__collection === null) {
+			$this->replacePlaceholder();
 		}
-		$this->__iterator->rewind();
+		$this->__collection->rewind();
 	}
 
 	function valid() {
-		if ($this->__iterator === null) {
+		if ($this->__collection === null) {
 			throw new \Exception('Not implemented');
 		}
-		return $this->__iterator->valid();
+		return $this->__collection->valid();
 	}
 
 	function current() {
-		if ($this->__iterator === null) {
+		if ($this->__collection === null) {
 			throw new \Exception('Not implemented');
 		}
-		return $this->__iterator->current();
+		return $this->__collection->current();
 	}
 
 	function key() {
-		if ($this->__iterator === null) {
+		if ($this->__collection === null) {
 			throw new \Exception('Not implemented');
 		}
-		return $this->__iterator->key();
+		return $this->__collection->key();
 	}
 
 	function next() {
-		if ($this->__iterator === null) {
+		if ($this->__collection === null) {
 			throw new \Exception('Not implemented');
 		}
-		return $this->__iterator->next();
+		return $this->__collection->next();
 	}
 
 	// Countable
 	function count() {
-		$array = $this->replacePlaceholder();
-		return count($array);
+		$this->replacePlaceholder();
+		return $this->__collection->count();
 	}
 
 	/**
 	 * Replace the placeholder and return the array.
-	 *
-	 * @return array
 	 */
-	private function &replacePlaceholder() {
+	private function replacePlaceholder() {
+		if ($this->__collection !== null) {
+			return;
+		}
 		$parts = explode('/', $this->__reference);
 		$repositoryId = array_shift($parts);
 		$model = array_shift($parts);
 		$property = implode('/', $parts);
-		$self = &PropertyPath::getReference($this->__container, $property);
-		if ($self !== $this) {
+		$data = PropertyPath::get($this->__container, $property);
+		if ($data !== $this) {
 			notice('This placeholder belongs to an other (cloned?) container');
-			return $self;
+			$this->__collection = $data;
+			return;
 		}
 		$repo = getRepository($repositoryId);
 		$repo->loadAssociation($model, $this->__container, $property);
-		$self = &PropertyPath::getReference($this->__container, $property);
-		return $self;
+		$this->__collection = PropertyPath::get($this->__container, $property);
 	}
 
 }
