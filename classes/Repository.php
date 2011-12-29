@@ -806,8 +806,12 @@ class Repository extends Object {
 			$config->plural = Inflector::pluralize($config->name);
 		}
 		$this->configs[$config->name] = $config;
-		$this->plurals[$config->plural] = $config->name;
 		$this->created[$config->name] = array();
+		if (isset($this->plurals[$config->plural])) {
+			warning('Overwriting plural['.$config->plural.'] "'.$this->plurals[$config->plural].'" with "'.$config->name.'"');
+		}
+		$this->plurals[$config->plural] = $config->name;
+
 	}
 
 	/**
