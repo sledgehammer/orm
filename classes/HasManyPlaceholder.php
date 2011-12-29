@@ -102,9 +102,6 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 	 * Replace the placeholder and return the array.
 	 */
 	private function replacePlaceholder() {
-		if ($this->__collection !== null) {
-			return;
-		}
 		$parts = explode('/', $this->__reference);
 		$repositoryId = array_shift($parts);
 		$model = array_shift($parts);
