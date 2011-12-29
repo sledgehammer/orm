@@ -68,5 +68,30 @@ abstract class RepositoryBackend extends Object {
 	function delete($data, $config) {
 		throw new \Exception('Method: '.get_class($this).'->remove() not implemented');
 	}
+
+	/**
+	 * Rename a model and remap the relations to the new name.
+	 *
+	 * @param string $from  Current name
+	 * @param string $to    The new name
+	 */
+	function renameModel($from, $to) {
+		foreach ($this->configs as $config) {
+			if ($config->name === $from) {
+				$config->name = $to;
+				$config->plural = null;
+			}
+			foreach ($config->belongsTo as $key => $belongsTo) {
+				if ($belongsTo['model'] == $from) {
+					$config->belongsTo[$key]['model'] = $to;
+				}
+			}
+			foreach ($config->hasMany as $key => $hasMany) {
+				if ($hasMany['model'] == $from) {
+					$config->hasMany[$key]['model'] = $to;
+				}
+			}
+		}
+	}
 }
 ?>
