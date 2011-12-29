@@ -47,7 +47,7 @@ class RepositoryCollection extends Collection {
 	}
 
 	public function offsetSet($offset, $value) {
-		if ($this->isConverted == false) {
+		if ($this->isConverted === false) {
 			$repo = getRepository($this->repository);
 			foreach ($this->data as $key => $item) {
 				$this->data[$key] = $repo->convert($this->model, $item);

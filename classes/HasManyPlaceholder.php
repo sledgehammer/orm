@@ -38,32 +38,30 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 	// Array access
 	function offsetExists($offset) {
 		$this->replacePlaceholder();
-		$this->__collection->offsetExists($offset);
-
+		return $this->__collection->offsetExists($offset);
 	}
 
 	function offsetGet($offset) {
 		$this->replacePlaceholder();
-		$this->__collection->offsetGet($offset);
+		return $this->__collection->offsetGet($offset);
 	}
 
 	function offsetSet($offset, $value) {
 		$this->replacePlaceholder();
-		$this->__collection->offsetSet($offset, $value);
+		return $this->__collection->offsetSet($offset, $value);
 	}
 
 	function offsetUnset($offset) {
 		$this->replacePlaceholder();
-		$this->__collection->offsetUnset($offset);
+		return $this->__collection->offsetUnset($offset);
 	}
-
 
 	// Iterator
 	function rewind() {
 		if ($this->__collection === null) {
 			$this->replacePlaceholder();
 		}
-		$this->__collection->rewind();
+		return $this->__collection->rewind();
 	}
 
 	function valid() {

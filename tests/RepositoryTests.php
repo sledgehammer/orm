@@ -187,15 +187,13 @@ class RepositoryTests extends DatabaseTestCase {
 		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
 		$this->assertEqual(count($c2->orders), 2, 'Should only contain the order from customer 2');
 		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
-
 	}
 
 	function test_hasManyArrayAccessInterface() {
 		// Test array access
 		$c2 = $this->getDirtyCustomer(2);
 		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
-
-		$this->assertEqual($c2->orders[0]->product, 'Walter PPK 9mm', 'Get by array offset');
+		$this->assertEqual($c2->orders[0]->product, 'Walter PPK 9mm', 'Get by array offset 0');
 		$this->assertEqual($c2->orders[1]->product, 'Spycam', 'Get by array offset 1');
 		$this->assertEqual(count($c2->orders), 2, 'Should only contain the order from customer 2');
 		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
