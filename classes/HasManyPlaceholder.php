@@ -3,7 +3,7 @@
  * This Placeholder facilitates lazy loading of hasMany relations.
  * A HasManyPlaceholder object behaves like an Collection containing all related objects from the repository, but only retrieves the objects on-access or on-change.
  *
- * @package Record
+ * @package ORM
  */
 namespace SledgeHammer;
 

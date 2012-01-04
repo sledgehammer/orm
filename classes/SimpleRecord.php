@@ -3,7 +3,7 @@
  * An ActiveRecord with (generated) properties based on the ModelConfig->properties.
  * Adds the ActiveRecord interface to any Repository model, but disables support for property-autocompletion.
  *
- * @package Record
+ * @package ORM
  */
 namespace SledgeHammer;
 class SimpleRecord extends ActiveRecord {

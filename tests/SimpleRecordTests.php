@@ -2,7 +2,6 @@
 /**
  * Test de functionaliteit van de SimpleRecord en RepositorySQLBackend
  *
- * @package Record
  */
 namespace SledgeHammer;
 class SimpleRecordTests extends DatabaseTestCase {

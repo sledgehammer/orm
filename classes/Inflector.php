@@ -4,7 +4,7 @@
  *
  * Original code from php-activerecord @link http://www.phpactiverecord.org/ who copied it from RoR's ActiveRecord @link http://api.rubyonrails.org/classes/ActiveSupport/Inflector.html
  *
- * @package Record
+ * @package ORM
  */
 namespace SledgeHammer;
 

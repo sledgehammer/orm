@@ -2,7 +2,7 @@
 /**
  * Record functions
  *
- * @package Record
+ * @package ORM
  */
 namespace SledgeHammer;
 

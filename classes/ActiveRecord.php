@@ -2,7 +2,7 @@
 /**
  * An ActiveRecord frontend for the Repository
  *
- * @package Record
+ * @package ORM
  */
 namespace SledgeHammer;
 

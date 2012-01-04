@@ -2,7 +2,7 @@
 /**
  * The minimal interface for a (read-only) Repository Backend
  *
- * @package Record
+ * @package ORM
  */
 namespace SledgeHammer;
 abstract class RepositoryBackend extends Object {

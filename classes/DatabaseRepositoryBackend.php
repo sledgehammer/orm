@@ -3,7 +3,7 @@
  * Repository backend for database records
  * @todo Validate datatypes before retrieving or removing records, because '12a' will be sillently truncated by mysql to 12
  *
- * @package Record
+ * @package ORM
  */
 namespace SledgeHammer;
 

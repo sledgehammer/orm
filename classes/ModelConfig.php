@@ -2,7 +2,7 @@
 /**
  * Model configuration class, a formal definition of a Repository model.
  *
- * @package Record
+ * @package ORM
  */
 namespace SledgeHammer;
 class ModelConfig extends Object {

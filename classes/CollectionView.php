@@ -2,7 +2,7 @@
 /**
  * Extract the key/value of the collection based on a propertypath.
  *
- * @package Record
+ * @package ORM
  */
 
 namespace SledgeHammer;

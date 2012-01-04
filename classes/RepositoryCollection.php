@@ -4,7 +4,7 @@
  *
  * Will contain the raw \Traversable|array from the backend and will convert the data
  *
- * @package Record
+ * @package ORM
  */
 namespace SledgeHammer;
 

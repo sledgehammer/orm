@@ -3,7 +3,7 @@
  * This Placeholder facilitates lazy loading of belongsTo relations.
  * A BelongsToPlaceholder object behaves like the object from the repository, but only retrieves the real object on-access or on-change.
  *
- * @package Record
+ * @package ORM
  */
 namespace SledgeHammer;
 

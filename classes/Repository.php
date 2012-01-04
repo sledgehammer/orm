@@ -5,7 +5,7 @@
  * An API to retrieve and store models from their backends and track their changes.
  * A model is a view on top of the data the backend provides.
  *
- * @package Record
+ * @package ORM
  */
 namespace SledgeHammer;
 
@@ -944,7 +944,7 @@ class Repository extends Object {
 		$php .= "/**\n";
 		$php .= " * ".$class." a generated AutoCompleteHelper\n";
 		$php .= " *\n";
-		$php .= " * @package Record\n";
+		$php .= " * @package ORM\n";
 		$php .= " */\n";
 		if ($namespace !== null) {
 			$php .= 'namespace '.$namespace.";\n";
