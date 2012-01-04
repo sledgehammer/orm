@@ -264,8 +264,27 @@ class Repository extends Object {
 		} else {
 			$data = $object['data'];
 		}
+		$instance = false;
+		if (isset($object['instance'])) {
+			$instance = $object['instance'];
+		}
+		$this->objects[$model][$index]['state'] = 'deleting';
+		if ($instance && $instance instanceof Observable && $instance->hasEvent('deleting')) {
+			$instance->trigger('deleting', $this);
+		}
 		$this->_getBackend($config->backend)->delete($data, $config->backendConfig);
-		$this->objects[$model][$index]['state'] = 'deleted';
+		if ($instance) {
+			if ($instance instanceof Observable && $instance->hasEvent('deleted')) {
+				$instance->trigger('deleted', $this);
+			}
+			// Remove all public properties (making the object unusable)
+			$instance = $object['instance'];
+			$properties = array_keys(get_object_vars($instance));
+			foreach ($properties as $property) {
+				unset($instance->$property);
+			}
+		}
+		unset($this->objects[$model][$index]); // Remove the object from the repository
 	}
 
 	/**
@@ -282,9 +301,8 @@ class Repository extends Object {
 		$class = $config->class;
 		$instance = new $class;
 		// Apply initial values
-		foreach ($values as $property => $value) {
-			// @todo Support complex mapping
-			$instance->$property = $value;
+		foreach ($values as $path => $value) {
+			PropertyPath::set($instance, $path, $value);
 		}
 		$this->objects[$model][$index] = array(
 			'state' => 'new',
@@ -292,6 +310,12 @@ class Repository extends Object {
 			'data' => null,
 		);
 		$this->created[$model][$index] = $instance;
+		if ($instance instanceof Observable && $instance->hasEvent('create')) {
+			$instance->trigger('create', $this, array(
+				'repository' => $this->id,
+				'model' => $config->name,
+			));
+		}
 		return $instance;
 	}
 
@@ -348,8 +372,8 @@ class Repository extends Object {
 				throw new \Exception('The instance is not bound to this Repository');
 			}
 			$this->objects[$model][$index]['state'] = 'saving';
-			if ($instance instanceof Observable && $instance->hasEvent('save')) {
-				$instance->trigger('save', $this);
+			if ($instance instanceof Observable && $instance->hasEvent('saving')) {
+				$instance->trigger('saving', $this);
 			}
 
 			// Save belongsTo
@@ -446,8 +470,8 @@ class Repository extends Object {
 				}
 			}
 			$this->objects[$model][$index]['state'] = 'saved';
-			if ($instance instanceof Observable && $instance->hasEvent('saveComplete')) {
-				$instance->trigger('saveComplete', $this);
+			if ($instance instanceof Observable && $instance->hasEvent('saved')) {
+				$instance->trigger('saved', $this);
 			}
 		} catch (\Exception $e) {
 			$this->objects[$model][$index]['state'] = $previousState; // @todo Or is an error state more appropriate?
@@ -730,7 +754,7 @@ class Repository extends Object {
 				$instance->$property = new HasManyPlaceholder($this->id.'/'.$config->name.'/'.$property, $instance);
 			}
 		}
-		if ($instance instanceof Observable && $instance->hasEvent('save')) {
+		if ($instance instanceof Observable && $instance->hasEvent('load')) {
 			$instance->trigger('load', $this, array(
 				'repository' => $this->id,
 				'model' => $config->name,

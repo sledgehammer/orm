@@ -1,7 +1,7 @@
 <?php
 /**
  * An ActiveRecord with (generated) properties based on the ModelConfig->properties.
- * Add the ActiveRecord interface to any Repository model, but will lose AutoCompletion support for propertynames.
+ * Adds the ActiveRecord interface to any Repository model, but disables support for property-autocompletion.
  *
  * @package Record
  */

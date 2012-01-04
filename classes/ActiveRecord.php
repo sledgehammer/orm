@@ -12,9 +12,12 @@ abstract class ActiveRecord extends Observable {
 	protected $_state = 'unconstructed';
 	protected $_repository;
 	protected $events = array(
-		'load' => array(),
-		'save' => array(),
-		'saveComplete' => array(),
+		'create' => array(), // When a new instance is created (with initial data), but commited to the backend.
+		'load' => array(), // After the data from the backend is injected into the ActiveRecord.
+		'saving' => array(), // Before the data is sent to the backend
+		'saved' => array(), // After the data is sent to the backend
+		'deleting' => array(), // Before the delete operation is sent to the backend
+		'deleted' => array(), // When the Record is deleted
 	);
 
 	function __construct() {
@@ -45,9 +48,6 @@ abstract class ActiveRecord extends Observable {
 		if (get_class($instance) != get_called_class()) {
 			throw new \Exception('Model "'.$model.'"('.get_class($instance).') isn\'t configured as "'.get_called_class());
 		}
-		$instance->_model = $model;
-		$instance->_repository = $repositoryId;
-		$instance->_state = 'new';
 		return $instance;
 	}
 
@@ -55,7 +55,7 @@ abstract class ActiveRecord extends Observable {
 	 *
 	 * @param type $conditions
 	 * @param array $options
-	 * @return ActiveRecord	
+	 * @return ActiveRecord
 	 */
 	static function find($conditions, $options = array()) {
 		$model = static::_getModel($options);
@@ -98,16 +98,7 @@ abstract class ActiveRecord extends Observable {
 
 	function delete() {
 		$repo = getRepository($this->_repository);
-		$retval = $repo->delete($this->_model, $this);
-		// unset properties
-		$propertyWhitelist = array_keys(get_class_vars(__CLASS__));
-		foreach (get_object_vars($this) as $property => $value) {
-			if (in_array($property, $propertyWhitelist) == false) {
-				unset($this->$property);
-			}
-		}
-		$this->_state = 'deleted';
-		return $retval;
+		return $repo->delete($this->_model, $this);
 	}
 
 	/**
@@ -152,6 +143,16 @@ abstract class ActiveRecord extends Observable {
 		}
 	}
 
+	protected function onCreate($sender, $options) {
+		if (isset($options['repository'])) {
+			$this->_repository = $options['repository'];
+		}
+		if (isset($options['model'])) {
+			$this->_model = $options['model'];
+		}
+		$this->_state = 'new';
+	}
+
 	protected function onLoad($sender, $options) {
 		if (isset($options['repository'])) {
 			$this->_repository = $options['repository'];
@@ -160,6 +161,9 @@ abstract class ActiveRecord extends Observable {
 			$this->_model = $options['model'];
 		}
 		$this->_state = 'loaded';
+	}
+	protected function onDeleted() {
+		$this->_state = 'deleted';
 	}
 
 	/**

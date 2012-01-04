@@ -11,7 +11,7 @@ class DatabaseCollectionTests extends DatabaseTestCase {
 	function fillDatabase($db) {
 		$db->import(dirname(__FILE__).'/rebuild_test_database.'.$db->getAttribute(\PDO::ATTR_DRIVER_NAME).'.sql', $error);
 		$repo = new Repository();
-		$backend = new RepositoryDatabaseBackend(array($this->dbLink));
+		$backend = new DatabaseRepositoryBackend(array($this->dbLink));
 		foreach ($backend->configs as $config) {
 			$config->class = 'SledgeHammer\SimpleRecord';
 		}

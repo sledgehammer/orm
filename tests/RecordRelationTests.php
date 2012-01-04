@@ -12,7 +12,7 @@ class RecordRelationTests extends DatabaseTestCase {
 	function fillDatabase($db) {
 		$db->import(dirname(__FILE__).'/rebuild_test_database.'.$db->getAttribute(\PDO::ATTR_DRIVER_NAME).'.sql', $error);
 		$repo = new Repository();
-		$backend = new RepositoryDatabaseBackend(array($this->dbLink));
+		$backend = new DatabaseRepositoryBackend(array($this->dbLink));
 		$customer = $backend->configs['Customer'];
 //		$customer->hasMany['products'] = $customer->hasMany['orders'];
 //		$customer->hasMany['products']['filters'] = array('CollectionView' => array('valueField' => 'product', 'keyField' => 'id'));

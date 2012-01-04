@@ -7,7 +7,7 @@
  */
 namespace SledgeHammer;
 
-class RepositoryDatabaseBackend extends RepositoryBackend {
+class DatabaseRepositoryBackend extends RepositoryBackend {
 
 	public $identifier = 'db';
 
