@@ -12,7 +12,7 @@ Features
 * Detect relations from the database
 * A ActiveRecord frontend
 * Linq style filtering support
-* Support for complex property mapping. A column "city" can be mapped to property "address->city" 
+* Support for complex property mapping. A column "city" can be mapped to property "address->city"
 * 1 database record maps to only 1 instance.
 * Support for multiple backends: PDO (MySQL, SQLite), Webservices (Twitter, etc)
 * Clean queries. (No "1 = 1" where statements, etc)
@@ -23,9 +23,9 @@ Usage
 ```php
 // inside the application/init.php
 $repo = getRepository();
-$repo->registerBackend(new RepositoryDatabaseBackend("default")); // Extract model from the "default" database connection. 
+$repo->registerBackend(new DatabaseRepositoryBackend("default")); // Extract model from the "default" database connection.
 
-// Somewhere in your application 
+// Somewhere in your application
 $repo = getRepository();
 $customer = $repo->getCustomer($_GET['id]);
 $customer->name = $_POST['name'];
