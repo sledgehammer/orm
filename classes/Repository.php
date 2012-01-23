@@ -118,6 +118,9 @@ class Repository extends Object {
 		);
 		try {
 			$data = $this->_getBackend($config->backend)->get($id, $config->backendConfig);
+			if (!is_array($data) && !is_object($data)) {
+				throw new InfoException('Invalid response from backend: "'.$config->backend.'"', array('Response' => $data));
+			}
 		} catch (\Exception $e) {
 			unset($this->objects[$model][$index]);
 			throw $e;
@@ -883,6 +886,10 @@ class Repository extends Object {
 			if (count($from) == 1 && $key !== false) {
 				if (isset($from[$key])) {
 					return $this->resolveIndex($from[$key]);
+				}
+				$index = PropertyPath::get($from, $key);
+				if ($index !== null) {
+					return '{'.$index.'}';
 				}
 				throw new \Exception('Failed to resolve index, missing key: "'.$key.'"');
 			}
