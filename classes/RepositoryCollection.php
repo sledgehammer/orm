@@ -48,11 +48,7 @@ class RepositoryCollection extends Collection {
 
 	public function offsetSet($offset, $value) {
 		if ($this->isConverted === false) {
-			$repo = getRepository($this->repository);
-			foreach ($this->data as $key => $item) {
-				$this->data[$key] = $repo->convert($this->model, $item);
-			}
-			$this->isConverted = true;
+			$this->data = $this->convertAllItems();
 		}
 		parent::offsetSet($offset, $value);
 	}
@@ -81,14 +77,9 @@ class RepositoryCollection extends Collection {
 	}
 
 	public function toArray() {
-		if ($this->isConverted) {
-			return $this->data;
+		if ($this->isConverted === false) {
+			$this->data = $this->convertAllItems();
 		}
-		$repo = getRepository($this->repository);
-		foreach ($this->data as $key => $item) {
-			$this->data[$key] = $repo->convert($this->model, $item);
-		}
-		$this->isConverted = true;
 		return $this->data;
 	}
 
@@ -105,6 +96,15 @@ class RepositoryCollection extends Collection {
 		return $repo->convert($this->model, $item);
 	}
 
+	private function convertAllItems() {
+		$repo = getRepository($this->repository);
+		$data = array();
+		foreach ($this->data as $key => $item) {
+			$data[$key] = $repo->convert($this->model, $item);
+		}
+		$this->isConverted = true;
+		return $data;
+	}
 }
 
 ?>
