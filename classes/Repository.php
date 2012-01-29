@@ -513,7 +513,9 @@ class Repository extends Object {
 			}
 			foreach ($config->belongsTo as $property => $belongsTo) {
 				$validationError = false;
-
+				if (is_array($belongsTo) === false) {
+					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] should be an array';
+				}
 				if (empty($belongsTo['model'])) {
 					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set';
 				} elseif (empty($belongsTo['reference']) && empty($belongsTo['convert'])) {
