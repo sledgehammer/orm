@@ -39,21 +39,21 @@ class RepositoryCollection extends Collection {
 		return $this->convertItem(parent::current());
 	}
 
-	public function offsetGet($offset) {
+	function offsetGet($offset) {
 		if ($this->isConverted) {
 			return parent::offsetGet($offset);
 		}
 		return $this->convertItem(parent::offsetGet($offset));
 	}
 
-	public function offsetSet($offset, $value) {
+	function offsetSet($offset, $value) {
 		if ($this->isConverted === false) {
 			$this->data = $this->convertAllItems();
 		}
 		parent::offsetSet($offset, $value);
 	}
 
-	public function where($conditions) {
+	function where($conditions) {
 		if ($this->isConverted) {
 			return parent::where($conditions);
 		}
@@ -76,11 +76,18 @@ class RepositoryCollection extends Collection {
 		return parent::where($conditions);
 	}
 
-	public function toArray() {
+	function toArray() {
 		if ($this->isConverted === false) {
 			$this->data = $this->convertAllItems();
 		}
 		return $this->data;
+	}
+
+	function setQuery($query) {
+		if ($this->data instanceof Collection) {
+			$this->data->setQuery($query);
+		}
+		throw new \Exception('The setQuery() method failed');
 	}
 
 	/**
