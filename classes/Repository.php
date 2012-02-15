@@ -66,10 +66,20 @@ class Repository extends Object {
 	 * @return mixed
 	 */
 	function __call($method, $arguments) {
-		if (preg_match('/^(get|all|save|create|delete)(.+)$/', $method, $matches)) {
+		if (preg_match('/^(get|all|save|create|delete|reload|reloadAll)(.+)$/', $method, $matches)) {
 			$method = $matches[1];
 			array_unshift($arguments, $matches[2]);
-			if ($method == 'all') {
+			$usePlural = ($method === 'all');
+			if ($method === 'reload') {
+				if (count($arguments) == 1) {
+					$usePlural = true;
+					$arguments[] = null;
+					$arguments[] = array('all' => true);
+				} else {
+					// @todo Detect plural notation
+				}
+			}
+			if ($usePlural) {
 				if (empty($this->plurals[$arguments[0]])) {
 					if (isset($this->configs[$arguments[0]])) {
 						warning('Use plural form "'.array_search($arguments[0], $this->plurals).'"');
@@ -288,6 +298,54 @@ class Repository extends Object {
 			}
 		}
 		unset($this->objects[$model][$index]); // Remove the object from the repository
+	}
+
+	/**
+	 * Reload an instance from the connected backend.
+	 * Discards any unsaved changes
+	 *
+	 * @param string $model
+	 * @param instance|id $mixed  (optional) The instance or id
+	 * @param array $options array(
+	 *   'all' => (optional) bool reload all instances from this model
+	 * )
+	 */
+	function reload($model, $mixed = null, $options = array()) {
+		$config = $this->_getConfig($model);
+		if (array_value($options, 'all')) {
+			if($mixed !== null) {
+				throw new \Exception('Can\'t use options[all] in combination with an id/instance');
+			}
+			unset($options['all']);
+			foreach ($this->objects[$model] as $object) {
+				$this->reload($model, $object['instance'], $options);
+			}
+			return;
+		}
+
+		$index = $this->resolveIndex($mixed, $config);
+		$object = @$this->objects[$model][$index];
+		if ($object === null) {
+			if (is_object($mixed)) {
+				throw new \Exception('The instance is not bound to this Repository');
+			}
+		} elseif ($object['state'] == 'new') { // The instance issn't stored in the backend and only exists in-memory?
+			throw new \Exception('Reloading instance failed, the instance issn\'t stored in the backend');
+		}
+		if (is_object($mixed)) {
+			$id = array();
+			foreach ($config->id as $key) {
+				$id[$key] = $object['data'][$key];
+			}
+		} elseif (is_array($mixed)) {
+			$id = $mixed;
+		} else {
+			$id = array($config->id[0] => $mixed);
+		}
+		$data = $this->_getBackend($config->backend)->get($id, $config->backendConfig);
+		$this->objects[$model][$index]['data'] = $data;
+		$this->objects[$model][$index]['state'] = 'retrieved';
+		return $this->convertToInstance($data, $config, $index, true);
 	}
 
 	/**
@@ -712,13 +770,22 @@ class Repository extends Object {
 	 * @param string|null $index
 	 * @return Object
 	 */
-	protected function convertToInstance($data, $config, $index = null) {
-		$class = $config->class;
-		$instance = new $class;
+	protected function convertToInstance($data, $config, $index = null, $reload = false) {
 		if ($index === null) {
 			$index = $this->resolveIndex($data, $config);
 		} elseif (empty($this->objects[$config->name][$index])) {
-			throw new \Exception('Invalid index: "'.$index.'"');
+			throw new \Exception('Invalid index: "'.$index.'" for '.$config->name);
+		}
+		if ($reload) {
+			$instance = $this->objects[$config->name][$index]['instance'];
+			if ($instance === null) {
+				throw new \Exception('No instance loaded');
+			}
+		} elseif ($this->objects[$config->name][$index]['instance'] !== null) {
+			throw new \Exception('Instance already loaded, use reload parameter to reload');
+		} else { // new instance
+			$class = $config->class;
+			$instance = new $class;
 		}
 		// Map the data onto the instance
 		foreach ($config->properties as  $sourcePath => $targetPath) {
@@ -1014,6 +1081,25 @@ class Repository extends Object {
 			$php .= "\tfunction delete".$model.'('.$instanceVar.') {'."\n";
 			$php .= "\t\treturn \$this->delete('".$model."', ".$instanceVar.");\n";
 			$php .= "\t}\n";
+
+			$php .= "\t/**\n";
+			$php .= "\t * Reload the ".$model."\n";
+			$php .= "\t *\n";
+			$php .= "\t * @param ".$config->class.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
+			$php .= "\t * @param array \$options  Additional options \n";
+			$php .= "\t */\n";
+			$php .= "\tfunction reload".$model.'('.$instanceVar.', $options = array()) {'."\n";
+			$php .= "\t\treturn \$this->reload('".$model."', ".$instanceVar.");\n";
+			$php .= "\t}\n";
+
+			if ($config->plural !== $config->name) {
+				$php .= "\t/**\n";
+				$php .= "\t * Reload all ".$config->plural."\n";
+				$php .= "\t */\n";
+				$php .= "\tfunction reload".$config->plural.'() {'."\n";
+				$php .= "\t\treturn \$this->reload('".$model."', null, array('all' => true));\n";
+				$php .= "\t}\n";
+			}
 		}
 		$php .= "}";
 		return file_put_contents($filename, $php);

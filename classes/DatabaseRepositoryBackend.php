@@ -95,7 +95,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 					$config->belongsTo[$property] = array(
 						'reference' => $column, // foreignKey
 						'model' => $this->modelize($foreignKey['table'], $tablePrefix),
-						'id' => $foreignKey['column'], // primairy key
+						'id' => $foreignKey['column'], // primary key
 					);
 					$config->defaults[$property] = null;
 				}
@@ -152,12 +152,12 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		$db = getDatabase($config['dbLink']);
 		if (is_array($id)) {
 			if (count($config['primaryKeys']) != count($id)) {
-				throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primairyKeys']).'"');
+				throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primaryKeys']).'"');
 			}
 		} elseif (count($config['primaryKeys']) == 1) {
 			$id = array($config['primaryKeys'][0] => $id); // convert $id to array notation
 		} else {
-			throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primairyKeys']).'"');
+			throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primaryKeys']).'"');
 		}
 		$data = $db->fetchRow('SELECT * FROM '.$db->quoteIdentifier($config['table']).' WHERE '.$this->generateWhere($id, $config));
 		if ($data === false) {
