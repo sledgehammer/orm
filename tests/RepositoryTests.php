@@ -295,17 +295,28 @@ class RepositoryTests extends DatabaseTestCase {
 		$repo = new RepositoryTester();
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 
+		// test reloadModal
 		$c1 = $repo->getCustomer(1);
-		$oldName = $c1->name;
 		$c1->name = "Arnold Schwarzenegger";
-		$repo->reloadCustomer(1);
+		try {
+			$repo->reloadCustomer(1);
+			$this->fail('When reloading a changed instance, an exception should be thrown');
+		} catch (\Exception $e) {
+			$this->pass('When reloading a changed instance, an exception should be thrown');
+		}
+		$repo->reloadCustomer(1, array('discard_changes' => true));
 		$this->assertEqual($c1->name, 'Bob Fanger');
+		// test reloadPlural
 		$c1->name = "Arnold Schwarzenegger";
 		$c2 = $repo->getCustomer(2);
 		$c2->name = "John Connor";
-		restore_error_handler();
-
-		$repo->reloadCustomers();
+		try {
+			$repo->reloadCustomers();
+			$this->fail('When reloading a changed instance, an exception should be thrown');
+		} catch (\Exception $e) {
+			$this->pass('When reloading a changed instance, an exception should be thrown');
+		}
+		$repo->reloadCustomers(array('discard_changes' => true));
 		$this->assertEqual($c1->name, 'Bob Fanger');
 		$this->assertEqual($c2->name, 'James Bond');
 	}

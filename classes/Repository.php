@@ -66,7 +66,7 @@ class Repository extends Object {
 	 * @return mixed
 	 */
 	function __call($method, $arguments) {
-		if (preg_match('/^(get|all|save|create|delete|reload|reloadAll)(.+)$/', $method, $matches)) {
+		if (preg_match('/^(get|all|save|create|delete|reload)(.+)$/', $method, $matches)) {
 			$method = $matches[1];
 			array_unshift($arguments, $matches[2]);
 			$usePlural = ($method === 'all');
@@ -75,8 +75,12 @@ class Repository extends Object {
 					$usePlural = true;
 					$arguments[] = null;
 					$arguments[] = array('all' => true);
-				} else {
-					// @todo Detect plural notation
+				} elseif (count($arguments) == 2 && is_array($arguments[1]) && isset($this->plurals[$arguments[0]]) && $this->plurals[$arguments[0]] != $matches[2]) {
+					// reloadPlural($options)
+					$arguments[0] = $this->plurals[$arguments[0]];
+					$arguments[2] = $arguments[1];
+					$arguments[1] = null;
+					$arguments[2]['all'] = true;
 				}
 			}
 			if ($usePlural) {
@@ -307,7 +311,8 @@ class Repository extends Object {
 	 * @param string $model
 	 * @param instance|id $mixed  (optional) The instance or id
 	 * @param array $options array(
-	 *   'all' => (optional) bool reload all instances from this model
+	 *   'all' => (optional) bool reload all instances from this model (default: false)
+	 *   'discard_changes' => (optional) Reload the instance, even when it has pending changes.
 	 * )
 	 */
 	function reload($model, $mixed = null, $options = array()) {
@@ -341,6 +346,17 @@ class Repository extends Object {
 			$id = $mixed;
 		} else {
 			$id = array($config->id[0] => $mixed);
+		}
+		if (array_value($options, 'discard_changes') !== true) {
+			// Check changes
+			$data = $this->convertToData($this->objects[$model][$index]['instance'], $config);
+			if ($data !== $this->objects[$model][$index]['data']) {
+				throw new InfoException('Reloading failed, instance has pending changes', array(
+					'changed in instance' => array_diff($data, $this->objects[$model][$index]['data']),
+					'backend values' => array_diff($this->objects[$model][$index]['data'], $data),
+
+				));
+			}
 		}
 		$data = $this->_getBackend($config->backend)->get($id, $config->backendConfig);
 		$this->objects[$model][$index]['data'] = $data;
@@ -1095,6 +1111,8 @@ class Repository extends Object {
 			if ($config->plural !== $config->name) {
 				$php .= "\t/**\n";
 				$php .= "\t * Reload all ".$config->plural."\n";
+				$php .= "\t *\n";
+				$php .= "\t * @param array \$options  Additional options \n";
 				$php .= "\t */\n";
 				$php .= "\tfunction reload".$config->plural.'() {'."\n";
 				$php .= "\t\treturn \$this->reload('".$model."', null, array('all' => true));\n";
