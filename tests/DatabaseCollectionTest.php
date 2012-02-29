@@ -3,7 +3,7 @@
  * Breidt de UnitTestCase class uit met assert functies voor het controleren van queries en tabellen.
  */
 namespace SledgeHammer;
-class DatabaseCollectionTests extends DatabaseTestCase {
+class DatabaseCollectionTest extends DatabaseTestCase {
 
 	protected $skipRebuildDatabase = true;
 
@@ -20,23 +20,23 @@ class DatabaseCollectionTests extends DatabaseTestCase {
 
 	function test_collection() {
 		$collection = $this->getCustomerCollection();
-		$this->assertEqual(2, count($collection));
+		$this->assertEquals(2, count($collection));
 		$this->assertLastQuery("SELECT * FROM customers");
 	}
 
 	function test_escaped_where() {
 		$collection = $this->getCustomerCollection();
 		$emptyCollection = $collection->where(array('name' => "'")); //
-		$this->assertEqual($emptyCollection->count(), 0);
+		$this->assertEquals($emptyCollection->count(), 0);
 		$this->assertLastQuery("SELECT * FROM customers WHERE name = ''''");
-		$this->assertEqual($collection->sql->__toString(), "SELECT * FROM customers", 'Collection->where() does not	modify the orginal collection');
+		$this->assertEquals($collection->sql->__toString(), "SELECT * FROM customers", 'Collection->where() does not	modify the orginal collection');
 	}
 
 	function test_unescaped_where() {
 		restore_error_handler();
 		$collection = $this->getCustomerCollection();
 		$collection->sql = $collection->sql->andWhere("name LIKE 'B%'"); // Direct modification of the $collection
-		$this->assertEqual($collection->count(), 1);
+		$this->assertEquals($collection->count(), 1);
 		$this->assertLastQuery("SELECT * FROM customers WHERE name LIKE 'B%'");
 	}
 

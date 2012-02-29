@@ -4,7 +4,7 @@
  */
 namespace SledgeHammer;
 
-class RepositoryTests extends DatabaseTestCase {
+class RepositoryTest extends DatabaseTestCase {
 
 	private $applicationRepositories;
 
@@ -60,10 +60,10 @@ class RepositoryTests extends DatabaseTestCase {
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 
 		$customer1 = $repo->getCustomer(1);
-		$this->assertEqual($customer1->name, "Bob Fanger");
-		$this->assertEqual($customer1->occupation, "Software ontwikkelaar");
+		$this->assertEquals($customer1->name, "Bob Fanger");
+		$this->assertEquals($customer1->occupation, "Software ontwikkelaar");
 		$order1 = $repo->getOrder(1);
-		$this->assertEqual($order1->product, 'Kop koffie');
+		$this->assertEquals($order1->product, 'Kop koffie');
 
 		$driver = $this->getDatabase()->getAttribute(\PDO::ATTR_DRIVER_NAME);
 
@@ -72,7 +72,7 @@ class RepositoryTests extends DatabaseTestCase {
 			$this->expectError('Row not found');
 			$repo->getCustomer('-1');
 		} catch (\Exception $e) {
-			$this->assertEqual($e->getMessage(), 'Failed to retrieve "id = \'-1\'" from "customers"');
+			$this->assertEquals($e->getMessage(), 'Failed to retrieve "id = \'-1\'" from "customers"');
 		}
 		// id truncation
 		try {
@@ -87,9 +87,9 @@ class RepositoryTests extends DatabaseTestCase {
 			}
 		} catch (\Exception $e) {
 			if ($driver === 'mysql') {
-				$this->assertEqual($e->getMessage(), 'The $id parameter doesn\'t match the retrieved data. {1s} != {1}');
+				$this->assertEquals($e->getMessage(), 'The $id parameter doesn\'t match the retrieved data. {1s} != {1}');
 			} else {
-				$this->assertEqual($e->getMessage(), 'Failed to retrieve "id = \'1s\'" from "customers"');
+				$this->assertEquals($e->getMessage(), 'Failed to retrieve "id = \'1s\'" from "customers"');
 			}
 		}
 	}
@@ -101,7 +101,7 @@ class RepositoryTests extends DatabaseTestCase {
 			$repo->getCustomer(1);
 			$this->fail('An Exception should be thrown');
 		} catch (\Exception $e) {
-			$this->assertEqual($e->getMessage(), 'Unknown model: "Customer"', 'Repository should be empty');
+			$this->assertEquals($e->getMessage(), 'Unknown model: "Customer"', 'Repository should be empty');
 		}
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 		$this->assertTrue($repo->isConfigured('Customer'), 'Sanity check');
@@ -122,25 +122,25 @@ class RepositoryTests extends DatabaseTestCase {
 		$clone = clone $order2;
 		$this->assertLastQuery('SELECT * FROM orders WHERE id = 2');
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'A get*() should execute max 1 query');
-		$this->assertEqual($order2->product, 'Walter PPK 9mm');
-		$this->assertEqual(get_class($order2->customer), 'SledgeHammer\BelongsToPlaceholder', 'The customer property should be an placeholder');
-		$this->assertEqual($order2->customer->id, "2");
-		$this->assertEqual(get_class($order2->customer), 'SledgeHammer\BelongsToPlaceholder', 'The placeholder should handle the "id" property');
+		$this->assertEquals($order2->product, 'Walter PPK 9mm');
+		$this->assertEquals(get_class($order2->customer), 'SledgeHammer\BelongsToPlaceholder', 'The customer property should be an placeholder');
+		$this->assertEquals($order2->customer->id, "2");
+		$this->assertEquals(get_class($order2->customer), 'SledgeHammer\BelongsToPlaceholder', 'The placeholder should handle the "id" property');
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
-		$this->assertEqual($order2->customer->name, "James Bond", 'Lazy-load the correct data');
+		$this->assertEquals($order2->customer->name, "James Bond", 'Lazy-load the correct data');
 		$this->assertLastQuery('SELECT * FROM customers WHERE id = 2');
 		$this->assertFalse($order2->customer instanceof BelongsToPlaceholder, 'The placeholder should be replaced with a real object');
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
 		$order3 = $repo->getOrder(3);
 		$this->assertFalse($order3->customer instanceof BelongsToPlaceholder, 'A loaded instance should be injected directly into the container object');
-		$this->assertEqual($order3->customer->name, "James Bond", 'Lazy-load the correct data');
+		$this->assertEquals($order3->customer->name, "James Bond", 'Lazy-load the correct data');
 		$this->assertLastQuery('SELECT * FROM orders WHERE id = 3');
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 3, 'No customer queries'); //
 
 		$this->expectError('This placeholder belongs to an other (cloned?) container');
-		$this->assertEqual($clone->customer->name, 'James Bond');
+		$this->assertEquals($clone->customer->name, 'James Bond');
 		//	$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
 	}
 
@@ -150,10 +150,10 @@ class RepositoryTests extends DatabaseTestCase {
 
 		$customers = $repo->allCustomers();
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase, 'Delay queries until collections access');
-		$this->assertEqual(count($customers), 2, 'Collection should contain all customers');
+		$this->assertEquals(count($customers), 2, 'Collection should contain all customers');
 		$customerArray = iterator_to_array($customers);
-		$this->assertEqual($customerArray[0]->name, 'Bob Fanger');
-		$this->assertEqual($customerArray[1]->name, 'James Bond');
+		$this->assertEquals($customerArray[0]->name, 'Bob Fanger');
+		$this->assertEquals($customerArray[1]->name, 'James Bond');
 
 		$counter = 0;
 		foreach ($customers as $customer) {
@@ -162,7 +162,7 @@ class RepositoryTests extends DatabaseTestCase {
 		foreach ($customers as $customer) {
 			$counter++;
 		}
-		$this->assertEqual($counter, (2 * 2), '$collection->rewind() works as expected');
+		$this->assertEquals($counter, (2 * 2), '$collection->rewind() works as expected');
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Use only 1 query for multiple loops on all customers');
 		$this->assertLastQuery('SELECT * FROM customers');
 	}
@@ -175,17 +175,17 @@ class RepositoryTests extends DatabaseTestCase {
 		$c1 = $repo->getCustomer(1);
 		$this->assertTrue((gettype($c1->orders) == 'object' && get_class($c1->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
 		foreach ($c1->orders as $order) {
-			$this->assertEqual($order->product, 'Kop koffie', 'Only 1 order expected');
+			$this->assertEquals($order->product, 'Kop koffie', 'Only 1 order expected');
 		}
 		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = 1');
 		$this->assertIsA($c1->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
-		$this->assertEqual($c1->orders[0]->product, 'Kop koffie', 'Contents should match the order from customer 1');
-		$this->assertEqual(count($c1->orders), 1, 'Should only contain the order from customer 1');
+		$this->assertEquals($c1->orders[0]->product, 'Kop koffie', 'Contents should match the order from customer 1');
+		$this->assertEquals(count($c1->orders), 1, 'Should only contain the order from customer 1');
 
 		// Test count
 		$c2 = $repo->getCustomer(2);
 		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
-		$this->assertEqual(count($c2->orders), 2, 'Should only contain the order from customer 2');
+		$this->assertEquals(count($c2->orders), 2, 'Should only contain the order from customer 2');
 		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
 	}
 
@@ -193,9 +193,9 @@ class RepositoryTests extends DatabaseTestCase {
 		// Test array access
 		$c2 = $this->getDirtyCustomer(2);
 		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
-		$this->assertEqual($c2->orders[0]->product, 'Walter PPK 9mm', 'Get by array offset 0');
-		$this->assertEqual($c2->orders[1]->product, 'Spycam', 'Get by array offset 1');
-		$this->assertEqual(count($c2->orders), 2, 'Should only contain the order from customer 2');
+		$this->assertEquals($c2->orders[0]->product, 'Walter PPK 9mm', 'Get by array offset 0');
+		$this->assertEquals($c2->orders[1]->product, 'Spycam', 'Get by array offset 1');
+		$this->assertEquals(count($c2->orders), 2, 'Should only contain the order from customer 2');
 		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
 
 
@@ -210,18 +210,18 @@ class RepositoryTests extends DatabaseTestCase {
 
 		$c2 = $this->getDirtyCustomer(2);
 		$c2->orders[0] = 'test';
-		$this->assertEqual($c2->orders[0], 'test', 'Set by array offset');
+		$this->assertEquals($c2->orders[0], 'test', 'Set by array offset');
 		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
 
 
 		$c2 = $this->getDirtyCustomer(2);
 		$clone = clone $c2;
 		unset($c2->orders[0]);
-		$this->assertEqual(count($c2->orders), 1, 'Unset by array offset');
+		$this->assertEquals(count($c2->orders), 1, 'Unset by array offset');
 		$this->assertIsA($c2->orders, 'SledgeHammer\Collection', 'The orders property should be replaced with an Collection');
 
 		$this->expectError('This placeholder belongs to an other (cloned?) container');
-		$this->assertEqual($clone->orders[1]->product, 'Spycam');
+		$this->assertEquals($clone->orders[1]->product, 'Spycam');
 		//	$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
 	}
 
@@ -271,7 +271,7 @@ class RepositoryTests extends DatabaseTestCase {
 			$repo->saveOrder($order2);
 			$this->fail('Dangerous change should throw an Exception');
 		} catch (\Exception $e) {
-			$this->assertEqual($e->getMessage(), 'Change rejected, the index changed from {2} to {1}');
+			$this->assertEquals($e->getMessage(), 'Change rejected, the index changed from {2} to {1}');
 			// @todo check if the message indicated the id-change
 		}
 		$repo->validate();
@@ -280,7 +280,7 @@ class RepositoryTests extends DatabaseTestCase {
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 4, 'Saving an unmodified instance shouldn\'t generate a query');
 
 		$c2 = $repo->getCustomer(2);
-		$this->assertEqual($c2->orders[0]->product, 'Walter PPK 9mm', 'Sanity check');
+		$this->assertEquals($c2->orders[0]->product, 'Walter PPK 9mm', 'Sanity check');
 		$c2->orders[0]->product = 'Walther PPK'; // correct spelling
 		$c2->orders[] = $repo->createOrder(array('product' => 'Scuba gear'));
 		unset($c2->orders[1]);
@@ -288,7 +288,7 @@ class RepositoryTests extends DatabaseTestCase {
 		$this->assertQuery("UPDATE orders SET product = 'Walther PPK' WHERE id = 2");
 		$this->assertQuery("INSERT INTO orders (customer_id, product) VALUES (2, 'Scuba gear')");
 		$this->assertQuery('DELETE FROM orders WHERE id = 3');
-		$this->assertEqual($c2->orders[2]->id, '4', 'The id of the instance should be the "lastInsertId()"');
+		$this->assertEquals($c2->orders[2]->id, '4', 'The id of the instance should be the "lastInsertId()"');
 	}
 
 	function test_reloadWildcard() {
@@ -302,10 +302,10 @@ class RepositoryTests extends DatabaseTestCase {
 			$repo->reloadCustomer(1);
 			$this->fail('When reloading a changed instance, an exception should be thrown');
 		} catch (\Exception $e) {
-			$this->pass('When reloading a changed instance, an exception should be thrown');
+			$this->assertTrue(true, 'When reloading a changed instance, an exception should be thrown');
 		}
 		$repo->reloadCustomer(1, array('discard_changes' => true));
-		$this->assertEqual($c1->name, 'Bob Fanger');
+		$this->assertEquals($c1->name, 'Bob Fanger');
 		// test reloadPlural
 		$c1->name = "Arnold Schwarzenegger";
 		$c2 = $repo->getCustomer(2);
@@ -314,11 +314,11 @@ class RepositoryTests extends DatabaseTestCase {
 			$repo->reloadCustomers();
 			$this->fail('When reloading a changed instance, an exception should be thrown');
 		} catch (\Exception $e) {
-			$this->pass('When reloading a changed instance, an exception should be thrown');
+			$this->assertTrue(true, 'When reloading a changed instance, an exception should be thrown');
 		}
 		$repo->reloadCustomers(array('discard_changes' => true));
-		$this->assertEqual($c1->name, 'Bob Fanger');
-		$this->assertEqual($c2->name, 'James Bond');
+		$this->assertEquals($c1->name, 'Bob Fanger');
+		$this->assertEquals($c2->name, 'James Bond');
 	}
 
 	function test_AutoCompleteHelper() {
@@ -329,7 +329,7 @@ class RepositoryTests extends DatabaseTestCase {
 		$repoBase->writeAutoCompleteHelper($filename, $class);
 		include($filename);
 		$methods = array_diff(get_public_methods($class), get_public_methods('SledgeHammer\Repository'));
-		$this->assertEqual($methods, array(
+		$this->assertEquals($methods, array(
 			'getCustomer',
 			'allCustomers',
 			'saveCustomer',
@@ -349,7 +349,7 @@ class RepositoryTests extends DatabaseTestCase {
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink)); // @todo? Write serialized backends into AutoGenerated class?
 
 		$c1 = $repo->getCustomer(1);
-		$this->assertEqual($c1->name, 'Bob Fanger');
+		$this->assertEquals($c1->name, 'Bob Fanger');
 		$c1->name = 'Charlie Fanger';
 		$repo->saveCustomer($c1);
 		$this->assertLastQuery("UPDATE customers SET name = 'Charlie Fanger' WHERE id = 1");

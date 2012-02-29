@@ -4,7 +4,7 @@
  *
  */
 namespace SledgeHammer;
-class SimpleRecordTests extends DatabaseTestCase {
+class SimpleRecordTest extends DatabaseTestCase {
 
 	/**
 	 * var Record $customer  Een customer-record in STATIC mode
@@ -36,18 +36,18 @@ class SimpleRecordTests extends DatabaseTestCase {
 		$record->name = 'Naam';
 		$record->occupation = 'Beroep';
 //		$record->orders = array(); // @todo SimpleRecord should create an array for thes property
-		$this->assertEqual($record->getChanges(), array(
+		$this->assertEquals($record->getChanges(), array(
 			'name' => array('next' => 'Naam'),
 			'occupation' => array('next' => 'Beroep')
 		));
-		$this->assertEqual($record->id, null);
-//		$this->assertEqual($record->getId(), null);
+		$this->assertEquals($record->id, null);
+//		$this->assertEquals($record->getId(), null);
 
 		$record->save();
 		$this->assertLastQuery("INSERT INTO customers (name, occupation) VALUES ('Naam', 'Beroep')"); // Controleer de query
-		$this->assertEqual($record->getChanges(), array());
-		$this->assertEqual($record->id, 3);
-//		$this->assertEqual($record->getId(), 3);
+		$this->assertEquals($record->getChanges(), array());
+		$this->assertEquals($record->id, 3);
+//		$this->assertEquals($record->getId(), 3);
 		$this->assertTableContents('customers', array(
 			array('id' => '1', 'name' => 'Bob Fanger', 'occupation'=> 'Software ontwikkelaar'),
 			array('id' => '2', 'name' => 'James Bond', 'occupation' => 'Spion'),
@@ -55,12 +55,12 @@ class SimpleRecordTests extends DatabaseTestCase {
 		));
 		// Update
 		$record->name = 'Andere naam';
-		$this->assertEqual($record->getChanges(), array('name' => array(
+		$this->assertEquals($record->getChanges(), array('name' => array(
 			'previous' => 'Naam',
 			'next' => 'Andere naam',
 		)));
 		$record->save();
-		$this->assertEqual($record->getChanges(), array());
+		$this->assertEquals($record->getChanges(), array());
 		$this->assertQuery("UPDATE customers SET name = 'Andere naam' WHERE id = 3");
 		$this->assertTableContents('customers', array(
 			array('id' => '1', 'name' => 'Bob Fanger', 'occupation'=> 'Software ontwikkelaar'),
@@ -76,7 +76,7 @@ class SimpleRecordTests extends DatabaseTestCase {
 		$this->assertIsA($record->orders, 'SledgeHammer\HasManyPlaceholder');
 		$orders = $record->orders;
 		$record->orders = array();
-		$this->assertEqual(get_object_vars($record), array(
+		$this->assertEquals(get_object_vars($record), array(
 		  'id' => '1',
 		  'name' => 'Bob Fanger',
 		  'occupation' => 'Software ontwikkelaar',
@@ -84,7 +84,7 @@ class SimpleRecordTests extends DatabaseTestCase {
 		));
 		$record->orders = $orders; // restore placeholder
 
-//		$this->assertEqual(1, $record->getId());
+//		$this->assertEquals(1, $record->getId());
 
 		$this->assertLastQuery('SELECT * FROM customers WHERE id = 1');
 		// Update
@@ -119,7 +119,7 @@ class SimpleRecordTests extends DatabaseTestCase {
 			$record->save();
 			$this->fail('Expecting an exception');
 		} catch(\Exception $e) {
-			$this->assertEqual($e->getMessage(), 'SledgeHammer\SimpleRecord->save() not allowed on deleted objects');
+			$this->assertEquals($e->getMessage(), 'SledgeHammer\SimpleRecord->save() not allowed on deleted objects');
 		}
 		$this->assertTableContents('customers', array(
 			array('id' => '2', 'name' => 'James Bond', 'occupation' => 'Spion'),
@@ -132,21 +132,21 @@ class SimpleRecordTests extends DatabaseTestCase {
 			$record->delete();
 			$this->fail('Expecting an exception');
 		} catch(\Exception $e) {
-			$this->assertEqual($e->getMessage(), 'Removing instance failed, the instance issn\'t stored in the backend');
+			$this->assertEquals($e->getMessage(), 'Removing instance failed, the instance issn\'t stored in the backend');
 		}
 	}
 
 	function test_find_with_array() {
 //		$record1 = $this->customer->find(array('id' => 1));
 //       	$this->assertQuery('SELECT * FROM customers WHERE id = 1');
-//		$this->assertEqual($record1->name, 'Bob Fanger');
+//		$this->assertEquals($record1->name, 'Bob Fanger');
 //		$record2 = $this->customer->find(array('id' => '1', 'occupation' => 'Software ontwikkelaar'));
 //		$this->assertLastQuery('SELECT * FROM customers WHERE id = "1" AND occupation = "Software ontwikkelaar"');
 	}
 	function test_find_with_sprintf() {
 //		$record = $this->customer->find('name = ?', 'Bob Fanger');
 //		$this->assertQuery('SELECT * FROM customers WHERE name = "Bob Fanger"');
-//		$this->assertEqual($record->name, 'Bob Fanger');
+//		$this->assertEquals($record->name, 'Bob Fanger');
 	}
 
 	function test_all() {
@@ -155,34 +155,34 @@ class SimpleRecordTests extends DatabaseTestCase {
 		$records = iterator_to_array($collection);
 		$this->assertQueryCount(1);
 		$this->assertLastQuery('SELECT * FROM customers');
-		$this->assertEqual(count($records), 2);
-		$this->assertEqual($records[0]->name, 'Bob Fanger');
-		$this->assertEqual($records[1]->name, 'James Bond');
+		$this->assertEquals(count($records), 2);
+		$this->assertEquals($records[0]->name, 'Bob Fanger');
+		$this->assertEquals($records[1]->name, 'James Bond');
 	}
 
 	function test_all_with_array() {
 		$collection = $this->getAllCustomers()->where(array('name' => 'James Bond'));
-		$this->assertEqual(count($collection), 1);
+		$this->assertEquals(count($collection), 1);
 		$this->assertLastQuery("SELECT * FROM customers WHERE name = 'James Bond'");
 	}
 
 	function test_all_with_sprintf() {
 //		$collection = $this->customer->all('name = ?', 'James Bond');
-//		$this->assertEqual(count($collection), 1);
+//		$this->assertEquals(count($collection), 1);
 //		$this->assertLastQuery('SELECT * FROM customers WHERE name = "James Bond"');
 	}
 
 	function test_belongsTo_detection() {
 		$order = $this->getOrder(1);
-//		$this->assertEqual($orders->customer_id, 1); // Sanity check
+//		$this->assertEquals($orders->customer_id, 1); // Sanity check
 		$this->assertQueryCount(1); // Sanity check
-		$this->assertEqual($order->customer->name, 'Bob Fanger');  // De customer eigenschap wordt automagisch ingeladen.
+		$this->assertEquals($order->customer->name, 'Bob Fanger');  // De customer eigenschap wordt automagisch ingeladen.
 		$this->assertQueryCount(2, 'Should generate 1 SELECT query');
 //		$this->assertQueryCount(4, 'Should generate 1 DESCRIBE and 1 SELECT query');
-		$this->assertEqual($order->customer->occupation, 'Software ontwikkelaar');
+		$this->assertEquals($order->customer->occupation, 'Software ontwikkelaar');
 		$this->assertQueryCount(2, 'Should not generate more queries'); // Als de customer eenmaal is ingeladen wordt deze gebruikt. en worden er geen query
 //		$order->customer_id = 2;
-//		$this->assertEqual($orders->customer->name, 'James Bond', 'belongsTo should detect a ID change');  // De customer eigenschap wordt automagisch ingeladen.
+//		$this->assertEquals($orders->customer->name, 'James Bond', 'belongsTo should detect a ID change');  // De customer eigenschap wordt automagisch ingeladen.
 //		$this->assertQueryCount(5, 'Should generate 1 SELECT query');
 	}
 
@@ -190,7 +190,7 @@ class SimpleRecordTests extends DatabaseTestCase {
 		$order = $this->getOrder(1);
 		$james = $this->getCustomer(2);
 		$order->customer = $james;
-		$this->assertEqual($order->getChanges(), array('customer_id' => array(
+		$this->assertEquals($order->getChanges(), array('customer_id' => array(
 			'next' => '2',
 			'previous' => '1',
 		)));
@@ -204,8 +204,8 @@ class SimpleRecordTests extends DatabaseTestCase {
 		$order->customer->name = 'New customer';
 		$order->save();
 
-//		$this->assertEqual($orders->customer_id, 3);
-		$this->assertEqual($order->customer->id, 3);
+//		$this->assertEquals($orders->customer_id, 3);
+		$this->assertEquals($order->customer->id, 3);
 	}
 
 	/**
