@@ -13,13 +13,13 @@ namespace SledgeHammer;
  * @return \Generated\DefaultRepository|Repository
  */
 function getRepository($id = 'default') {
-	if (isset($GLOBALS['Repositories'][$id])) {
-		return $GLOBALS['Repositories'][$id];
+	if (isset(Repository::$instances[$id])) {
+		return Repository::$instances[$id];
 	}
 	if ($id == 'default') {
-		$GLOBALS['Repositories']['default'] = new Repository();
-		return $GLOBALS['Repositories']['default'];
+		Repository::$instances['default'] = new Repository();
+		return Repository::$instances['default'];
 	}
-	throw new \Exception('Repository: $GLOBALS[\'Repositories\'][\''.$id.'\'] doesn\'t exist');
+	throw new \Exception('Repository: \SledgeHammer\Repository::$instances[\''.$id.'\'] doesn\'t exist');
 }
 ?>

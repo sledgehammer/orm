@@ -53,9 +53,15 @@ class Repository extends Object {
 	 */
 	private $collectionMappings = array();
 
+	/**
+	 * @var array|Repository
+	 */
+	static $instances = array();
+
+
 	function __construct() {
 		$this->id = uniqid('R');
-		$GLOBALS['Repositories'][$this->id] = $this; // Register this Repository to the Repositories pool.
+		Repository::$instances[$this->id] = $this; // Register this Repository to the Repositories pool.
 	}
 
 	/**
@@ -720,7 +726,7 @@ class Repository extends Object {
 			}
 		}
 		// Fase 4: Generate or update the AutoComplete Helper for the default repository?
-		if (ENVIRONMENT == 'development' && isset($GLOBALS['Repositories']['default']) && $GLOBALS['Repositories']['default']->id == $this->id) {
+		if (ENVIRONMENT == 'development' && isset(Repository::$instances['default']) && Repository::$instances['default']->id == $this->id) {
 			$autoCompleteFile = TMP_DIR.'AutoComplete/repository.ini';
 			if ($this->autoComplete === null) {
 				if (file_exists($autoCompleteFile)) {
@@ -896,16 +902,15 @@ class Repository extends Object {
 //		$config = clone $config;
 		if ($config->class === null) { // Detect class
 			$config->class = false; // fallback to a generated class
-			$AutoLoader = $GLOBALS['AutoLoader'];
 			foreach ($this->namespaces as $namespace) {
 				$class = $namespace.$config->name;
-				if (class_exists($class, false) || $AutoLoader->getFilename($class) !== null) { // Is the class known?
+				if (class_exists($class, false) || Framework::$autoLoader->getFilename($class) !== null) { // Is the class known?
 					$config->class = $class;
 				}
 			}
 		}
 		if ($config->class === false) { // Should registerBackand generate a class?
-			if (empty($GLOBALS['Repositories']['default']) || $GLOBALS['Repositories']['default']->id != $this->id) {
+			if (empty(Repository::$instances['default']) || Repository::$instances['default']->id != $this->id) {
 				$config->class = '\\Generated\\'.$this->id.'\\'.$config->name; // Multiple Repositories have multiple namespaces
 			} else {
 				$config->class = '\\Generated\\'.$config->name;

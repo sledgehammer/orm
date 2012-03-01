@@ -17,7 +17,7 @@ class RecordRelationTest extends DatabaseTestCase {
 //		$customer->hasMany['products'] = $customer->hasMany['orders'];
 //		$customer->hasMany['products']['filters'] = array('CollectionView' => array('valueField' => 'product', 'keyField' => 'id'));
 		$repo->registerBackend($backend);
-		$GLOBALS['Repositories'][__CLASS__] = $repo;
+		Repository::$instances[__CLASS__] = $repo;
 	}
 
 	function test_hasMany_iterator() {

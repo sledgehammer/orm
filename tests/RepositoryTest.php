@@ -25,8 +25,8 @@ class RepositoryTest extends DatabaseTestCase {
 
 	function setUp() {
 		parent::setUp();
-		if (isset($GLOBALS['Repositories'])) {
-			$this->applicationRepositories = $GLOBALS['Repositories'];
+		if (isset(Repository::$instances)) {
+			$this->applicationRepositories = Repository::$instances;
 		}
 	}
 
@@ -40,7 +40,7 @@ class RepositoryTest extends DatabaseTestCase {
 
 	public function tearDown() {
 		parent::tearDown();
-		$GLOBALS['Repositories'] = $this->applicationRepositories;
+		Repository::$instances = $this->applicationRepositories;
 	}
 
 	function test_inspectDatabase() {
