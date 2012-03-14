@@ -97,12 +97,12 @@ class RecordRelationTest extends DatabaseTestCase {
 //		getRepository(__CLASS__)->saveCustomer($customer);
     }
 
-	function test_custom_relation() {
+//	function test_custom_relation() {
 //		$hasMany = array('products' => new RecordRelation('orders', 'customer_id', array(
 //			'dbLink' => $this->dbLink,
 //			'valueProperty' => 'product',
 //		)));
 //		$this->fail();
-	}
+//	}
 }
 ?>

@@ -73,7 +73,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 		$record = $this->getCustomer(1);
 		// Object should contain values from the db. %s');
 
-		$this->assertIsA($record->orders, 'SledgeHammer\HasManyPlaceholder');
+		$this->assertInstanceOf('SledgeHammer\HasManyPlaceholder', $record->orders);
 		$orders = $record->orders;
 		$record->orders = array();
 		$this->assertEquals(get_object_vars($record), array(
@@ -113,12 +113,15 @@ class SimpleRecordTest extends DatabaseTestCase {
 		$record = $this->getCustomer(1);
 		$record->delete();
 		$this->assertLastQuery('DELETE FROM customers WHERE id = 1');
-		$this->expectError('A deleted Record has no properties');
-		$record->occupation = 'DELETED?';
+		try {
+			$record->occupation = 'DELETED?';
+		} catch (\PHPUnit_Framework_Error_Notice $e) {
+			$this->assertEquals($e->getMessage(), 'A deleted Record has no properties');
+		}
 		try {
 			$record->save();
 			$this->fail('Expecting an exception');
-		} catch(\Exception $e) {
+		} catch(\OutOfBoundsException $e) {
 			$this->assertEquals($e->getMessage(), 'SledgeHammer\SimpleRecord->save() not allowed on deleted objects');
 		}
 		$this->assertTableContents('customers', array(
@@ -136,18 +139,18 @@ class SimpleRecordTest extends DatabaseTestCase {
 		}
 	}
 
-	function test_find_with_array() {
+//	function test_find_with_array() {
 //		$record1 = $this->customer->find(array('id' => 1));
 //       	$this->assertQuery('SELECT * FROM customers WHERE id = 1');
 //		$this->assertEquals($record1->name, 'Bob Fanger');
 //		$record2 = $this->customer->find(array('id' => '1', 'occupation' => 'Software ontwikkelaar'));
 //		$this->assertLastQuery('SELECT * FROM customers WHERE id = "1" AND occupation = "Software ontwikkelaar"');
-	}
-	function test_find_with_sprintf() {
+//	}
+//	function test_find_with_sprintf() {
 //		$record = $this->customer->find('name = ?', 'Bob Fanger');
 //		$this->assertQuery('SELECT * FROM customers WHERE name = "Bob Fanger"');
 //		$this->assertEquals($record->name, 'Bob Fanger');
-	}
+//	}
 
 	function test_all() {
 		$collection = $this->getAllCustomers();
@@ -166,11 +169,11 @@ class SimpleRecordTest extends DatabaseTestCase {
 		$this->assertLastQuery("SELECT * FROM customers WHERE name = 'James Bond'");
 	}
 
-	function test_all_with_sprintf() {
+//	function test_all_with_sprintf() {
 //		$collection = $this->customer->all('name = ?', 'James Bond');
 //		$this->assertEquals(count($collection), 1);
 //		$this->assertLastQuery('SELECT * FROM customers WHERE name = "James Bond"');
-	}
+//	}
 
 	function test_belongsTo_detection() {
 		$order = $this->getOrder(1);
