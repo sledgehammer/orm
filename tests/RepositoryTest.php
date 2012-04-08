@@ -138,7 +138,8 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertLastQuery('SELECT * FROM orders WHERE id = 3');
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 3, 'No customer queries'); //
 
-		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder belongs to an other (cloned?) container');
+		$clone->product = 'Clone';
+		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder is already replaced');
 		$this->assertEquals($clone->customer->name, 'James Bond');
 		//	$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
 	}
@@ -219,7 +220,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEquals(count($c2->orders), 1, 'Unset by array offset');
 		$this->assertInstanceOf('SledgeHammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
 
-		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder belongs to an other (cloned?) container');
+		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder is already replaced');
 		$this->assertEquals($clone->orders[1]->product, 'Spycam');
 		//	$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
 	}

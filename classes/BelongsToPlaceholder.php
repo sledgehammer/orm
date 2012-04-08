@@ -15,9 +15,9 @@ class BelongsToPlaceholder extends Object {
 	private $__fields;
 
 	/**
-	 * @var string  repository/model/property
+	 * @var string|stdClass Initialy a reference "repository/model/id", but will be replaced with the referenced Object
 	 */
-	private $__reference;
+	private $__placeholder;
 
 	/**
 	 * @var stdClass  The instance this placeholder belongs to
@@ -25,7 +25,7 @@ class BelongsToPlaceholder extends Object {
 	private $__container;
 
 	function __construct($reference, $container, $fields = array()) {
-		$this->__reference = $reference;
+		$this->__placeholder = $reference;
 		$this->__container = $container;
 		$this->__fields = $fields;
 	}
@@ -34,35 +34,43 @@ class BelongsToPlaceholder extends Object {
 		if (array_key_exists($property, $this->__fields)) {
 			return $this->__fields[$property]; // ->id
 		}
-		return $this->__replacePlaceholder()->$property;
+		$this->__replacePlaceholder();
+		return $this->__placeholder->$property;
 	}
 
 	function __set($property, $value) {
-		$this->__replacePlaceholder()->$property = $value;
+		$this->__replacePlaceholder();
+		$this->__placeholder->$property = $value;
 	}
 
 	function __call($method, $arguments) {
-		return call_user_func_array(array($this->__replacePlaceholder(), $method), $arguments);
+		$this->__replacePlaceholder();
+		return call_user_func_array(array($this->__placeholder, $method), $arguments);
 	}
 
 	/**
-	 * Replace the placeholder and return the real object.
-	 * 
-	 * @return Object
+	 * Replace the placeholder with the referenced object
+	 *
+	 * @return void
 	 */
 	private function __replacePlaceholder() {
-		$parts = explode('/', $this->__reference);
+		if (is_string($this->__placeholder) === false) { // Is the placeholder already replaced
+			notice('This placeholder is already replaced', 'Did you clone the object?');
+			return;
+		}
+		$parts = explode('/', $this->__placeholder);
 		$repositoryId = array_shift($parts);
 		$model = array_shift($parts);
 		$property = implode('/', $parts);
 		$self = PropertyPath::get($this->__container, $property);
 		if ($self !== $this) {
-			notice('This placeholder belongs to an other (cloned?) container');
-			return $self;
+			notice('This placeholder belongs to an other object', 'Did you clone the object?');
+			$this->__placeholder = $self;
+			return;
 		}
 		$repo = getRepository($repositoryId);
 		$repo->loadAssociation($model, $this->__container, $property);
-		return PropertyPath::get($this->__container, $property);
+		$this->__placeholder = PropertyPath::get($this->__container, $property);
 	}
 
 }
