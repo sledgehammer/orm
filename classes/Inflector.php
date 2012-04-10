@@ -7,7 +7,6 @@
  * @package ORM
  */
 namespace SledgeHammer;
-
 class Inflector extends Object {
 
 	static $plural = array(
@@ -87,7 +86,7 @@ class Inflector extends Object {
 	 * Returns the plural form of the word in the string
 	 *
 	 * @param string $singular
-	 * @return string 
+	 * @return string
 	 */
 	static function pluralize($singular) {
 		// save some time in the case that singular and plural are the same
@@ -136,6 +135,68 @@ class Inflector extends Object {
 			}
 		}
 		return $plural;
+	}
+
+	/**
+	 * Create a model name from a plural table name.
+	 *
+	 * customers => Customer
+	 * cart_items => CartItem
+	 *
+	 * @param string $table
+	 * @param string $prefix  Database/table prefix
+	 * @return string
+	 */
+	static function modelize($table, $prefix = '') {
+		if ($prefix != '' && substr($table, 0, strlen($prefix)) == $prefix) {
+			$table = substr($table, strlen($prefix)); // Strip prefix
+		}
+		$words = explode('_', $table);
+		foreach ($words as $i => $word) {
+			$words[$i] = ucfirst($word);
+		}
+		$last = count($words) - 1;
+		$words[$last] = Inflector::singularize($words[$last]);
+		return implode('', $words);
+	}
+
+	/**
+	 * Return as lowercase underscored word.
+	 *
+	 * CartItem => cart_item
+	 * cartItem => cart_item
+	 *
+	 * @param string $camelCasedWord
+	 * @return string underscored_word
+	 */
+	static function underscore($camelCasedWord) {
+		return strtolower(preg_replace('/[A-Z]{1}[a-z][1]/', '_$0', $camelCasedWord));
+	}
+
+	/**
+	 * Return as CamelCased word.
+	 *
+	 * cart_item => CartItem
+	 * cartItem  => CartItem
+	 *
+	 * @param string $lowerCaseAndUnderscoredWord
+	 * @return string CamelCased word
+	 */
+	static function camelCase($lowerCaseAndUnderscoredWord) {
+		return ucfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $lowerCaseAndUnderscoredWord))));
+	}
+
+	/**
+	 * Return as camelBack word.
+	 *
+	 * cart_item => cartItem
+	 * cartItem => cartItem
+	 *
+	 * @param string $lowerCaseAndUnderscoredWord
+	 * @return string camelBack word
+	 */
+	static function camelBack($lowerCaseAndUnderscoredWord) {
+		return lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $lowerCaseAndUnderscoredWord))));
 	}
 
 }

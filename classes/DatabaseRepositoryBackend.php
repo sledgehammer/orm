@@ -56,7 +56,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 			} else {
 				$plural = ucfirst($tableName);
 			}
-			$config = new ModelConfig($this->modelize($tableName, $tablePrefix), array(
+			$config = new ModelConfig(Inflector::modelize($tableName, $tablePrefix), array(
 					'plural' => $plural,
 					'backendConfig' => $table,
 				));
@@ -82,7 +82,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 						}
 					}
 					if (array_key_exists($property, $table['columns']) && $property != $column) {
-//						$alternativePropertyName = lcfirst ($this->modelize ($foreignKey['table'], $prefix));
+//						$alternativePropertyName = lcfirst (Inflector::modelize ($foreignKey['table'], $prefix));
 //						if (array_key_exists ($alternativePropertyName, $table['columns']) == false) {
 //							$property = $alternativePropertyName;
 //						} else {
@@ -94,7 +94,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 					}
 					$config->belongsTo[$property] = array(
 						'reference' => $column, // foreignKey
-						'model' => $this->modelize($foreignKey['table'], $tablePrefix),
+						'model' => Inflector::modelize($foreignKey['table'], $tablePrefix),
 						'id' => $foreignKey['column'], // primary key
 					);
 					$config->defaults[$property] = null;
@@ -300,27 +300,13 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	}
 
 	/**
-	 * Create a model name from a plural table name.
-	 *
-	 * @param string $table
-	 * @param string $prefix  Database/table prefix
-	 * @return string
-	 */
-	private function modelize($table, $prefix = '') {
-		if ($prefix != '' && substr($table, 0, strlen($prefix)) == $prefix) {
-			$table = substr($table, strlen($prefix)); // Strip prefix
-		}
-		return ucfirst(Inflector::singularize($table));
-	}
-
-	/**
-	 * Returns the  columnname as property notation
+	 * Returns the columnname as property notation
 	 *
 	 * @param string $column
 	 * @return string
 	 */
 	private function variablize($column) {
-		// @todo implement camelCase
+		// @todo implement camelCase?
 		return $column;
 	}
 
