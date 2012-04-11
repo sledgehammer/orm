@@ -166,7 +166,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 	function test_all_with_array() {
 		$collection = $this->getAllCustomers()->where(array('name' => 'James Bond'));
 		$this->assertEquals(count($collection), 1);
-		$this->assertLastQuery("SELECT * FROM customers WHERE name = 'James Bond'");
+		$this->assertLastQuery("SELECT COUNT(*) FROM customers WHERE name = 'James Bond'");
 	}
 
 //	function test_all_with_sprintf() {

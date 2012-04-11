@@ -21,13 +21,15 @@ class DatabaseCollectionTest extends DatabaseTestCase {
 	function test_collection() {
 		$collection = $this->getCustomerCollection();
 		$this->assertEquals(2, count($collection));
+		$this->assertLastQuery("SELECT COUNT(*) FROM customers");
+		$this->assertEquals(2, count($collection->toArray()));
 		$this->assertLastQuery("SELECT * FROM customers");
 	}
 
 	function test_escaped_where() {
 		$collection = $this->getCustomerCollection();
 		$emptyCollection = $collection->where(array('name' => "'")); //
-		$this->assertEquals($emptyCollection->count(), 0);
+		$this->assertEquals(count($emptyCollection->toArray()), 0);
 		$this->assertLastQuery("SELECT * FROM customers WHERE name = ''''");
 		$this->assertEquals($collection->sql->__toString(), "SELECT * FROM customers", 'Collection->where() does not	modify the orginal collection');
 	}
@@ -36,7 +38,7 @@ class DatabaseCollectionTest extends DatabaseTestCase {
 		restore_error_handler();
 		$collection = $this->getCustomerCollection();
 		$collection->sql = $collection->sql->andWhere("name LIKE 'B%'"); // Direct modification of the $collection
-		$this->assertEquals($collection->count(), 1);
+		$this->assertEquals(count($collection->toArray()), 1);
 		$this->assertLastQuery("SELECT * FROM customers WHERE name LIKE 'B%'");
 	}
 

@@ -150,10 +150,11 @@ class RepositoryTest extends DatabaseTestCase {
 
 		$customers = $repo->allCustomers();
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase, 'Delay queries until collections access');
-		$this->assertEquals(count($customers), 2, 'Collection should contain all customers');
 		$customerArray = iterator_to_array($customers);
+		$this->assertEquals(count($customerArray), 2, 'Collection should contain all customers');
 		$this->assertEquals($customerArray[0]->name, 'Bob Fanger');
 		$this->assertEquals($customerArray[1]->name, 'James Bond');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Sanity check');
 
 		$counter = 0;
 		foreach ($customers as $customer) {
