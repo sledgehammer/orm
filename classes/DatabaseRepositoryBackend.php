@@ -17,6 +17,11 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	public $configs = array();
 
 	/**
+	 * @var int Number of seconds a database schema is cached.
+	 */
+	static $cacheTimeout = 15;
+
+	/**
 	 * @param array|string $databases
 	 */
 	function __construct($databases = array()) {
@@ -44,11 +49,20 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	 * @param string $dbLink
 	 */
 	function inspectDatabase($dbLink = 'default', $tablePrefix = '') {
-
 		// Pass 1: Retrieve and parse schema information
 		$db = getDatabase($dbLink);
-		$schema = $this->getSchema($db, $tablePrefix);
-
+		$cacheIdentifier = $dbLink.' '.$tablePrefix.' ';
+		if (count($db->log) > 0) {
+			$cacheIdentifier .= $db->log[0]['sql'];
+		}
+		$cacheFile = TMP_DIR.'DatabaseRepositoryBackend/'.md5($cacheIdentifier).'.json';
+		if (file_exists($cacheFile) && filemtime($cacheFile) > (time() - self::$cacheTimeout)) {
+			$schema = json_decode(file_get_contents($cacheFile), true);
+		} else {
+			$schema = $this->getSchema($db, $tablePrefix);
+			mkdirs(dirname($cacheFile));
+			file_put_contents($cacheFile, json_encode($schema));
+		}
 		$models = array();
 		foreach ($schema as $tableName => $table) {
 			if ($tablePrefix != '' && substr($tableName, 0, strlen($tablePrefix)) == $tablePrefix) {
