@@ -2,7 +2,7 @@
 /**
  * RepositoryCollection a Collection containing repository instances.
  *
- * Will contain the raw \Traversable|array from the backend and will convert the data
+ * Contains the raw \Traversable|array from the backend and converts the data to instances on-access.
  *
  * @package ORM
  */
@@ -15,7 +15,7 @@ class RepositoryCollection extends Collection {
 	protected $mapping;
 
 	/**
-	 * @var bool  True when all raw elements been converted to repository items. (Triggered by offsetSet)
+	 * @var bool  True when all raw elements been converted to repository items. (Triggered by offsetSet, toArray, etc)
 	 */
 	private $isConverted = false;
 
@@ -39,25 +39,11 @@ class RepositoryCollection extends Collection {
 		return $this->convertItem(parent::current());
 	}
 
-	function offsetGet($offset) {
-		if ($this->isConverted) {
-			return parent::offsetGet($offset);
-		}
-		return $this->convertItem(parent::offsetGet($offset));
-	}
-
-	function offsetSet($offset, $value) {
-		if ($this->isConverted === false) {
-			$this->data = $this->convertAllItems();
-		}
-		parent::offsetSet($offset, $value);
-	}
-
 	function where($conditions) {
 		if ($this->isConverted) {
 			return parent::where($conditions);
 		}
-		if ($this->data instanceof Collection) {
+		if ($this->data instanceof Collection && is_array($conditions)) {
 			$convertedConditions = array();
 			foreach ($conditions as $field => $value) {
 				if (isset($this->mapping[$field])) {
@@ -65,20 +51,46 @@ class RepositoryCollection extends Collection {
 					unset($conditions[$field]);
 				}
 			}
-			if (count($convertedConditions) != 0) { // There are conditions the low-level collection can handle?
+			if (count($convertedConditions) !== 0) { // There are conditions the low-level collection can handle?
 				$collection = new RepositoryCollection($this->data->where($convertedConditions), $this->model, $this->repository, $this->mapping);
 				if (count($conditions) == 0) {
 					return $collection;
 				}
 				return $collection->where($conditions); // Apply the remaining conditions
+			} elseif (count($conditions) === 0) { // An empty array was given as $conditions?
+				return new RepositoryCollection(clone $this->data, $this->model, $this->repository, $this->mapping);
 			}
 		}
 		return parent::where($conditions);
 	}
 
+	function skip($length) {
+		if ($this->isConverted === false && $this->data instanceof Collection) {
+			return new RepositoryCollection($this->data->skip($length), $this->model, $this->repository, $this->mapping);
+		}
+		return parent::skip($length);
+	}
+
+	function take($length) {
+		if ($this->isConverted === false && $this->data instanceof Collection) {
+			return new RepositoryCollection($this->data->take($length), $this->model, $this->repository, $this->mapping);
+		}
+		return parent::take($length);
+	}
+
+	/**
+	 * Return the number of elements in the collection.
+	 * count($collection)
+	 *
+	 * @return int
+	 */
+	function count() {
+		return count($this->data);
+	}
+
 	function toArray() {
 		if ($this->isConverted === false) {
-			$this->data = $this->convertAllItems();
+			$this->dataToArray();
 		}
 		return $this->data;
 	}
@@ -103,14 +115,16 @@ class RepositoryCollection extends Collection {
 		return $repo->convert($this->model, $item);
 	}
 
-	private function convertAllItems() {
-		$repo = getRepository($this->repository);
-		$data = array();
-		foreach ($this->data as $key => $item) {
-			$data[$key] = $repo->convert($this->model, $item);
+	protected function dataToArray() {
+		if ($this->isConverted === false) {
+			$repo = getRepository($this->repository);
+			$data = array();
+			foreach ($this->data as $key => $item) {
+				$data[$key] = $repo->convert($this->model, $item);
+			}
+			$this->data = $data;
+			$this->isConverted = true;
 		}
-		$this->isConverted = true;
-		return $data;
 	}
 }
 
