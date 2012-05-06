@@ -17,6 +17,7 @@ class RepositoryTest extends DatabaseTestCase {
 	public function __construct() {
 		parent::__construct('sqlite');
 //		parent::__construct('mysql');
+		DatabaseRepositoryBackend::$cacheTimeout = 0; // always inspect database
 		if ($this->getDatabase()->getAttribute(\PDO::ATTR_DRIVER_NAME) == 'mysql') {
 			$this->queryCountAfterInspectDatabase = 3;
 		} else {
