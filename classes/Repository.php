@@ -8,7 +8,6 @@
  * @package ORM
  */
 namespace SledgeHammer;
-
 class Repository extends Object {
 
 	/**
@@ -58,7 +57,6 @@ class Repository extends Object {
 	 */
 	static $instances = array();
 
-
 	function __construct() {
 		$this->id = uniqid('R');
 		Repository::$instances[$this->id] = $this; // Register this Repository to the Repositories pool.
@@ -66,7 +64,7 @@ class Repository extends Object {
 
 	/**
 	 * Handle get$Model(), all$Models(), save$Model(), create$Model() and delete$Model() methods.
-     *
+	 *
 	 * @param string $method
 	 * @param array $arguments
 	 * @return mixed
@@ -196,7 +194,7 @@ class Repository extends Object {
 			'instance' => null,
 			'data' => $data,
 		);
-		$instance = $this->convertToInstance($data, $config);
+		$instance = $this->convertToInstance($data, $config, $index);
 		$this->objects[$model][$index]['instance'] = $instance;
 		if ($preload) {
 			warning('Not implemented');
@@ -324,7 +322,7 @@ class Repository extends Object {
 	function reload($model, $mixed = null, $options = array()) {
 		$config = $this->_getConfig($model);
 		if (array_value($options, 'all')) {
-			if($mixed !== null) {
+			if ($mixed !== null) {
 				throw new \Exception('Can\'t use options[all] in combination with an id/instance');
 			}
 			unset($options['all']);
@@ -360,7 +358,6 @@ class Repository extends Object {
 				throw new InfoException('Reloading failed, instance has pending changes', array(
 					'changed in instance' => array_diff($data, $this->objects[$model][$index]['data']),
 					'backend values' => array_diff($this->objects[$model][$index]['data'], $data),
-
 				));
 			}
 		}
@@ -751,6 +748,12 @@ class Repository extends Object {
 		}
 	}
 
+	/**
+	 * Check if a model is configured in this repository.
+	 *
+	 * @param string $model
+	 * @return bool
+	 */
 	function isConfigured($model) {
 		return isset($this->configs[$model]);
 	}
@@ -786,251 +789,32 @@ class Repository extends Object {
 	}
 
 	/**
+	 * Lookup a modelname for an instance bound to this repository.
 	 *
-	 * @param mixed $data
-	 * @param ModelConfig $config
-	 * @param string|null $index
-	 * @return Object
+	 * @throws Exceptions on failure
+	 * @param stdClass $instance
+	 * @return string model
 	 */
-	protected function convertToInstance($data, $config, $index = null, $reload = false) {
-		if ($index === null) {
-			$index = $this->resolveIndex($data, $config);
-		} elseif (empty($this->objects[$config->name][$index])) {
-			throw new \Exception('Invalid index: "'.$index.'" for '.$config->name);
+	function resolveModel($instance) {
+		if ($instance instanceof BelongsToPlaceholder) {
+			throw new \Exception('Unable to determine model for BelongsToPlaceholder\'s');
 		}
-		if ($reload) {
-			$instance = $this->objects[$config->name][$index]['instance'];
-			if ($instance === null) {
-				throw new \Exception('No instance loaded');
-			}
-		} elseif ($this->objects[$config->name][$index]['instance'] !== null) {
-			throw new \Exception('Instance already loaded, use reload parameter to reload');
-		} else { // new instance
-			$class = $config->class;
-			$instance = new $class;
-		}
-		// Map the data onto the instance
-		foreach ($config->properties as  $sourcePath => $targetPath) {
-			PropertyPath::set($instance, $targetPath, PropertyPath::get($data, $sourcePath));
-		}
-		foreach ($config->belongsTo as $property => $relation) {
-			if (isset($relation['convert'])) {
-				$value = $this->convert($relation['model'], PropertyPath::get($data, $relation['convert']));
-				PropertyPath::set($instance, $property, $value);
-			} else {
-				$belongsToId = $data[$relation['reference']];
-				if ($belongsToId !== null) {
-					if (empty($relation['model'])) { // No model given?
-						throw new \Exception('Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set');
-					}
-					if ($relation['useIndex']) {
-						$belongsToIndex = $this->resolveIndex($belongsToId);
-						$belongsToInstance = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
-					} else {
-						$belongsToInstance = null;
-					}
-					if ($belongsToInstance !== null) {
-						$instance->$property = $belongsToInstance;
-					} else {
-						$fields = array(
-							$relation['id'] => $belongsToId,
-						);
-						$instance->$property = new BelongsToPlaceholder($this->id.'/'.$config->name.'/'. $property, $instance, $fields);
+		$class = get_class($instance);
+		foreach ($this->configs as $model => $config) {
+			if ($config->class === '\\'.$class) {
+				foreach ($this->objects[$model] as $object) {
+					if ($object['instance'] === $instance) {
+						return $model;
 					}
 				}
 			}
 		}
-		foreach ($config->hasMany as $property => $relation) {
-			if (isset($relation['convert'])) {
-				$collection = new RepositoryCollection(PropertyPath::get($data, $relation['convert']), $relation['model'], $this->id);
-				PropertyPath::set($instance, $property, $collection);
-			} else {
-				$instance->$property = new HasManyPlaceholder($this->id.'/'.$config->name.'/'.$property, $instance);
-			}
-		}
-		if ($instance instanceof Observable && $instance->hasEvent('load')) {
-			$instance->trigger('load', $this, array(
-				'repository' => $this->id,
-				'model' => $config->name,
-			));
-		}
-		return $instance;
+		throw new InfoException('Instance not bound to this repository"', $instance);
 	}
 
 	/**
-	 *
-	 *
-	 * @param stdClass $from  The instance
-	 * @param array $to  The raw data
-	 * @param ModelConfig $config
-	 */
-	protected function convertToData($instance, $config) {
-		$to = array();
-		$from = $instance;
-		// Put the belongsTo columns at the beginning of the array
-		foreach ($config->belongsTo as $property => $relation) {
-			$to[$relation['reference']] = null;  // Dont set the value yet. (could be overwritten with an mapping?)
-		}
-		// Map to data
-		foreach ($config->properties as $element => $property) {
-			$value = PropertyPath::get($from, $property);
-			PropertyPath::set($to, $element, $value);
-		}
-		// Map the belongTo to the "*_id" columns.
-		foreach ($config->belongsTo as $property => $relation) {
-			$belongsTo = $from->$property;
-			if ($belongsTo === null) {
-				$to[$relation['reference']] = null;
-			} else {
-				$idProperty = $relation['id']; // @todo reverse mapping
-				$to[$relation['reference']] = $from->$property->$idProperty;
-			}
-		}
-		return $to;
-	}
-
-	/**
-	 * Add an configution for a model
-	 *
-	 * @param ModelConfig $config
-	 */
-	protected function register($config) {
-		if (isset($this->configs[$config->name])) {
-			warning('Overwriting model: "'.$config->name.'"'); // @todo? Allow overwritting models? or throw Exception?
-		}
-		$this->collectionMappings[$config->name] = array_flip($config->properties); // Add properties to the collectionMapping
-//		$config = clone $config;
-		if ($config->class === null) { // Detect class
-			$config->class = false; // fallback to a generated class
-			foreach ($this->namespaces as $namespace) {
-				$class = $namespace.$config->name;
-				if (class_exists($class, false) || Framework::$autoLoader->getFilename($class) !== null) { // Is the class known?
-					$config->class = $class;
-				}
-			}
-		}
-		if ($config->class === false) { // Should registerBackand generate a class?
-			if (empty(Repository::$instances['default']) || Repository::$instances['default']->id != $this->id) {
-				$config->class = '\\Generated\\'.$this->id.'\\'.$config->name; // Multiple Repositories have multiple namespaces
-			} else {
-				$config->class = '\\Generated\\'.$config->name;
-			}
-		}
-		if (substr($config->class, 0, 1) !== '\\') {
-			$config->class = '\\'.$config->class;
-		}
-		if ($config->plural === null) {
-			$config->plural = Inflector::pluralize($config->name);
-		}
-		$this->configs[$config->name] = $config;
-		$this->created[$config->name] = array();
-		if (isset($this->plurals[$config->plural])) {
-			warning('Overwriting plural['.$config->plural.'] "'.$this->plurals[$config->plural].'" with "'.$config->name.'"');
-		}
-		$this->plurals[$config->plural] = $config->name;
-
-	}
-
-	/**
-	 *
-	 * @param string $backend
-	 * @return RepositoryBackend
-	 */
-	private function _getBackend($backend) {
-		$backendObject = @$this->backends[$backend];
-		if ($backendObject !== null) {
-			return $backendObject;
-		}
-		throw new \Exception('Backend "'.$backend.'" not registered');
-	}
-
-	/**
-	 *
-	 * @param string $model
-	 * @return ModelConfig
-	 */
-	private function _getConfig($model) {
-		$config = @$this->configs[$model];
-		if ($config !== null) {
-			return $config;
-		}
-		throw new InfoException('Unknown model: "'.$model.'"', array('Available models' => implode(array_keys($this->configs), ', ')));
-	}
-
-	/**
-	 * Return the ($this->objects) index
-	 *
-	 * @param mixed $from  data, instance or an id strig or array
-	 * @param ModelConfig $config
-	 * @return string
-	 */
-	private function resolveIndex($from, $config = null) {
-		if ((is_string($from) && $from != '') || is_int($from)) {
-			return '{'.$from.'}';
-		}
-		$key = false;
-		if (isset($config->id) && count($config->id) == 1) {
-			$key = $config->id[0];
-		}
-		if (is_array($from)) {
-			if (count($from) == 1 && $key !== false) {
-				if (isset($from[$key])) {
-					return $this->resolveIndex($from[$key]);
-				}
-				$index = PropertyPath::get($from, $key);
-				if ($index !== null) {
-					return '{'.$index.'}';
-				}
-				throw new \Exception('Failed to resolve index, missing key: "'.$key.'"');
-			}
-			if (is_array($config->id)) {
-				if (count($config->id) == 1) {
-					$field = $config->id[0];
-					if (isset($from[$key])) {
-						return $this->resolveIndex($from[$key]);
-					}
-					throw new \Exception('Failed to resolve index, missing key: "'.$key.'"');
-				}
-				$index = '{';
-				foreach ($config->id as $field) {
-					if (isset($from[$field])) {
-						$value = $from[$field];
-						if ((is_string($value) && $value != '') || is_int($value)) {
-							$index .= $field.':'.$value;
-						} else {
-							throw new \Exception('Failed to resolve index, invalid value for: "'.$field.'"');
-						}
-					} else {
-						throw new \Exception('Failed to resolve index, missing key: "'.$key.'"');
-					}
-				}
-				$index .= '}';
-				return $index;
-			}
-		}
-		if (is_object($from)) {
-			if ($key !== false) {
-				if (empty ($config->properties[$key])) {
-					throw new \Exception('ModelConfig->id is not mapped to the instances. Add ModelConfig->properties[name] = "'.$key.'"');
-				}
-				$id = PropertyPath::get($from, $config->properties[$key]);
-				if ($id === null) { // Id value not set?
-					// Search in the created instances array
-					foreach ($this->created[$config->name] as $index => $created) {
-						if ($from === $created) {
-							return $index;
-						}
-					}
-					throw new \Exception('Failed to resolve index, missing property: "'.$key.'"');
-				}
-				return $this->resolveIndex($id);
-			}
-			throw new \Exception('Not implemented');
-		}
-		throw new \Exception('Failed to resolve index');
-	}
-
-	/**
+	 * Generate php sourcecode of an subclass of Repository with all magic model functions written as normal functions.
+	 * Allows AutoCompletion of the magic get$Model(), save$Model(), etc functions.
 	 *
 	 * @param string $filename
 	 * @param string $class  The classname of the genereted class
@@ -1126,6 +910,253 @@ class Repository extends Object {
 		}
 		$php .= "}";
 		return file_put_contents($filename, $php);
+	}
+
+	/**
+	 * Convert raw backend data into an object instance.
+	 *
+	 * @param mixed $data
+	 * @param ModelConfig $config
+	 * @param string|null $index (optional) speedoptim: Prevents resolving the index again.
+	 * @param bool $reload true: Overwrite properties in the instance.
+	 * @return stdClass
+	 */
+	protected function convertToInstance($data, $config, $index = null, $reload = false) {
+		if ($index === null) {
+			$index = $this->resolveIndex($data, $config);
+		} elseif (empty($this->objects[$config->name][$index])) {
+			throw new \Exception('Invalid index: "'.$index.'" for '.$config->name);
+		}
+		if ($reload) {
+			$instance = $this->objects[$config->name][$index]['instance'];
+			if ($instance === null) {
+				throw new \Exception('No instance loaded');
+			}
+		} elseif ($this->objects[$config->name][$index]['instance'] !== null) {
+			throw new \Exception('Instance already loaded, use reload parameter to reload');
+		} else { // new instance
+			$class = $config->class;
+			$instance = new $class;
+		}
+		// Map the data onto the instance
+		foreach ($config->properties as $sourcePath => $targetPath) {
+			PropertyPath::set($instance, $targetPath, PropertyPath::get($data, $sourcePath));
+		}
+		foreach ($config->belongsTo as $property => $relation) {
+			if (isset($relation['convert'])) {
+				$value = $this->convert($relation['model'], PropertyPath::get($data, $relation['convert']));
+				PropertyPath::set($instance, $property, $value);
+			} else {
+				$belongsToId = $data[$relation['reference']];
+				if ($belongsToId !== null) {
+					if (empty($relation['model'])) { // No model given?
+						throw new \Exception('Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set');
+					}
+					if ($relation['useIndex']) {
+						$belongsToIndex = $this->resolveIndex($belongsToId);
+						$belongsToInstance = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
+					} else {
+						$belongsToInstance = null;
+					}
+					if ($belongsToInstance !== null) {
+						$instance->$property = $belongsToInstance;
+					} else {
+						$fields = array(
+							$relation['id'] => $belongsToId,
+						);
+						$instance->$property = new BelongsToPlaceholder($this->id.'/'.$config->name.'/'.$property, $instance, $fields);
+					}
+				}
+			}
+		}
+		foreach ($config->hasMany as $property => $relation) {
+			if (isset($relation['convert'])) {
+				$collection = new RepositoryCollection(PropertyPath::get($data, $relation['convert']), $relation['model'], $this->id);
+				PropertyPath::set($instance, $property, $collection);
+			} else {
+				$instance->$property = new HasManyPlaceholder($this->id.'/'.$config->name.'/'.$property, $instance);
+			}
+		}
+		if ($instance instanceof Observable && $instance->hasEvent('load')) {
+			$instance->trigger('load', $this, array(
+				'repository' => $this->id,
+				'model' => $config->name,
+			));
+		}
+		return $instance;
+	}
+
+	/**
+	 *
+	 *
+	 * @param stdClass $from  The instance
+	 * @param array $to  The raw data
+	 * @param ModelConfig $config
+	 */
+	protected function convertToData($instance, $config) {
+		$to = array();
+		$from = $instance;
+		// Put the belongsTo columns at the beginning of the array
+		foreach ($config->belongsTo as $property => $relation) {
+			$to[$relation['reference']] = null;  // Dont set the value yet. (could be overwritten with an mapping?)
+		}
+		// Map to data
+		foreach ($config->properties as $element => $property) {
+			$value = PropertyPath::get($from, $property);
+			PropertyPath::set($to, $element, $value);
+		}
+		// Map the belongTo to the "*_id" columns.
+		foreach ($config->belongsTo as $property => $relation) {
+			$belongsTo = $from->$property;
+			if ($belongsTo === null) {
+				$to[$relation['reference']] = null;
+			} else {
+				$idProperty = $relation['id']; // @todo reverse mapping
+				$to[$relation['reference']] = $from->$property->$idProperty;
+			}
+		}
+		return $to;
+	}
+
+	/**
+	 * Add an configution for a model.
+	 *
+	 * @param ModelConfig $config
+	 */
+	protected function register($config) {
+		if (isset($this->configs[$config->name])) {
+			warning('Overwriting model: "'.$config->name.'"'); // @todo? Allow overwritting models? or throw Exception?
+		}
+		$this->collectionMappings[$config->name] = array_flip($config->properties); // Add properties to the collectionMapping
+		if ($config->class === null) { // Detect class
+			$config->class = false; // fallback to a generated class
+			foreach ($this->namespaces as $namespace) {
+				$class = $namespace.$config->name;
+				if (class_exists($class, false) || Framework::$autoLoader->getFilename($class) !== null) { // Is the class known?
+					$config->class = $class;
+				}
+			}
+		}
+		if ($config->class === false) { // Should registerBackand generate a class?
+			if (empty(Repository::$instances['default']) || Repository::$instances['default']->id != $this->id) {
+				$config->class = '\\Generated\\'.$this->id.'\\'.$config->name; // Multiple Repositories have multiple namespaces
+			} else {
+				$config->class = '\\Generated\\'.$config->name;
+			}
+		}
+		if (substr($config->class, 0, 1) !== '\\') {
+			$config->class = '\\'.$config->class;
+		}
+		if ($config->plural === null) {
+			$config->plural = Inflector::pluralize($config->name);
+		}
+		$this->configs[$config->name] = $config;
+		$this->created[$config->name] = array();
+		if (isset($this->plurals[$config->plural])) {
+			warning('Overwriting plural['.$config->plural.'] "'.$this->plurals[$config->plural].'" with "'.$config->name.'"');
+		}
+		$this->plurals[$config->plural] = $config->name;
+	}
+
+	/**
+	 * Lookup a RepositoryBackend for a backendname.
+	 *
+	 * @param string $backend
+	 * @return RepositoryBackend
+	 */
+	protected function _getBackend($backend) {
+		$backendObject = @$this->backends[$backend];
+		if ($backendObject !== null) {
+			return $backendObject;
+		}
+		throw new \Exception('Backend "'.$backend.'" not registered');
+	}
+
+	/**
+	 * Lookup the ModelConfig for a modelname.
+	 *
+	 * @param string $model
+	 * @return ModelConfig
+	 */
+	protected function _getConfig($model) {
+		$config = @$this->configs[$model];
+		if ($config !== null) {
+			return $config;
+		}
+		throw new InfoException('Unknown model: "'.$model.'"', array('Available models' => implode(array_keys($this->configs), ', ')));
+	}
+
+	/**
+	 * Return the ($this->objects) index
+	 *
+	 * @param mixed $from  data, instance or an id strig or array
+	 * @param ModelConfig $config
+	 * @return string
+	 */
+	protected function resolveIndex($from, $config = null) {
+		if ((is_string($from) && $from != '') || is_int($from)) {
+			return '{'.$from.'}';
+		}
+		$key = false;
+		if (isset($config->id) && count($config->id) == 1) {
+			$key = $config->id[0];
+		}
+		if (is_array($from)) {
+			if (count($from) == 1 && $key !== false) {
+				if (isset($from[$key])) {
+					return $this->resolveIndex($from[$key]);
+				}
+				$index = PropertyPath::get($from, $key);
+				if ($index !== null) {
+					return '{'.$index.'}';
+				}
+				throw new \Exception('Failed to resolve index, missing key: "'.$key.'"');
+			}
+			if (is_array($config->id)) {
+				if (count($config->id) == 1) {
+					$field = $config->id[0];
+					if (isset($from[$key])) {
+						return $this->resolveIndex($from[$key]);
+					}
+					throw new \Exception('Failed to resolve index, missing key: "'.$key.'"');
+				}
+				$index = '{';
+				foreach ($config->id as $field) {
+					if (isset($from[$field])) {
+						$value = $from[$field];
+						if ((is_string($value) && $value != '') || is_int($value)) {
+							$index .= $field.':'.$value;
+						} else {
+							throw new \Exception('Failed to resolve index, invalid value for: "'.$field.'"');
+						}
+					} else {
+						throw new \Exception('Failed to resolve index, missing key: "'.$key.'"');
+					}
+				}
+				$index .= '}';
+				return $index;
+			}
+		}
+		if (is_object($from)) {
+			if ($key !== false) {
+				if (empty($config->properties[$key])) {
+					throw new \Exception('ModelConfig->id is not mapped to the instances. Add ModelConfig->properties[name] = "'.$key.'"');
+				}
+				$id = PropertyPath::get($from, $config->properties[$key]);
+				if ($id === null) { // Id value not set?
+					// Search in the created instances array
+					foreach ($this->created[$config->name] as $index => $created) {
+						if ($from === $created) {
+							return $index;
+						}
+					}
+					throw new \Exception('Failed to resolve index, missing property: "'.$key.'"');
+				}
+				return $this->resolveIndex($id);
+			}
+			throw new \Exception('Not implemented');
+		}
+		throw new \Exception('Failed to resolve index');
 	}
 
 }
