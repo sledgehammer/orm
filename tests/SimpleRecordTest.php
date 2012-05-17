@@ -28,7 +28,6 @@ class SimpleRecordTest extends DatabaseTestCase {
 		}
 		$repo->registerBackend($backend);
 		Repository::$instances[__CLASS__] = $repo;
-//		set_error_handler('SledgeHammer\ErrorHandler_trigger_error_callback');
 	}
 
 	function test_create_and_update() {

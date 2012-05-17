@@ -25,9 +25,9 @@ class ModelConfig extends Object {
 	 */
 	public $properties = array();
 	/**
-	 * @var array  The element(s) in the backend data that identifies an instance
+	 * @var array  The element(s) in the backend data that identifies an instance. Example: array('id') for the 'id' field.
 	 */
-	public $id = array('id');
+	public $id = array();
 	/**
 	 * Configuration of the belongsTo relation(s)
 	 * @var array  array(

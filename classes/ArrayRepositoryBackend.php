@@ -9,58 +9,116 @@ class ArrayRepositoryBackend extends RepositoryBackend {
 	public $identifier = 'array';
 
 	/**
-	 * @var Collection
+	 * @var array
 	 */
-	private $data;
+	private $items;
 
 	/**
 	 * @param ModelConfig $config
-	 * @param array $data
+	 * @param array $items
 	 */
-	function __construct($config, $data, $options = array()) {
-		$this->configs[] = $config;
-		reset($data);
-		$row = current($data);
-		if (count($config->properties) == 0) { // auto detect column => property mapping?
-			$columns = array_keys($row);
-			$config->properties = array_combine($columns, $columns);
+	function __construct($config, $items) {
+		$this->configs[$config->name] = $config;
+		$config->backendConfig = array(
+			'indexed' => (count($config->id) === 0)
+		);
+		reset($items);
+		$row = current($items);
+		if ($row !== null) { // The $items array is NOT empty
+			if (is_object($row)) {
+				$row = get_object_vars($row); // Convert to array
+			}
+			if (count($config->properties) == 0) { // No "column => property" mapping defined?
+				// Generate a direct 1 on 1 mapping based on the first item.
+				$columns = array_keys($row);
+				$config->properties = array_combine($columns, $columns);
+			}
+			if (count($config->id) === 0 && array_key_exists('id', $row) === false) { // 'id' field detected in the first row?
+				$config->id = array('id');
+				$config->backendConfig['indexed'] = true;
+				foreach (array_keys($items) as $index) {
+					$items[$index]['id'] = $index;
+				}
+				if (array_key_exists('id', $config->properties) == false) {
+					array_key_unshift($config->properties, 'id', 'id');
+				}
+				$config->backendConfig['key'] = 'id';
+			} elseif (count($config->id) == 1) { // Only 1 field as id?
+				// Copy the data using the id as index
+				$config->backendConfig['indexed'] = true;
+				$indexField = $config->id[0];
+				$config->backendConfig['key'] = $indexField;
+				$clone = array();
+				foreach ($items as $row) {
+					$key = PropertyPath::get($row, $indexField);
+					$clone[$key] = $row;
+				}
+				$items = $clone;
+			}
 		}
-		if ($config->id ===  array('id') && array_key_exists('id', $row) === false) { // Use index as id?
-			$config->backendConfig['indexed'] = true;
-			foreach (array_keys($data) as $index) {
-				$data[$index]['id'] = $index;
-			}
-			if (array_key_exists('id', $config->properties) == false) {
-				array_key_unshift($config->properties, 'id', 'id');
-			}
-		} elseif (count($config->id) == 1) {
-			$config->backendConfig['indexed'] = true;
-			$dataCopy = $data;
-			$indexField = $config->id[0];
-			foreach ($dataCopy as $row) {
-				$data[$row[$indexField]] = $row;
-			}
-		}
-		$this->data = collection($data);
+		$this->items = $items;
 	}
 
 	/**
 	 * @param mixed $id
-	 * @param ModelConfig $config
+	 * @param array $config backendConfig
 	 */
 	function get($id, $config) {
-		if ($config['indexed'] == false) {
-			throw new Exception('Not supported');
-		}
-		$row = $this->data[$id];
+		$key = $this->getKey($id, $config);
+		$row = $this->items[$key];
 		if ($row === null) {
-			throw new \OutOfBoundsException('Element ['.$id.'] not found');
+			throw new \Exception('Element ['.$key.'] not found');
 		}
 		return $row;
 	}
 
 	function all($config) {
-		return $this->data->selectKey(null);
+		return array_values($this->items);
+	}
+
+	function update($new, $old, $config) {
+		$key = $this->getKey($old, $config);
+		if ($this->items[$key] !== $old) {
+			throw new \Exception('No matching record found, repository has outdated info');
+		}
+		$this->items[$key] = $new;
+		return $new;
+	}
+
+	function add($data, $config) {
+		$key = PropertyPath::get($data, $config['key']);
+		if ($key === null) {
+			$this->items[] = $data;
+			$keys =array_keys($this->items);
+			$key = array_pop($keys);
+			$key = PropertyPath::set($data, $config['key'], $key);
+			return $data;
+		}
+
+
+//		$key = $id[$config['key']];
+		$this->getKey($data, $config);
+		return $data;
+	}
+
+	/**
+	 *
+	 * @param type $id
+	 * @throws Exception
+	 */
+	private function getKey($id, $config) {
+		if ($config['indexed'] == false) {
+			throw new \Exception('Not (yet) supported');
+		}
+		if (is_array($id)) {
+			$key = $id[$config['key']];
+		} else {
+			$key = $id;
+		}
+		if ($key === null) {
+			throw new InfoException('Invalid ID', $id);
+		}
+		return $key;
 	}
 
 }

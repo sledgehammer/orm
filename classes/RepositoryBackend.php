@@ -22,7 +22,7 @@ abstract class RepositoryBackend extends Object {
 	/**
 	 * Retrieve model-data by id.
 	 *
-	 * @return stdClass instance
+	 * @return mixed data
 	 */
 	abstract function get($id, $config);
 
@@ -42,7 +42,7 @@ abstract class RepositoryBackend extends Object {
 	 * @param mixed $new
 	 * @param mixed $old
 	 * @param array $config
-	 * @return mixed
+	 * @return mixed updated data
 	 */
 	function update($new, $old, $config) {
 		throw new \Exception('Method: '.get_class($this).'->update() not implemented');
