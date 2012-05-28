@@ -1,5 +1,5 @@
 <?php
-namespace SledgeHammer;
+namespace Sledgehammer;
 /**
  * ArrayRepositoryBackendTest
  */

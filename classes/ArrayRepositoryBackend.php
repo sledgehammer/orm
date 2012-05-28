@@ -1,5 +1,5 @@
 <?php
-namespace SledgeHammer;
+namespace Sledgehammer;
 /**
  * ArrayRepositoryBackend
  * A RepositoryBackend for 1 model stored in an array.

@@ -2,7 +2,7 @@
 /**
  * Breidt de UnitTestCase class uit met assert functies voor het controleren van queries en tabellen.
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 class DatabaseCollectionTest extends DatabaseTestCase {
 
 	protected $skipRebuildDatabase = true;
@@ -13,7 +13,7 @@ class DatabaseCollectionTest extends DatabaseTestCase {
 		$repo = new Repository();
 		$backend = new DatabaseRepositoryBackend(array($this->dbLink));
 		foreach ($backend->configs as $config) {
-			$config->class = 'SledgeHammer\SimpleRecord';
+			$config->class = 'Sledgehammer\SimpleRecord';
 		}
 	}
 

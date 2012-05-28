@@ -2,7 +2,7 @@
 /**
  * Test de functionaliteit van Record (via de GenericRecord class)
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 class RecordRelationTest extends DatabaseTestCase {
 
 	/**

@@ -6,7 +6,7 @@
  *
  * @package ORM
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 
 class RepositoryCollection extends Collection {
 

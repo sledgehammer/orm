@@ -4,7 +4,7 @@
  *
  * @package ORM
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 
 /**
  * Get a Repository by ID
@@ -20,6 +20,6 @@ function getRepository($id = 'default') {
 		Repository::$instances['default'] = new Repository();
 		return Repository::$instances['default'];
 	}
-	throw new \Exception('Repository: \SledgeHammer\Repository::$instances[\''.$id.'\'] doesn\'t exist');
+	throw new \Exception('Repository: \Sledgehammer\Repository::$instances[\''.$id.'\'] doesn\'t exist');
 }
 ?>

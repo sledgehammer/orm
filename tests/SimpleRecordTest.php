@@ -3,7 +3,7 @@
  * Test de functionaliteit van de SimpleRecord en RepositorySQLBackend
  *
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 class SimpleRecordTest extends DatabaseTestCase {
 
 	/**
@@ -24,7 +24,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 		$repo = new Repository();
 		$backend = new DatabaseRepositoryBackend(array($this->dbLink));
 		foreach ($backend->configs as $config) {
-			$config->class = 'SledgeHammer\SimpleRecord';
+			$config->class = 'Sledgehammer\SimpleRecord';
 		}
 		$repo->registerBackend($backend);
 		Repository::$instances[__CLASS__] = $repo;
@@ -72,7 +72,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 		$record = $this->getCustomer(1);
 		// Object should contain values from the db. %s');
 
-		$this->assertInstanceOf('SledgeHammer\HasManyPlaceholder', $record->orders);
+		$this->assertInstanceOf('Sledgehammer\HasManyPlaceholder', $record->orders);
 		$orders = $record->orders;
 		$record->orders = array();
 		$this->assertEquals(get_object_vars($record), array(
@@ -121,7 +121,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 			$record->save();
 			$this->fail('Expecting an exception');
 		} catch(\OutOfBoundsException $e) {
-			$this->assertEquals($e->getMessage(), 'SledgeHammer\SimpleRecord->save() not allowed on deleted objects');
+			$this->assertEquals($e->getMessage(), 'Sledgehammer\SimpleRecord->save() not allowed on deleted objects');
 		}
 		$this->assertTableContents('customers', array(
 			array('id' => '2', 'name' => 'James Bond', 'occupation' => 'Spion'),

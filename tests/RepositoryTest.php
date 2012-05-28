@@ -1,5 +1,5 @@
 <?php
-namespace SledgeHammer;
+namespace Sledgehammer;
 /**
  * RepositoryTest
  *
@@ -34,7 +34,7 @@ class RepositoryTest extends DatabaseTestCase {
 
 	/**
 	 *
-	 * @param SledgeHammer\Database $db
+	 * @param Sledgehammer\Database $db
 	 */
 	public function fillDatabase($db) {
 		$db->import(dirname(__FILE__).'/rebuild_test_database.'.$db->getAttribute(\PDO::ATTR_DRIVER_NAME).'.sql', $error);
@@ -123,9 +123,9 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertLastQuery('SELECT * FROM orders WHERE id = 2');
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'A get*() should execute max 1 query');
 		$this->assertEquals($order2->product, 'Walter PPK 9mm');
-		$this->assertEquals(get_class($order2->customer), 'SledgeHammer\BelongsToPlaceholder', 'The customer property should be an placeholder');
+		$this->assertEquals(get_class($order2->customer), 'Sledgehammer\BelongsToPlaceholder', 'The customer property should be an placeholder');
 		$this->assertEquals($order2->customer->id, "2");
-		$this->assertEquals(get_class($order2->customer), 'SledgeHammer\BelongsToPlaceholder', 'The placeholder should handle the "id" property');
+		$this->assertEquals(get_class($order2->customer), 'Sledgehammer\BelongsToPlaceholder', 'The placeholder should handle the "id" property');
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
 		$this->assertEquals($order2->customer->name, "James Bond", 'Lazy-load the correct data');
@@ -175,52 +175,52 @@ class RepositoryTest extends DatabaseTestCase {
 
 		// Test iterator
 		$c1 = $repo->getCustomer(1);
-		$this->assertTrue((gettype($c1->orders) == 'object' && get_class($c1->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
+		$this->assertTrue((gettype($c1->orders) == 'object' && get_class($c1->orders) == 'Sledgehammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
 		foreach ($c1->orders as $order) {
 			$this->assertEquals($order->product, 'Kop koffie', 'Only 1 order expected');
 		}
 		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = 1');
-		$this->assertInstanceOf('SledgeHammer\Collection', $c1->orders, 'The orders property should be replaced with an Collection');
+		$this->assertInstanceOf('Sledgehammer\Collection', $c1->orders, 'The orders property should be replaced with an Collection');
 		$this->assertEquals($c1->orders[0]->product, 'Kop koffie', 'Contents should match the order from customer 1');
 		$this->assertEquals(count($c1->orders), 1, 'Should only contain the order from customer 1');
 
 		// Test count
 		$c2 = $repo->getCustomer(2);
-		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
+		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'Sledgehammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
 		$this->assertEquals(count($c2->orders), 2, 'Should only contain the order from customer 2');
-		$this->assertInstanceOf('SledgeHammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
+		$this->assertInstanceOf('Sledgehammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
 	}
 
 	function test_hasManyArrayAccessInterface() {
 		// Test array access
 		$c2 = $this->getDirtyCustomer(2);
-		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
+		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'Sledgehammer\HasManyPlaceholder'), 'The orders property should be an Placeholder');
 		$this->assertEquals($c2->orders[0]->product, 'Walter PPK 9mm', 'Get by array offset 0');
 		$this->assertEquals($c2->orders[1]->product, 'Spycam', 'Get by array offset 1');
 		$this->assertEquals(count($c2->orders), 2, 'Should only contain the order from customer 2');
-		$this->assertInstanceOf('SledgeHammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
+		$this->assertInstanceOf('Sledgehammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
 
 
 		$c2 = $this->getDirtyCustomer(2);
-		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'SledgeHammer\HasManyPlaceholder'), 'Sainity check');
+		$this->assertTrue((gettype($c2->orders) == 'object' && get_class($c2->orders) == 'Sledgehammer\HasManyPlaceholder'), 'Sainity check');
 		$this->assertTrue(isset($c2->orders[1]), 'array offset exists');
-		$this->assertInstanceOf('SledgeHammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
+		$this->assertInstanceOf('Sledgehammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
 
 		$c2 = $this->getDirtyCustomer(2);
 		$this->assertFalse(isset($c2->orders[3]), 'array offset doesn\'t exist');
-		$this->assertInstanceOf('SledgeHammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
+		$this->assertInstanceOf('Sledgehammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
 
 		$c2 = $this->getDirtyCustomer(2);
 		$c2->orders[0] = 'test';
 		$this->assertEquals($c2->orders[0], 'test', 'Set by array offset');
-		$this->assertInstanceOf('SledgeHammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
+		$this->assertInstanceOf('Sledgehammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
 
 
 		$c2 = $this->getDirtyCustomer(2);
 		$clone = clone $c2;
 		unset($c2->orders[0]);
 		$this->assertEquals(count($c2->orders), 1, 'Unset by array offset');
-		$this->assertInstanceOf('SledgeHammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
+		$this->assertInstanceOf('Sledgehammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
 
 		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder is already replaced');
 		$this->assertEquals($clone->orders[1]->product, 'Spycam');
@@ -233,7 +233,7 @@ class RepositoryTest extends DatabaseTestCase {
 
 		$order = $repo->getOrder(2, true);
 		$this->assertFalse($order->customer instanceof BelongsToPlaceholder, 'Should not be a BelongsToPlaceholder');
-		$this->assertInstanceOf('SledgeHammer\Collection', $order->customer->orders, 'Should not be a HasManyPlaceholder');
+		$this->assertInstanceOf('Sledgehammer\Collection', $order->customer->orders, 'Should not be a HasManyPlaceholder');
 	}
 
 	function test_removeWildcard() {
@@ -330,7 +330,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$class = 'AutoCompleteTestRepository';
 		$repoBase->writeAutoCompleteHelper($filename, $class);
 		include($filename);
-		$methods = array_diff(get_public_methods($class), get_public_methods('SledgeHammer\Repository'));
+		$methods = array_diff(get_public_methods($class), get_public_methods('Sledgehammer\Repository'));
 		$this->assertEquals($methods, array(
 			'getCustomer',
 			'allCustomers',

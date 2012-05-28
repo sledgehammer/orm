@@ -22,7 +22,7 @@ The collection will be preconfigured (by the Repository).
 The hasMany object will do the (optional) value mapping.
 
 special function to convert the placeholder into an array:
-SledgeHammer\replace_placeholder($model->items);
+Sledgehammer\replace_placeholder($model->items);
     Or does "reset($model->items);" work?
 
 2. Use a placeholder and replace the placeholder with a collection on-access.

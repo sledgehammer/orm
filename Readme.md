@@ -1,8 +1,8 @@
 
-SledgeHammer ORM
+Sledgehammer ORM
 ==================
 
-The Object-relational mapping (ORM) module for the SledgeHammer Framework.
+The Object-relational mapping (ORM) module for the Sledgehammer Framework.
 
 Features
 ---------
@@ -31,7 +31,7 @@ $customer = $repo->getCustomer($_GET['id]);
 $customer->name = $_POST['name'];
 $repo->saveCustomer($customer);
 
-// When the Customer class extends SledgeHammer\ActiveRecord the familiar API is also available
+// When the Customer class extends Sledgehammer\ActiveRecord the familiar API is also available
 $customer = Customer::find($_GET['id]);
 $customer->name = $_POST['name'];
 $customer->save();

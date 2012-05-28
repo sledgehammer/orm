@@ -4,7 +4,7 @@
  *
  * @package ORM
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 
 abstract class ActiveRecord extends Observable {
 

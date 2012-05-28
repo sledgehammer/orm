@@ -5,7 +5,7 @@
  *
  * @package ORM
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 
 class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Countable {
 

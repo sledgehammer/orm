@@ -4,7 +4,7 @@
  *
  * @package ORM
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 class ModelConfig extends Object {
 
 	/**

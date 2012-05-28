@@ -5,7 +5,7 @@
  *
  * @package ORM
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 
 class DatabaseRepositoryBackend extends RepositoryBackend {
 

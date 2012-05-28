@@ -6,7 +6,7 @@
  *
  * @package ORM
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 class Inflector extends Object {
 
 	static $plural = array(

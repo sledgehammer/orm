@@ -3,7 +3,7 @@
  * A Repository with additional validation
  *
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 
 class RepositoryTester extends Repository {
 

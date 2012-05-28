@@ -7,13 +7,13 @@
  *
  * @package ORM
  */
-namespace SledgeHammer;
+namespace Sledgehammer;
 class Repository extends Object {
 
 	/**
 	 * @var array  Namespaces that are searched for the classname
 	 */
-	protected $namespaces = array('', 'SledgeHammer\\');
+	protected $namespaces = array('', 'Sledgehammer\\');
 
 	/**
 	 * @var array|ModelConfig  registered models: array(model => config)
@@ -688,7 +688,7 @@ class Repository extends Object {
 				$namespace = implode('\\', array_slice($parts, 1));
 
 				// Generate class
-				$php = "namespace ".$namespace.";\nclass ".$config->name." extends \SledgeHammer\Object {\n";
+				$php = "namespace ".$namespace.";\nclass ".$config->name." extends \Sledgehammer\Object {\n";
 				foreach ($config->properties as $path) {
 					$compiledPath = PropertyPath::compile($path);
 					$property = $compiledPath[0][1];
@@ -708,7 +708,7 @@ class Repository extends Object {
 					$hasManyConfig = $this->_getConfig($hasMany['model']);
 					$property = $compiledPath[0][1];
 					$php .= "\t/**\n";
-					$php .= "\t * @var ".$hasManyConfig->class."|\SledgeHammer\Collection  A collection with the associated ".$hasManyConfig->plural."\n";
+					$php .= "\t * @var ".$hasManyConfig->class."|\Sledgehammer\Collection  A collection with the associated ".$hasManyConfig->plural."\n";
 					$php .= "\t */\n";
 					$php .= "\tpublic $".$property.";\n";
 				}
