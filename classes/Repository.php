@@ -578,7 +578,14 @@ class Repository extends Object {
 			}
 			$this->register($config);
 		}
-		// Pass 2: Validate and correct configs
+		// Pass 2: Auto detect id's
+		foreach ($backend->configs as $backendConfig) {
+			$config = $this->configs[$backendConfig->name];
+			if (count($config->id) === 0 && isset($config->properties['id'])) { // No id set, but the column 'id' exists?
+				$config->id = array('id');
+			}
+		}
+		// Pass 3: Validate and correct configs
 		foreach ($backend->configs as $backendConfig) {
 			$config = $this->configs[$backendConfig->name];
 			foreach ($config->id as $idIndex => $idColumn) {
