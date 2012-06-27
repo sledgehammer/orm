@@ -1,12 +1,13 @@
 <?php
 /**
+ * CollectionView
+ */
+namespace Sledgehammer;
+/**
  * Extract the key/value of the collection based on a propertypath.
  *
  * @package ORM
  */
-
-namespace Sledgehammer;
-
 class CollectionView extends Collection {
 
 	protected $valueField = null;
@@ -35,7 +36,7 @@ class CollectionView extends Collection {
 	}
 
 	public function where($conditions) {
-		if ($this->valueField === null && $this->data instanceof Collection) { // The valueField is not set, pass the conditions to the original collection. 
+		if ($this->valueField === null && $this->data instanceof Collection) { // The valueField is not set, pass the conditions to the original collection.
 			return new CollectionView($this->data->where($conditions), null, $this->keyField);
 		}
 		return parent::where($conditions);

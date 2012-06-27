@@ -1,10 +1,13 @@
 <?php
 /**
+ * ModelConfig
+ */
+namespace Sledgehammer;
+/**
  * Model configuration class, a formal definition of a Repository model.
  *
  * @package ORM
  */
-namespace Sledgehammer;
 class ModelConfig extends Object {
 
 	/**

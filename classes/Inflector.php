@@ -1,12 +1,15 @@
 <?php
 /**
+ * Inflector
+ */
+namespace Sledgehammer;
+/**
  * The Inflector transforms words from singular to plural and from plural to singular
  *
  * Original code from php-activerecord @link http://www.phpactiverecord.org/ who copied it from RoR's ActiveRecord @link http://api.rubyonrails.org/classes/ActiveSupport/Inflector.html
  *
  * @package ORM
  */
-namespace Sledgehammer;
 class Inflector extends Object {
 
 	static $plural = array(

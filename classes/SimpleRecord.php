@@ -1,11 +1,14 @@
 <?php
 /**
+ * SimpleRecord
+ */
+namespace Sledgehammer;
+/**
  * An ActiveRecord with (generated) properties based on the ModelConfig->properties.
  * Adds the ActiveRecord interface to any Repository model, but disables support for property-autocompletion.
  *
  * @package ORM
  */
-namespace Sledgehammer;
 class SimpleRecord extends ActiveRecord {
 
 	/**

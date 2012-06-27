@@ -1,13 +1,14 @@
 <?php
 /**
- * RepositoryCollection a Collection containing repository instances.
- *
+ * RepositoryCollection
+ */
+namespace Sledgehammer;
+/**
+ * A Collection containing repository instances.
  * Contains the raw \Traversable|array from the backend and converts the data to instances on-access.
  *
  * @package ORM
  */
-namespace Sledgehammer;
-
 class RepositoryCollection extends Collection {
 
 	protected $model;

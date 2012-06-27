@@ -1,9 +1,8 @@
 <?php
 /**
- * Record functions
- *
  * @package ORM
  */
+// Global functions inside the Sledgehammer namespace
 namespace Sledgehammer;
 
 /**

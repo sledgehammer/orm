@@ -1,8 +1,12 @@
 <?php
-namespace Sledgehammer;
 /**
  * ArrayRepositoryBackend
+ */
+namespace Sledgehammer;
+/**
  * A RepositoryBackend for 1 model stored in an array.
+ *
+ * @package ORM
  */
 class ArrayRepositoryBackend extends RepositoryBackend {
 

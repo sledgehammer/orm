@@ -1,5 +1,9 @@
 <?php
 /**
+ * Repository
+ */
+namespace Sledgehammer;
+/**
  * Repository/DataMapper
  *
  * An API to retrieve and store models from their backends and track their changes.
@@ -7,7 +11,6 @@
  *
  * @package ORM
  */
-namespace Sledgehammer;
 class Repository extends Object {
 
 	/**
@@ -581,13 +584,20 @@ class Repository extends Object {
 		// Pass 2: Auto detect id's
 		foreach ($backend->configs as $backendConfig) {
 			$config = $this->configs[$backendConfig->name];
-			if (count($config->id) === 0 && isset($config->properties['id'])) { // No id set, but the column 'id' exists?
-				$config->id = array('id');
+			if (count($config->id) === 0) {
+				if( isset($config->properties['id'])) { // No id set, but the column 'id' exists?
+					$config->id = array('id');
+				} else {
+					warning('Invalid config: '.$config->name.'->id is not configured and could not detect an "id" element');
+				}
 			}
 		}
 		// Pass 3: Validate and correct configs
 		foreach ($backend->configs as $backendConfig) {
 			$config = $this->configs[$backendConfig->name];
+			if (count($config->properties) === 0) {
+				warning('Invalid config: '.$config->name.'->properties array is not configured');
+			}
 			foreach ($config->id as $idIndex => $idColumn) {
 				if (isset($config->properties[$idColumn])) {
 					$idProperty = $config->properties[$idColumn];

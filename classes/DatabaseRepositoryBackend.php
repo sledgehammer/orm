@@ -1,12 +1,14 @@
 <?php
 /**
+ * DatabaseRepositoryBackend
+ */
+namespace Sledgehammer;
+/**
  * Repository backend for database records
  * @todo Validate datatypes before retrieving or removing records, because '12a' will be sillently truncated by mysql to 12
  *
  * @package ORM
  */
-namespace Sledgehammer;
-
 class DatabaseRepositoryBackend extends RepositoryBackend {
 
 	public $identifier = 'db';

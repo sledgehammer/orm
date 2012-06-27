@@ -1,10 +1,14 @@
 <?php
 /**
+ * RepositoryBackend
+ */
+namespace Sledgehammer;
+/**
  * The minimal interface for a (read-only) Repository Backend
  *
  * @package ORM
  */
-namespace Sledgehammer;
+
 abstract class RepositoryBackend extends Object {
 
 	/**

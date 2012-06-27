@@ -1,12 +1,14 @@
 <?php
 /**
+ * HasManyPlaceholder
+ */
+namespace Sledgehammer;
+/**
  * This Placeholder facilitates lazy loading of hasMany relations.
  * A HasManyPlaceholder object behaves like an Collection containing all related objects from the repository, but only retrieves the objects on-access or on-change.
  *
  * @package ORM
  */
-namespace Sledgehammer;
-
 class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Countable {
 
 	/**

@@ -1,11 +1,13 @@
 <?php
 /**
+ * ActiveRecord
+ */
+namespace Sledgehammer;
+/**
  * An ActiveRecord frontend for the Repository
  *
  * @package ORM
  */
-namespace Sledgehammer;
-
 abstract class ActiveRecord extends Observable {
 
 	protected $_model;
