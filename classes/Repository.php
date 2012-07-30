@@ -251,8 +251,9 @@ class Repository extends Object {
 			if (count($config->id) != 1) {
 				throw new \Exception('Complex keys not (yet) supported for hasMany relations');
 			}
-			$id = $instance->{$config->id[0]};
-			$collection = $this->all($hasMany['model'])->where(array($hasMany['reference'] => $id));
+			$id = PropertyPath::get($instance, $config->id[0]);
+			$related = $this->_getBackend($config->backend)->related($hasMany, $id);
+			$collection = new RepositoryCollection($related, $hasMany['model'], $this->id, $this->collectionMappings[$hasMany['model']]);
 			if (isset($hasMany['conditions'])) {
 				$collection = $collection->where($hasMany['conditions']);
 			}
@@ -416,11 +417,8 @@ class Repository extends Object {
 	 */
 	function save($model, $instance, $options = array()) {
 		$relationSaveOptions = $options;
-		$relationSaveOptions['add_unknown_instance'] = (value($option['reject_unknown_related_instances']) == false);
+		$relationSaveOptions['add_unknown_instance'] = (value($options['reject_unknown_related_instances']) == false);
 		$config = $this->_getConfig($model);
-		$data = array();
-		$index = null;
-		$object = null;
 		if (is_object($instance) === false) {
 			throw new \Exception('Invalid parameter $instance, must be an object');
 		}
@@ -529,6 +527,8 @@ class Repository extends Object {
 								warning('Unable to save the change "'.$item.'" in '.$config->name.'->'.$property.'['.$key.']');
 							}
 						}
+					} elseif (isset($hasMany['through'])) {
+						notice('Not implemented');
 					} else {
 						notice('Unable to verify/update foreign key'); // @TODO: implement raw fk injection.
 					}
@@ -614,7 +614,7 @@ class Repository extends Object {
 					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set';
 				} elseif (empty($belongsTo['reference']) && empty($belongsTo['convert'])) {
 					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] is missing a [reference] or [convert] element';
-				} elseif (isset($relation['convert']) && isset($relation['reference'])) {
+				} elseif (isset($belongsTo['convert']) && isset($belongsTo['reference'])) {
 					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] can\'t contain both a [reference] and a [convert] element';
 				}
 				if (isset($belongsTo['reference'])) {

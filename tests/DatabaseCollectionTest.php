@@ -28,9 +28,13 @@ class DatabaseCollectionTest extends DatabaseTestCase {
 
 	function test_escaped_where() {
 		$collection = $this->getCustomerCollection();
-		$emptyCollection = $collection->where(array('name' => "'")); //
+		$emptyCollection = $collection->where(array('name' => "'"));
 		$this->assertEquals(count($emptyCollection->toArray()), 0);
-		$this->assertLastQuery("SELECT * FROM customers WHERE name = ''''");
+		if ($this->getDatabase()->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+			$this->assertLastQuery("SELECT * FROM customers WHERE name = ''''");
+		} else {
+			$this->assertLastQuery("SELECT * FROM customers WHERE name = '\''");
+		}
 		$this->assertEquals($collection->sql->__toString(), "SELECT * FROM customers", 'Collection->where() does not	modify the orginal collection');
 	}
 

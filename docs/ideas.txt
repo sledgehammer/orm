@@ -70,3 +70,17 @@ De Collection objecten verzorgen de database handelingen.
     Dus ook de find en save functies. Hierdoor hoeft een record de dbLink alleen maar door tegeven aan de Collection
     Nadelen de dump($record) wordt vervuild
 Afgekeurd omdat: Levert extra code en onnodige tight coupling op, zonder grote meerwaarde (ipv een dbLink heb je een collectionLink).
+
+
+Many2Many API
+
+
+The relations should act as a normal hasMany.
+A relation is not a model and should not be accessable via Repo->get or Repo->all
+
+When the m2m relation does not contain additional fields the regular model/class/instance should be used.
+When it does have additional fields the object should be augmented with the additional properties, but the changes to the other properties should propagate to the related instance.
+
+Many2Many Implementation
+  Does the Repository class need to be aware?
+    Probably, the backend collection can detect the filter, but mixes the "Relation" and "All" logic.

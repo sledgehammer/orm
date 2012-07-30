@@ -24,6 +24,12 @@ abstract class RepositoryBackend extends Object {
 	public $configs;
 
 	/**
+	 * The junction tables
+	 * @var array|ModelConfig
+	 */
+	public $junctions = array();
+
+	/**
 	 * Retrieve model-data by id.
 	 *
 	 * @return mixed data
@@ -38,6 +44,35 @@ abstract class RepositoryBackend extends Object {
 	 */
 	function all($config) {
 		throw new \Exception('Method: '.get_class($this).'->all() not implemented');
+	}
+
+	/**
+	 * Retrieve all related model-data.
+	 *
+	 * @param array $relation  The hasMany relation
+	 * @param mixed $id  The ID of the container instance.
+	 * @return \Traversable|array
+	 */
+	function related($relation, $id) {
+		if (isset($relation['through']) === false) {
+			// one-to-many relation?
+			$conditions = array($relation['reference'] => $id);
+		} else {
+			// many-to-many relation.
+			$junction = $this->junctions[$relation['through']];
+			$join = $this->all($junction->backendConfig);
+			if (($join instanceof Collection) === false) {
+				$join = new Collection($join);
+			}
+			$ids = $join->where(array($relation['reference'] => $id))->select($relation['id'])->toArray();
+;			$conditions = array('id IN' => $ids);
+		}
+		$config = $this->configs[$relation['model']];
+		$all = $this->all($config->backendConfig);
+		if (($all instanceof Collection) === false) {
+			$all = new Collection($all);
+		}
+		return $all->where($conditions);
 	}
 
 	/**

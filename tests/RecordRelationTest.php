@@ -13,9 +13,6 @@ class RecordRelationTest extends DatabaseTestCase {
 		$db->import(dirname(__FILE__).'/rebuild_test_database.'.$db->getAttribute(\PDO::ATTR_DRIVER_NAME).'.sql', $error);
 		$repo = new Repository();
 		$backend = new DatabaseRepositoryBackend(array($this->dbLink));
-		$customer = $backend->configs['Customer'];
-//		$customer->hasMany['products'] = $customer->hasMany['orders'];
-//		$customer->hasMany['products']['filters'] = array('CollectionView' => array('valueField' => 'product', 'keyField' => 'id'));
 		$repo->registerBackend($backend);
 		Repository::$instances[__CLASS__] = $repo;
 	}
@@ -74,7 +71,7 @@ class RecordRelationTest extends DatabaseTestCase {
 
 	function test_hasMany_table_values() {
 		$customer = getRepository(__CLASS__)->getCustomer(2, true);
-		$products = collection($customer->orders)->select('product', 'id')->toArray();
+		$products = $customer->orders->select('product', 'id')->toArray();
 		$this->assertEquals($products, array(
 			2 => 'Walter PPK 9mm',
 			3 => 'Spycam',
@@ -96,6 +93,19 @@ class RecordRelationTest extends DatabaseTestCase {
 //		$this->expectError('Unable to remove item[3]: "Spycam" from Customer->products');
 //		getRepository(__CLASS__)->saveCustomer($customer);
     }
+
+	function test_many_to_many_relation() {
+		$bob = getRepository(__CLASS__)->getCustomer(1);
+		$this->assertCount(1, $bob->groups);
+		$this->assertEquals("Hacker", $bob->groups[0]->title);
+		$bob->groups[0]->title = 'H4x0r';
+
+		$hacker = getRepository(__CLASS__)->getGroup($bob->groups[0]->id);
+		$this->assertEquals('H4x0r', $hacker->title, 'Change should be reflected in the Group instance');
+
+		$this->assertCount(2, $hacker->customers);
+		// @todo assaving
+	}
 
 //	function test_custom_relation() {
 //		$hasMany = array('products' => new RecordRelation('orders', 'customer_id', array(

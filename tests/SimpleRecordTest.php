@@ -74,14 +74,18 @@ class SimpleRecordTest extends DatabaseTestCase {
 
 		$this->assertInstanceOf('Sledgehammer\HasManyPlaceholder', $record->orders);
 		$orders = $record->orders;
-		$record->orders = array();
+		$groups = $record->groups;
+		$record->orders = '__PlACEHOLDER__';
+		$record->groups = '__PlACEHOLDER__';
 		$this->assertEquals(get_object_vars($record), array(
-		  'id' => '1',
-		  'name' => 'Bob Fanger',
-		  'occupation' => 'Software ontwikkelaar',
-		  'orders' => array(),
+			'id' => '1',
+			'name' => 'Bob Fanger',
+			'occupation' => 'Software ontwikkelaar',
+			'orders' => '__PlACEHOLDER__',
+			'groups' => '__PlACEHOLDER__',
 		));
 		$record->orders = $orders; // restore placeholder
+		$record->groups = $groups; // restore placeholder
 
 //		$this->assertEquals(1, $record->getId());
 

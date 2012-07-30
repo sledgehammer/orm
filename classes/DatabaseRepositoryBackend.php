@@ -14,11 +14,6 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	public $identifier = 'db';
 
 	/**
-	 * @var array|ModelConfig
-	 */
-	public $configs = array();
-
-	/**
 	 * @var int Number of seconds a database schema is cached.
 	 */
 	static $cacheTimeout = 15;
@@ -66,6 +61,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 			file_put_contents($cacheFile, json_encode($schema));
 		}
 		$models = array();
+		$junctions = array();
 		foreach ($schema as $tableName => $table) {
 			if ($tablePrefix != '' && substr($tableName, 0, strlen($tablePrefix)) == $tablePrefix) {
 				$plural = ucfirst(substr($tableName, strlen($tablePrefix))); // Strip prefix
@@ -116,6 +112,22 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 					$config->defaults[$property] = null;
 				}
 			}
+
+			// Detect junction table
+			if (count($config->id) === 2) {
+				$primaryKeyAreForeignKeys = true;
+				foreach ($config->belongsTo as $belongsTo) {
+					if (in_array($belongsTo['reference'], $config->id) === false) {
+						$primaryKeyAreForeignKeys = false;
+						break;
+					}
+				}
+				if ($primaryKeyAreForeignKeys) {
+					$junctions[$tableName] = $config;
+					$this->junctions[$config->name] = $config;
+					continue;
+				}
+			}
 			$models[$tableName] = $config;
 			if (isset($this->configs[$config->name])) {
 				notice('Model "'.$config->name.'" (for the "'.$tableName.'" table) is defined in both "'.$this->configs[$config->name]->backendConfig['dbLink'].'" and "'.$dbLink.'" ');
@@ -128,7 +140,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 				$this->configs[$config->name] = $config;
 			}
 		}
-		// Pass 2:
+		// Pass 2: hasMany
 		foreach ($this->configs as $config) {
 			$table = $schema[$config->backendConfig['table']];
 			foreach ($table['referencedBy'] as $reference) {
@@ -141,17 +153,41 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 					notice('Unable to use '.$config->name.'->hasMany['.$property.'] a property with the same name exists');
 					break;
 				}
-				$belongsToModel = $models[$reference['table']];
-				foreach ($belongsToModel->belongsTo as $belongsToProperty => $belongsTo) {
-					if ($belongsTo['model'] == $config->name && $belongsTo['reference'] == $reference['column']) {
-						$config->hasMany[$property] = array(
-							'model' => $belongsToModel->name,
-							'reference' => $belongsToProperty.'->'.$belongsTo['id'],
-							'belongsTo' => $belongsToProperty
-						);
-						$config->defaults[$property] = array();
-						break;
+				if (isset($models[$reference['table']])) {
+					// One-to-many relation
+					$belongsToModel = $models[$reference['table']];
+					foreach ($belongsToModel->belongsTo as $belongsToProperty => $belongsTo) {
+						if ($belongsTo['model'] == $config->name && $belongsTo['reference'] == $reference['column']) {
+							$config->hasMany[$property] = array(
+								'model' => $belongsToModel->name,
+								'reference' => $reference['column'],
+								'belongsTo' => $belongsToProperty
+							);
+							$config->defaults[$property] = array();
+							break;
+						}
 					}
+				} elseif (isset($junctions[$reference['table']])) {
+					// Many-to-many realtion
+					$junction = $junctions[$reference['table']];
+					$hasMany = array(
+						'through' => $junction->name,
+						'fields' => $junction->properties,
+					);
+					foreach ($junction->belongsTo as $belongsToProperty => $belongsTo) {
+
+						if ($belongsTo['model'] === $config->name) {
+							$hasMany['reference'] = $belongsTo['reference'];
+						} else {
+							$property = Inflector::pluralize($belongsToProperty);
+							$hasMany['model'] = $belongsTo['model'];
+							$hasMany['id'] = $belongsTo['reference'];
+						}
+					}
+					$config->hasMany[$property] = $hasMany;
+					$config->defaults[$property] = array();
+				} else {
+					notice('Missing a model or relation for "'.$reference['table'].'" in the database schema');
 				}
 			}
 		}

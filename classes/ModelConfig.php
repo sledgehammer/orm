@@ -11,26 +11,35 @@ namespace Sledgehammer;
 class ModelConfig extends Object {
 
 	/**
-	 * @var string  The name of the model
+	 * The name of the model
+	 * @var string
 	 */
 	public $name;
+
 	/**
-	 *
-	 * @var string  The name of the model in plural from.
+	 * The name of the model in plural from.
+	 * @var string
 	 */
 	public $plural;
+
 	/**
-	 * @var string|null|false  The full classname (null: AutoDetect class, false: Autogenerate class)
+	 * The full classname (null: AutoDetect class, false: Autogenerate class)
+	 * @var string|null|false
 	 */
 	public $class;
+
 	/**
-	 * @var array  Direct mapping of properties to the backend data structure. array($column => $property)
+	 * Direct mapping of properties to the backend data structure. array($column => $property)
+	 * @var array
 	 */
 	public $properties = array();
+
 	/**
-	 * @var array  The element(s) in the backend data that identifies an instance. Example: array('id') for the 'id' field.
+	 * The element(s) in the backend data that identifies an instance. Example: array('id') for the 'id' field.
+	 * @var array
 	 */
 	public $id = array();
+
 	/**
 	 * Configuration of the belongsTo relation(s)
 	 * @var array  array(
@@ -46,20 +55,25 @@ class ModelConfig extends Object {
 	 * )
 	 */
 	public $belongsTo = array();
+
 	/**
 	 * Configuration of the hasMany relation(s)
 	 * @var array  array(
 	 *   $property => array(
-	 *     'model' => $modelName
-	 *     'reference' => $propertyPath, // The path of the property that is referers to the id of this model. Example: "customer->id"
-	 *     'belongsTo' => $propertyPath, // The belongsTo path references back to this model. Set this property to implicitly set the foreignkey. Example: "customer"
-	 *     'conditions' => array() // Additional extra (static) conditions
-	 *   )
+	 *     'model' => $modelName // The foreign model: "Product"
+	 *     'reference' => $column, // foreign_key to thix countainer instance.
+	 *     'belongsTo' => $propertyPath, // (optional) The belongsTo in the related instances in a on-to-many relation that refers back to the container instance. Used in save() for implicitly setting the foreignkey value.
+	 *     'through' => $junctionName // (optional) The junction for many-to-many relations.
+	 *     'id' => $column // (optional) foreign_key for the related model in the many-to-many table: "product_id"
+	 *     'conditions' => array() // (optional) Additional extra (static) conditions
+	 *   ),
 	 * )
 	 */
 	public $hasMany = array();
+
 	/**
-	 * @var array  Default values for new instance
+	 * Default values for new instance.
+	 * @var array
 	 */
 	public $defaults = array();
 
@@ -67,13 +81,15 @@ class ModelConfig extends Object {
 	 * @var string
 	 */
 	public $backend;
+
 	/**
-	 * @var mixed  An container for RepositoryBackend specific settings.
+	 * An container for RepositoryBackend specific settings.
+	 * @var mixed
 	 */
 	public $backendConfig;
 
 	/**
-	 *
+	 * Constructor
 	 * @param string $name  Model name
 	 * @param array $options  Additional configuration options
 	 */
@@ -83,6 +99,7 @@ class ModelConfig extends Object {
 			$this->$property = $value;
 		}
 	}
+
 }
 
 ?>
