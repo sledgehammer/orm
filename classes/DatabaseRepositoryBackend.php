@@ -334,7 +334,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		if (count($where) == 0) {
 			throw new \LengthException('Invalid config, no "primaryKeys" defined');
 		}
-		return implode(' AND', $where);
+		return implode(' AND ', $where);
 	}
 
 	/**

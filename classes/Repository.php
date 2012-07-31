@@ -528,7 +528,26 @@ class Repository extends Object {
 							}
 						}
 					} elseif (isset($hasMany['through'])) {
-						notice('Not implemented');
+						$backend = $this->_getBackend($config->backend);
+						$junction = $backend->junctions[$hasMany['through']];
+						$hasManyConfig = $this->_getConfig($hasMany['model']);
+						$hasManyIdPath = $hasManyConfig->properties[$config->id[0]];
+						if ($old === null) {
+							$oldIds = array();
+						} else {
+							$oldIds = collection($old)->select($hasManyConfig->properties[$config->id[0]])->toArray();
+						}
+						foreach ($collection as $key => $item) {
+							$this->save($hasMany['model'], $item, $relationSaveOptions);
+							if (in_array(PropertyPath::get($item , $hasManyIdPath), $oldIds) === false) { // New relation?
+								$data = array(
+									$hasMany['reference'] => PropertyPath::get($instance, $config->properties[$config->id[0]]),
+									$hasMany['id'] => PropertyPath::get($item, $hasManyIdPath)
+								);
+								$backend->add($data, $junction->backendConfig);
+								// @todo Add $instance to the $item->hasMany collection.
+							}
+						}
 					} else {
 						notice('Unable to verify/update foreign key'); // @TODO: implement raw fk injection.
 					}
@@ -541,7 +560,17 @@ class Repository extends Object {
 							foreach ($old as $key => $item) {
 								if (array_search($item, $collection, true) === false) {
 									if (is_object($item)) {
-										$this->delete($hasMany['model'], $item);
+										if (empty($hasMany['through'])) { // one-to-many?
+											$this->delete($hasMany['model'], $item); // Delete the related model
+										} else {
+											// Delete the junction (many-to-many)
+											$data = array(
+												$hasMany['reference'] => PropertyPath::get($instance, $config->properties[$config->id[0]]),
+												$hasMany['id'] => PropertyPath::get($item, $hasManyIdPath)
+											);
+											$backend->delete($data, $junction->backendConfig);
+											// @todo Remove $instance from the $item->hasMany collection.
+										}
 									} else {
 										warning('Unable to remove item['.$key.']: "'.$item.'" from '.$config->name.'->'.$property);
 									}

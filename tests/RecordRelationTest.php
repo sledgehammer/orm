@@ -95,16 +95,27 @@ class RecordRelationTest extends DatabaseTestCase {
     }
 
 	function test_many_to_many_relation() {
-		$bob = getRepository(__CLASS__)->getCustomer(1);
+		$repo = getRepository(__CLASS__);
+		$bob = $repo->getCustomer(1);
+		// Reading
 		$this->assertCount(1, $bob->groups);
 		$this->assertEquals("Hacker", $bob->groups[0]->title);
 		$bob->groups[0]->title = 'H4x0r';
 
+		// Changing
 		$hacker = getRepository(__CLASS__)->getGroup($bob->groups[0]->id);
 		$this->assertEquals('H4x0r', $hacker->title, 'Change should be reflected in the Group instance');
 
 		$this->assertCount(2, $hacker->customers);
-		// @todo assaving
+
+		// Saving
+		unset($bob->groups[0]);
+		$repo->saveCustomer($bob);
+		$this->assertLastQuery('DELETE FROM memberships WHERE customer_id = 1 AND group_id = 1');
+		$bob->groups[] = $repo->createGroup(array('title' => 'Movie fanatic'));
+		$repo->saveCustomer($bob);
+		$this->assertLastQuery('INSERT INTO memberships (customer_id, group_id) VALUES (1, 4)');
+		$this->assertQuery("INSERT INTO groups (title) VALUES ('Movie fanatic')");
 	}
 
 //	function test_custom_relation() {
