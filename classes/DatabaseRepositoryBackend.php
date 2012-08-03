@@ -49,8 +49,8 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		// Pass 1: Retrieve and parse schema information
 		$db = getDatabase($dbLink);
 		$cacheIdentifier = $dbLink.' '.$tablePrefix.' ';
-		if (count($db->log) > 0) {
-			$cacheIdentifier .= $db->log[0]['sql'];
+		if (count($db->logger->entries) > 0) {
+			$cacheIdentifier .= $db->logger->entries[0][0].' '.$tablePrefix; // Use the connect statement an prefix as identifier.
 		}
 		$cacheFile = TMP_DIR.'DatabaseRepositoryBackend/'.md5($cacheIdentifier).'.json';
 		if (file_exists($cacheFile) && filemtime($cacheFile) > (time() - self::$cacheTimeout)) {
