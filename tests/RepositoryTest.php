@@ -166,6 +166,17 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEquals($counter, (2 * 2), '$collection->rewind() works as expected');
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Use only 1 query for multiple loops on all customers');
 		$this->assertLastQuery('SELECT * FROM customers');
+
+		$names = $repo->allCustomers()->select('name')->toArray();
+		$this->assertEquals(array(
+			'Bob Fanger',
+			'James Bond',
+		  ), $names);
+		$this->assertLastQuery('SELECT name FROM customers');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2, 'Bypass repository for additional performance');
+		$struct = $repo->allCustomers()->select(array('name', 'occupation'), 'id')->toArray();
+		$this->assertLastQuery('SELECT id, name, occupation FROM customers');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 3, 'Bypass repository for additional performance');
 	}
 
 	function test_hasManyIteratorInterface() {

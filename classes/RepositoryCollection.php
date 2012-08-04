@@ -40,16 +40,46 @@ class RepositoryCollection extends Collection {
 		return $this->convertItem(parent::current());
 	}
 
+	function select($selector, $selectKey = false) {
+		if ($this->isConverted || ($this->data instanceof Collection) === false) {
+			return parent::select($selector, $selectKey);
+		}
+		if ($selectKey !== false && $selectKey !== null) {
+			if (empty($this->mapping[$selectKey])) { // Key not in the mapping array?
+				return parent::select($selector, $selectKey);
+			}
+			$selectKeyMapped = $this->mapping[$selectKey];
+		} else {
+			$selectKeyMapped = $selectKey;
+		}
+		if (is_string($selector) && isset($this->mapping[$selector])) {
+			// Bypass Repository and return the resultset directly from the backend-collection.
+			return $this->data->select($this->mapping[$selector], $selectKeyMapped);
+		} elseif (is_array($selector)) {
+			$selectorMapped = array();
+			foreach ($selector as $to => $from) {
+				if (empty($this->mapping[$from])) { // Field not in the mapping array?
+					return parent::select($selector, $selectKey);
+				}
+				$selectorMapped[$to] = $this->mapping[$from];
+			}
+			// Bypass Repository and return the resultset directly from the backend-collection.
+			return $this->data->select($selectorMapped, $selectKeyMapped);
+		}
+		// Closure selector
+		return parent::select($selector, $selectKey);
+	}
+
 	function where($conditions) {
 		if ($this->isConverted) {
 			return parent::where($conditions);
 		}
 		if ($this->data instanceof Collection && is_array($conditions)) {
 			$convertedConditions = array();
-			foreach ($conditions as $field => $value) {
-				if (isset($this->mapping[$field])) {
-					$convertedConditions[$this->mapping[$field]] = $value;
-					unset($conditions[$field]);
+			foreach ($conditions as $path => $value) {
+				if (isset($this->mapping[$path])) {
+					$convertedConditions[$this->mapping[$path]] = $value;
+					unset($conditions[$path]);
 				}
 			}
 			if (count($convertedConditions) !== 0) { // There are conditions the low-level collection can handle?
