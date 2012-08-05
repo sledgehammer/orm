@@ -122,6 +122,7 @@ class RecordRelationTest extends DatabaseTestCase {
 
 		$hackerGroup->customers[] = $bob;
 		$repo->saveGroup($hackerGroup);
+		$this->assertCount(2, $hackerGroup->customers);
 		$this->assertCount(2, $bob->groups, 'The many-to-many relation should be updated on both ends');
 	}
 

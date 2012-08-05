@@ -69,6 +69,13 @@ class Repository extends Object {
 	private $collectionMappings = array();
 
 	/**
+	 * Array containing instances that are saving/saved in 1 Repository->save() call.
+	 * Used for preventing duplicate saves.
+	 * @var array
+	 */
+	private $saving = array();
+
+	/**
 	 * Global repository pool. used in getRepository()
 	 * @var array|Repository
 	 */
@@ -465,10 +472,18 @@ class Repository extends Object {
 			}
 		}
 
+		$rootSave = (count($this->saving) === 0);
+		if ($rootSave === false) {
+			if (in_array($instance, $this->saving, true)) { // Recursion loop detected?
+				return; // Prevent duplicate saves.
+			}
+		}
+		$this->saving[] = $instance;
+
 		$previousState = $object['state'];
 		try {
-			if ($object['state'] == 'saving') { // Voorkom oneindige recursion
-				return;
+			if ($object['state'] == 'saving') {
+				throw new \Exception('Object already in the saving state');
 			}
 			if ($object['instance'] !== $instance) {
 				// id/index change-detection
@@ -528,14 +543,11 @@ class Repository extends Object {
 					}
 					// Determine old situation
 					$old = @$this->objects[$model][$index]['hadMany'][$property];
-					if ($old === null && value($options['keep_missing_related_instances']) == false) {
-						// Delete items that are no longer in the relation
-						if ($previousState != 'new' && $old === null && is_array($collection)) { // Is the property replaced, before the placeholder was replaced?
-							// Load the previous situation
-							$this->loadAssociation($model, $instance, $property);
-							$old = $instance->$property;
-							$instance->$property = $collection;
-						}
+					if ($old === null && $previousState != 'new' && is_array($collection)) { // Is the property replaced, before the placeholder was replaced?
+						// Load the previous situation
+						$this->loadAssociation($model, $instance, $property);
+						$old = $instance->$property->toArray();
+						$instance->$property = $collection;
 					}
 					if (isset($hasMany['collection']['valueField'])) {
 						if (count(array_diff_assoc($old, $collection)) != 0) {
@@ -555,17 +567,21 @@ class Repository extends Object {
 							}
 						}
 					} elseif (isset($hasMany['through'])) {
+						foreach ($collection as $item) {
+							$this->save($hasMany['model'], $item, $relationSaveOptions);
+						}
 						$backend = $this->_getBackend($config->backend);
 						$junction = $backend->junctions[$hasMany['through']];
 						$hasManyConfig = $this->_getConfig($hasMany['model']);
 						$hasManyIdPath = $hasManyConfig->properties[$config->id[0]];
+
+						$old = @$this->objects[$model][$index]['hadMany'][$property]; // Use (possibly) old array.
 						if ($old === null) {
 							$oldIds = array();
 						} else {
 							$oldIds = collection($old)->select($hasManyConfig->properties[$config->id[0]])->toArray();
 						}
 						foreach ($collection as $key => $item) {
-							$this->save($hasMany['model'], $item, $relationSaveOptions);
 							if (in_array(PropertyPath::get($item , $hasManyIdPath), $oldIds) === false) { // New relation?
 								$data = array(
 									$hasMany['reference'] => PropertyPath::get($instance, $config->properties[$config->id[0]]),
@@ -588,7 +604,9 @@ class Repository extends Object {
 										if ($manyToManyExists === false) { // Instance not found in the relation?
 											$item->{$manyToManyProperty}[] = $instance; // add instance to the collection/array.
 										}
-										break;
+										// Prevent adding the junction twice.
+										$manyToManyIndex = $this->resolveIndex($item, $hasManyConfig);
+										$this->objects[$hasMany['model']][$manyToManyIndex]['hadMany'][$manyToManyProperty][] = $instance;
 									}
 								}
 							}
@@ -627,6 +645,12 @@ class Repository extends Object {
 															break;
 														}
 													}
+													$manyToManyIndex = $this->resolveIndex($item, $hasManyConfig);
+													$manyToManyKey = array_search($instance, $this->objects[$hasMany['model']][$manyToManyIndex]['hadMany'][$manyToManyProperty], true);
+													if ($manyToManyKey !== false) {
+														// Update backend data, so re-adding the connection will be detected.
+														unset($this->objects[$hasMany['model']][$manyToManyIndex]['hadMany'][$manyToManyProperty][$manyToManyKey]);
+													}
 													break;
 												}
 											}
@@ -647,8 +671,16 @@ class Repository extends Object {
 				$instance->trigger('saved', $this);
 			}
 		} catch (\Exception $e) {
+			if ($rootSave) {
+				$this->saving = array(); // reset saving array.
+			}
 			$this->objects[$model][$index]['state'] = $previousState; // @todo Or is an error state more appropriate?
 			throw $e;
+		}
+		if ($rootSave) {
+			$saved = count($this->saving);
+			$this->saving = array(); // reset saving array.
+			return $saved;
 		}
 	}
 
