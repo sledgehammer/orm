@@ -11,16 +11,32 @@ namespace Sledgehammer;
  */
 class RepositoryCollection extends Collection {
 
+	/**
+	 * The model that convert the data into instances
+	 * @var string
+	 */
 	protected $model;
+
+	/**
+	 * The connected repository id.
+	 * @var string
+	 */
 	protected $repository;
+
+	/**
+	 * Paths with direct mapping to the backend data.
+	 * @var array array($path => $column)
+	 */
 	protected $mapping;
 
 	/**
-	 * @var bool  True when all raw elements been converted to repository items. (Triggered by offsetSet, toArray, etc)
+	 * True when all raw elements been converted to repository items. (Triggered by offsetSet, toArray, etc)
+	 * @var bool
 	 */
 	private $isConverted = false;
 
 	/**
+	 * Constructor
 	 * @param \Traversable|array $data
 	 * @param string $model
 	 * @param string $repository
@@ -33,6 +49,10 @@ class RepositoryCollection extends Collection {
 		parent::__construct($collection);
 	}
 
+	/**
+	 * Iterator::current()
+	 * @return object
+	 */
 	function current() {
 		if ($this->isConverted) {
 			return parent::current();
@@ -171,6 +191,7 @@ class RepositoryCollection extends Collection {
 			$this->isConverted = true;
 		}
 	}
+
 }
 
 ?>

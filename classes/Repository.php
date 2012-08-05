@@ -464,6 +464,7 @@ class Repository extends Object {
 				throw new \Exception('The instance is not bound to this Repository');
 			}
 		}
+
 		$previousState = $object['state'];
 		try {
 			if ($object['state'] == 'saving') { // Voorkom oneindige recursion
@@ -571,7 +572,25 @@ class Repository extends Object {
 									$hasMany['id'] => PropertyPath::get($item, $hasManyIdPath)
 								);
 								$backend->add($data, $junction->backendConfig);
-								// @todo Add $instance to the $item->hasMany collection.
+								// Add $instance to the $item->hasMany collection.
+								foreach ($hasManyConfig->hasMany as $manyToManyProperty => $manyToMany) {
+									if (isset($manyToMany['through']) && $manyToMany['through'] === $hasMany['through']) {
+										if ($item->$manyToManyProperty instanceof HasManyPlaceholder) {
+											break; // collection not loaded.
+										}
+										$manyToManyExists = false;
+										foreach ($item->$manyToManyProperty as $manyToManyKey => $manyToManyItem) {
+											if ($instance === $manyToManyItem) { // Instance already found in the relation?
+												$manyToManyExists = true;
+												break;
+											}
+										}
+										if ($manyToManyExists === false) { // Instance not found in the relation?
+											$item->{$manyToManyProperty}[] = $instance; // add instance to the collection/array.
+										}
+										break;
+									}
+								}
 							}
 						}
 					} else {
@@ -595,7 +614,23 @@ class Repository extends Object {
 												$hasMany['id'] => PropertyPath::get($item, $hasManyIdPath)
 											);
 											$backend->delete($data, $junction->backendConfig);
-											// @todo Remove $instance from the $item->hasMany collection.
+
+											// Also remove the $instance from the $item->hasMany collection.
+											foreach ($hasManyConfig->hasMany as $manyToManyProperty => $manyToMany) {
+												if (isset($manyToMany['through']) && $manyToMany['through'] === $hasMany['through']) {
+													if ($item->$manyToManyProperty instanceof HasManyPlaceholder) {
+														break; // collection not loaded.
+													}
+													foreach ($item->$manyToManyProperty as $manyToManyKey => $manyToManyItem) {
+														if ($manyToManyItem === $instance) { // Instance found in the relation?
+															unset($item->{$manyToManyProperty}[$manyToManyKey]);
+															break;
+														}
+													}
+													break;
+												}
+											}
+
 										}
 									} else {
 										warning('Unable to remove item['.$key.']: "'.$item.'" from '.$config->name.'->'.$property);
