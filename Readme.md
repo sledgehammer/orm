@@ -1,11 +1,10 @@
 
-Sledgehammer ORM
-==================
+# Sledgehammer ORM
 
 The Object-relational mapping (ORM) module for the Sledgehammer Framework.
 
-Features
----------
+
+## Features
 
 * Full AutoCompletion support
 * POCO support. The Repository can load Plain Old Class Objects (POCO's)
@@ -17,13 +16,13 @@ Features
 * Support for multiple backends: PDO (MySQL, SQLite), Webservices (Twitter, etc)
 * Clean queries. (No "1 = 1" where statements, etc)
 
-Usage
-------
+
+## Usage
 
 ```php
-// inside the application/init.php
+// inside your application/init.php
 $repo = getRepository();
-$repo->registerBackend(new DatabaseRepositoryBackend("default")); // Extract model from the "default" database connection.
+$repo->registerBackend(new DatabaseRepositoryBackend("default")); // Extract models from the "default" database connection.
 
 // Somewhere in your application
 $repo = getRepository();
@@ -40,3 +39,9 @@ $customer->save();
 $selection = $repo->allCustomers()->where(array('name' => 'James Bond'))->where(function ($c) { return $c->isSpecialAgent(); });
 $list = Customer::all()->select('name', 'id'); // Results in: array($id1 => $name1, $id2 => $name2, ...)
 ```
+
+## Dictionary
+
+Backend: A data retrieval and storing mechanism.
+Model: A configuration to map backend data to instances.
+Instance: An object that is created by the Repository from backend data based on a Model.

@@ -7,46 +7,59 @@ namespace Sledgehammer;
  * Repository/DataMapper
  *
  * An API to retrieve and store models from their backends and track their changes.
- * A model is a view on top of the data the backend provides.
+ * A model is a object orientented interface on top of the data the backend provides.
  *
  * @package ORM
  */
 class Repository extends Object {
 
 	/**
-	 * @var array  Namespaces that are searched for the classname
+	 * Registered namespaces that are searched for a classname that matches the model->name.
+	 * @var array
 	 */
 	protected $namespaces = array('', 'Sledgehammer\\');
 
 	/**
-	 * @var array|ModelConfig  registered models: array(model => config)
+	 * Registered models
+	 * @var array|ModelConfig array(model => config)
 	 */
 	protected $configs = array();
 
 	/**
-	 * @var array  references to instances
+	 * References to instances.
+	 * @var array
 	 */
 	protected $objects = array();
 
 	/**
-	 * @var array  Mapping of plural notation to singular.
+	 * Mapping of plural notation to singular.
+	 * @var array array($plural => $singular)
 	 */
 	protected $plurals = array();
 
 	/**
-	 * @var array  references to instances that are not yet added to the backend
+	 * References to instances that are not yet added to the backend
+	 * @var array
 	 */
 	protected $created = array();
 
 	/**
-	 * @var string  The unique identifier of this repository
+	 * The unique identifier of this repository
+	 * @var string
 	 */
 	protected $id;
 
 	/**
-	 * @var array registered backends
+	 * Registered backends.
+	 * @var array
 	 */
 	protected $backends = array();
+
+	/**
+	 * The configurations of the previously generated AutoComplete Helper classes.
+	 * Used to determine if a model has changed.
+	 * @var array
+	 */
 	private $autoComplete;
 
 	/**
@@ -56,10 +69,14 @@ class Repository extends Object {
 	private $collectionMappings = array();
 
 	/**
+	 * Global repository pool. used in getRepository()
 	 * @var array|Repository
 	 */
 	static $instances = array();
 
+	/**
+	 * Constructor
+	 */
 	function __construct() {
 		$this->id = uniqid('R');
 		Repository::$instances[$this->id] = $this; // Register this Repository to the Repositories pool.
@@ -105,7 +122,7 @@ class Repository extends Object {
 	}
 
 	/**
-	 * Retrieve an instance from the Repository
+	 * Retrieve an instance from the Repository.
 	 *
 	 * @param string $model
 	 * @param mixed $id  The instance ID
@@ -206,7 +223,7 @@ class Repository extends Object {
 	}
 
 	/**
-	 * Retrieve all instances for the specified model
+	 * Retrieve all instances for the specified model.
 	 *
 	 * @param string $model
 	 * @return Collection
@@ -217,6 +234,15 @@ class Repository extends Object {
 		return new RepositoryCollection($collection, $model, $this->id, $this->collectionMappings[$model]);
 	}
 
+	/**
+	 * Retrieve a related instance (belongTo) or collection (hasMany) and update the $instance.
+	 *
+	 * @param string $model
+	 * @param object $instance  The instance with the relation.
+	 * @param string $property  The relation property.
+	 * @param bool $preload  True: Load related objects of the relation. False: Only load the relation.
+	 * @return void
+	 */
 	function loadAssociation($model, $instance, $property, $preload = false) {
 		$config = $this->_getConfig($model);
 		$index = $this->resolveIndex($instance, $config);
@@ -265,7 +291,7 @@ class Repository extends Object {
 	}
 
 	/**
-	 * Delete an instance
+	 * Delete an instance.
 	 *
 	 * @param string $model
 	 * @param instance|id $mixed  The instance or id
@@ -314,7 +340,7 @@ class Repository extends Object {
 
 	/**
 	 * Reload an instance from the connected backend.
-	 * Discards any unsaved changes
+	 * Discards any unsaved changes.
 	 *
 	 * @param string $model
 	 * @param instance|id $mixed  (optional) The instance or id
@@ -592,6 +618,20 @@ class Repository extends Object {
 	}
 
 	/**
+	 * Search for model classnames in the given $namespace.
+	 *
+	 * @param string $namespace
+	 */
+	function registerNamespace($namespace) {
+		if (substr($namespace, -1) !== '\\') {
+			$namespace .= '\\';
+		}
+		array_unshift($this->namespaces, $namespace);
+	}
+
+	/**
+	 * Register all models from the backend.
+	 * Aslo validates and corrects the model configurations.
 	 *
 	 * @param RepositoryBackend $backend
 	 */
@@ -730,7 +770,7 @@ class Repository extends Object {
 					continue;
 				}
 				$parts = explode('\\', $config->class);
-				$class = array_pop($parts);
+				array_pop($parts); // remove class part.
 				$namespace = implode('\\', array_slice($parts, 1));
 
 				// Generate class
