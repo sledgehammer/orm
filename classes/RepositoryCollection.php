@@ -129,18 +129,18 @@ class RepositoryCollection extends Collection {
 		return parent::take($length);
 	}
 
-	function orderBy($path, $method = SORT_REGULAR) {
-		if ($this->isConverted === false && isset($this->mapping[$path]) && $this->data instanceof Collection) {
-			return new RepositoryCollection($this->data->orderBy($this->mapping[$path], $method), $this->model, $this->repository, $this->mapping);
+	function orderBy($selector, $method = SORT_REGULAR) {
+		if ($this->isConverted === false && is_string($selector) && isset($this->mapping[$selector]) && $this->data instanceof Collection) {
+			return new RepositoryCollection($this->data->orderBy($this->mapping[$selector], $method), $this->model, $this->repository, $this->mapping);
 		}
-		return parent::orderBy($path, $method);
+		return parent::orderBy($selector, $method);
 	}
 
-	function orderByDescending($path, $method = SORT_REGULAR) {
-		if ($this->isConverted === false && isset($this->mapping[$path]) && $this->data instanceof Collection) {
-			return new RepositoryCollection($this->data->orderByDescending($this->mapping[$path], $method), $this->model, $this->repository, $this->mapping);
+	function orderByDescending($selector, $method = SORT_REGULAR) {
+		if ($this->isConverted === false && is_string($selector) && isset($this->mapping[$selector]) && $this->data instanceof Collection) {
+			return new RepositoryCollection($this->data->orderByDescending($this->mapping[$selector], $method), $this->model, $this->repository, $this->mapping);
 		}
-		return parent::orderBy($path, $method);
+		return parent::orderByDescending($selector, $method);
 	}
 
 	/**
