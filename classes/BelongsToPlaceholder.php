@@ -64,7 +64,7 @@ class BelongsToPlaceholder extends Object {
 		$repositoryId = array_shift($parts);
 		$model = array_shift($parts);
 		$property = implode('/', $parts);
-		$self = PropertyPath::get($this->__container, $property);
+		$self = PropertyPath::get($property, $this->__container);
 		if ($self !== $this) {
 			notice('This placeholder belongs to an other object', 'Did you clone the object?');
 			$this->__placeholder = $self;
@@ -72,7 +72,7 @@ class BelongsToPlaceholder extends Object {
 		}
 		$repo = getRepository($repositoryId);
 		$repo->loadAssociation($model, $this->__container, $property);
-		$this->__placeholder = PropertyPath::get($this->__container, $property);
+		$this->__placeholder = PropertyPath::get($property, $this->__container);
 	}
 
 }

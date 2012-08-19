@@ -284,7 +284,7 @@ class Repository extends Object {
 			if (count($config->id) != 1) {
 				throw new \Exception('Complex keys not (yet) supported for hasMany relations');
 			}
-			$id = PropertyPath::get($instance, $config->id[0]);
+			$id = PropertyPath::get($config->id[0], $instance);
 			$related = $this->_getBackend($config->backend)->related($hasMany, $id);
 			$collection = new RepositoryCollection($related, $hasMany['model'], $this->id, $this->collectionMappings[$hasMany['model']]);
 			if (isset($hasMany['conditions'])) {
@@ -419,7 +419,7 @@ class Repository extends Object {
 		$instance = new $class;
 		// Apply initial values
 		foreach ($values as $path => $value) {
-			PropertyPath::set($instance, $path, $value);
+			PropertyPath::set($path, $value, $instance);
 		}
 		$this->objects[$model][$index] = array(
 			'state' => 'new',
@@ -582,10 +582,10 @@ class Repository extends Object {
 							$oldIds = collection($old)->select($hasManyConfig->properties[$config->id[0]])->toArray();
 						}
 						foreach ($collection as $key => $item) {
-							if (in_array(PropertyPath::get($item , $hasManyIdPath), $oldIds) === false) { // New relation?
+							if (in_array(PropertyPath::get($hasManyIdPath, $item), $oldIds) === false) { // New relation?
 								$data = array(
-									$hasMany['reference'] => PropertyPath::get($instance, $config->properties[$config->id[0]]),
-									$hasMany['id'] => PropertyPath::get($item, $hasManyIdPath)
+									$hasMany['reference'] => PropertyPath::get($config->properties[$config->id[0]], $instance),
+									$hasMany['id'] => PropertyPath::get($hasManyIdPath, $item)
 								);
 								$backend->add($data, $junction->backendConfig);
 								// Add $instance to the $item->hasMany collection.
@@ -628,8 +628,8 @@ class Repository extends Object {
 										} else {
 											// Delete the junction (many-to-many)
 											$data = array(
-												$hasMany['reference'] => PropertyPath::get($instance, $config->properties[$config->id[0]]),
-												$hasMany['id'] => PropertyPath::get($item, $hasManyIdPath)
+												$hasMany['reference'] => PropertyPath::get($config->properties[$config->id[0]], $instance),
+												$hasMany['id'] => PropertyPath::get($hasManyIdPath, $item)
 											);
 											$backend->delete($data, $junction->backendConfig);
 
@@ -805,7 +805,7 @@ class Repository extends Object {
 					// @todo Infer property (lookup belongsTo)
 					$validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][reference] not set';
 				} elseif (isset($hasMany['reference']) && empty($hasMany['belongsTo'])) {
-					$referencePath = PropertyPath::compile($hasMany['reference']);
+					$referencePath = PropertyPath::parse($hasMany['reference']);
 					if (count($referencePath) == 1) {
 						// The foreign key is linked directly
 					} elseif (empty($this->configs[$hasMany['model']])) {
@@ -843,23 +843,23 @@ class Repository extends Object {
 				// Generate class
 				$php = "namespace ".$namespace.";\nclass ".$config->name." extends \Sledgehammer\Object {\n";
 				foreach ($config->properties as $path) {
-					$compiledPath = PropertyPath::compile($path);
-					$property = $compiledPath[0][1];
+					$parsedPath = PropertyPath::parse($path);
+					$property = $parsedPath[0][1];
 					$php .= "\tpublic $".$property.";\n";
 				}
 				foreach ($config->belongsTo as $path => $belongsTo) {
-					$compiledPath = PropertyPath::compile($path);
+					$parsedPath = PropertyPath::parse($path);
 					$belongsToConfig = $this->_getConfig($belongsTo['model']);
-					$property = $compiledPath[0][1];
+					$property = $parsedPath[0][1];
 					$php .= "\t/**\n";
 					$php .= "\t * @var ".$belongsToConfig->class."  The associated ".$belongsToConfig->name."\n";
 					$php .= "\t */\n";
 					$php .= "\tpublic $".$property.";\n";
 				}
 				foreach ($config->hasMany as $path => $hasMany) {
-					$compiledPath = PropertyPath::compile($path);
+					$parsedPath = PropertyPath::parse($path);
 					$hasManyConfig = $this->_getConfig($hasMany['model']);
-					$property = $compiledPath[0][1];
+					$property = $parsedPath[0][1];
 					$php .= "\t/**\n";
 					$php .= "\t * @var ".$hasManyConfig->class."|\Sledgehammer\Collection  A collection with the associated ".$hasManyConfig->plural."\n";
 					$php .= "\t */\n";
@@ -1093,12 +1093,12 @@ class Repository extends Object {
 		}
 		// Map the data onto the instance
 		foreach ($config->properties as $sourcePath => $targetPath) {
-			PropertyPath::set($instance, $targetPath, PropertyPath::get($data, $sourcePath));
+			PropertyPath::set($targetPath, PropertyPath::get($sourcePath, $data), $instance);
 		}
 		foreach ($config->belongsTo as $property => $relation) {
 			if (isset($relation['convert'])) {
-				$value = $this->convert($relation['model'], PropertyPath::get($data, $relation['convert']));
-				PropertyPath::set($instance, $property, $value);
+				$value = $this->convert($relation['model'], PropertyPath::get($relation['convert'], $data));
+				PropertyPath::set($property, $value, $instance);
 			} else {
 				$belongsToId = $data[$relation['reference']];
 				if ($belongsToId !== null) {
@@ -1124,8 +1124,8 @@ class Repository extends Object {
 		}
 		foreach ($config->hasMany as $property => $relation) {
 			if (isset($relation['convert'])) {
-				$collection = new RepositoryCollection(PropertyPath::get($data, $relation['convert']), $relation['model'], $this->id);
-				PropertyPath::set($instance, $property, $collection);
+				$collection = new RepositoryCollection(PropertyPath::get($relation['convert'], $data), $relation['model'], $this->id);
+				PropertyPath::set($property, $collection, $instance);
 			} else {
 				$instance->$property = new HasManyPlaceholder($this->id.'/'.$config->name.'/'.$property, $instance);
 			}
@@ -1155,8 +1155,8 @@ class Repository extends Object {
 		}
 		// Map to data
 		foreach ($config->properties as $element => $property) {
-			$value = PropertyPath::get($from, $property);
-			PropertyPath::set($to, $element, $value);
+			$value = PropertyPath::get($property, $from);
+			PropertyPath::set($element, $value, $to);
 		}
 		// Map the belongTo to the "*_id" columns.
 		foreach ($config->belongsTo as $property => $relation) {
@@ -1259,7 +1259,7 @@ class Repository extends Object {
 				if (isset($from[$key])) {
 					return $this->resolveIndex($from[$key]);
 				}
-				$index = PropertyPath::get($from, $key);
+				$index = PropertyPath::get($key, $from);
 				if ($index !== null) {
 					return '{'.$index.'}';
 				}
@@ -1295,7 +1295,7 @@ class Repository extends Object {
 				if (empty($config->properties[$key])) {
 					throw new \Exception('ModelConfig->id is not mapped to the instances. Add ModelConfig->properties[name] = "'.$key.'"');
 				}
-				$id = PropertyPath::get($from, $config->properties[$key]);
+				$id = PropertyPath::get($config->properties[$key], $from);
 				if ($id === null) { // Id value not set?
 					// Search in the created instances array
 					foreach ($this->created[$config->name] as $index => $created) {

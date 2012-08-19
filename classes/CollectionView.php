@@ -24,7 +24,7 @@ class CollectionView extends Collection {
 		if ($this->keyField === null) {
 			return $key;
 		}
-		return PropertyPath::get(parent::current(), $this->keyField);
+		return PropertyPath::get($this->keyField, parent::current());
 	}
 
 	function current() {

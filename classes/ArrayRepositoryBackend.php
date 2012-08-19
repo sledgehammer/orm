@@ -54,7 +54,7 @@ class ArrayRepositoryBackend extends RepositoryBackend {
 				$config->backendConfig['key'] = $indexField;
 				$clone = array();
 				foreach ($items as $row) {
-					$key = PropertyPath::get($row, $indexField);
+					$key = PropertyPath::get($indexField, $row);
 					$clone[$key] = $row;
 				}
 				$items = $clone;
@@ -90,12 +90,12 @@ class ArrayRepositoryBackend extends RepositoryBackend {
 	}
 
 	function add($data, $config) {
-		$key = PropertyPath::get($data, $config['key']);
+		$key = PropertyPath::get($config['key'], $data);
 		if ($key === null) {
 			$this->items[] = $data;
 			$keys =array_keys($this->items);
 			$key = array_pop($keys);
-			$key = PropertyPath::set($data, $config['key'], $key);
+			$key = PropertyPath::set($config['key'], $key, $data);
 			return $data;
 		}
 

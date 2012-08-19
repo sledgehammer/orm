@@ -102,7 +102,7 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 		$repositoryId = array_shift($parts);
 		$model = array_shift($parts);
 		$property = implode('/', $parts);
-		$data = PropertyPath::get($this->__container, $property);
+		$data = PropertyPath::get($property, $this->__container);
 		if ($data !== $this) {
 			notice('This placeholder belongs to an other (cloned?) container');
 			$this->__placeholder = $data;
@@ -110,7 +110,7 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 		}
 		$repo = getRepository($repositoryId);
 		$repo->loadAssociation($model, $this->__container, $property);
-		$this->__placeholder = PropertyPath::get($this->__container, $property);
+		$this->__placeholder = PropertyPath::get($property, $this->__container);
 	}
 
 }
