@@ -65,7 +65,10 @@ abstract class RepositoryBackend extends Object {
 				$join = new Collection($join);
 			}
 			$ids = $join->where(array($relation['reference'] => $id))->select($relation['id'])->toArray();
-;			$conditions = array('id IN' => $ids);
+			if (count($ids) === 0) {
+				return new Collection(array());
+			}
+			$conditions = array('id IN' => $ids);
 		}
 		$config = $this->configs[$relation['model']];
 		$all = $this->all($config->backendConfig);

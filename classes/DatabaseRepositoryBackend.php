@@ -16,7 +16,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	/**
 	 * @var int Number of seconds a database schema is cached.
 	 */
-	static $cacheTimeout = 15;
+	static $cacheTimeout = 20;
 
 	/**
 	 * @param array|string $databases
@@ -422,14 +422,15 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 						'type' => $parts[1],
 					);
 					$columnConfig = &$config['columns'][$column];
-					//unset($parts[0], $parts[1]);
-					//foreach ($parts as $index => $part) {
 					for ($i = 2; $i < count($parts); $i++) {
 						$part = $parts[$i];
 
 						switch (strtoupper($part)) {
 							case 'NOT_NULL';
 								$columnConfig['null'] = false;
+								break;
+							case 'NULL';
+								$columnConfig['null'] = true;
 								break;
 
 							case 'AUTO_INCREMENT': break;
@@ -469,18 +470,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 								break;
 
 							case 'COMMENT':
-								$comment = '';
-								while ($part = $parts[$i + 1]) {
-									$i++;
-									$comment .= $part;
-									if (substr($default, 0, 1) != "'") { // Not a quoted string value?
-										break; // end for loop
-									}
-									if (substr($default, -1) == "'") { // End of quoted string?
-										break; // end for loop
-									}
-									$comment .= ' ';
-								}
+								$i += $this->stripQuotedValue($parts, $comment, $i);
 								$config['columns'][$column]['comment'] = $comment;
 								break;
 
@@ -494,8 +484,19 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 								break;
 						}
 					}
-				} else {
-					$parts = explode(' ', str_replace('`', '', $line)); // big assumption. @todo realy parse the create string
+				} else { // Key description
+					$exploded = explode(' ', $line);
+					$parts = array();
+					for ($i = 0; $i < count($exploded); $i++) {
+						$part = $exploded[$i];
+						if (substr($part, 0, 1) === '`') {
+							$i--;
+							$i += $this->stripQuotedValue($exploded, $value, $i, '`');
+							$parts[] = $value;
+						} else {
+							$parts[] = str_replace('`', '', $part); // @todo Parse the "(`id`)" parts. Spaces in columnnames are unlikely but possible.
+						}
+					}
 					switch ($parts[0]) {
 						case 'PRIMARY_KEY':
 							$config['primaryKeys'] = explode(',', substr($parts[1], 1, -1));
@@ -529,7 +530,6 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 							dump($parts);
 							break;
 					}
-//					dump($line);
 				}
 			}
 			unset($config);
@@ -598,6 +598,36 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 			unset($config);
 		}
 		return $schema;
+	}
+
+	/**
+	 *
+	 * @param type $parts
+	 * @param type $value
+	 * @param type $offset
+	 * @param type $open
+	 * @param type $close
+	 * @return int
+	 */
+	private function stripQuotedValue($parts, &$value, $offset = 0, $open = "'", $close = null) {
+		$value = '';
+		$i = $offset;
+		if ($close === null) {
+			$close = $open;
+		}
+		while (array_key_exists($i + 1, $parts)) {
+			$value .= $parts[$i + 1];
+			if ($i === $offset && substr($value, 0, 1) != $open) { // Not quoted?
+				return 1;
+			}
+			$i++;
+			if (substr($value, -1) == $close) { // Last part of quoted string?
+				break; // end for loop
+			}
+			$value .= ' '; // re-add the exploded space
+		}
+		$value = substr($value, 1, -1); // strip quotes
+		return $i - $offset;
 	}
 
 }
