@@ -73,6 +73,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'Row not found');
 		$repo->getCustomer('-1'); // Invalid/not-existing ID
 	}
+
 	function test_customer_not_found_exception() {
 		$repo = new RepositoryTester();
 		new \Exception;
@@ -171,7 +172,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEquals(array(
 			'Bob Fanger',
 			'James Bond',
-		  ), $names);
+			), $names);
 		$this->assertLastQuery('SELECT name FROM customers');
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2, 'Bypass repository for additional performance');
 		$struct = $repo->allCustomers()->select(array('name', 'occupation'), 'id')->toArray();
@@ -377,6 +378,51 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->saveCustomer($c1);
 		$repo->deleteCustomer($c1);
 		$this->assertLastQuery('DELETE FROM customers WHERE id = 1');
+	}
+
+	function test_missing_properties() {
+		$php = 'class CustomerMissingAProperty extends Sledgehammer\Object {';
+		$php .= 'public $id;';
+		$php .= 'public $name;';
+//		$php .= 'public $occupation;'; the missing property
+		$php .= 'public $orders;';
+		$php .= 'public $groups;';
+		$php .= '}';
+		eval($php);
+
+		$backend = new DatabaseRepositoryBackend($this->dbLink);
+		$backend->configs['Customer']->class = 'CustomerMissingAProperty';
+		$repo = new Repository();
+		$repo->registerBackend($backend);
+		try {
+			$repo->getCustomer(1);
+			$this->fail('The missing property should have given a notice.');
+		} catch (\Exception $e) {
+			$this->assertEquals('Property: "occupation" doesn\'t exist in a "CustomerMissingAProperty" object.', $e->getMessage(), $e->getMessage());
+		}
+	}
+
+	function test_missing_column() {
+		$php = 'class CustomerWithAnExtraProperty extends Sledgehammer\Object {';
+		$php .= 'public $id;';
+		$php .= 'public $name;';
+		$php .= 'public $occupation;';
+		$php .= 'public $orders;';
+		$php .= 'public $groups;';
+		$php .= 'public $extra;'; // The extra property / missing column
+		$php .= '}';
+		eval($php);
+
+		$backend = new DatabaseRepositoryBackend($this->dbLink);
+		$backend->configs['Customer']->class = 'CustomerWithAnExtraProperty';
+		$repo = new Repository();
+		$repo->registerBackend($backend);
+		try {
+			$repo->getCustomer(1);
+			$this->fail('The additional property/missing column should have given a notice.');
+		} catch (\Exception $e) {
+			$this->assertEquals('Missing mapping for property: \CustomerWithAnExtraProperty->extra', $e->getMessage(), $e->getMessage());
+		}
 	}
 
 	/**

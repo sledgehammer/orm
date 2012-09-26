@@ -89,6 +89,12 @@ class ModelConfig extends Object {
 	public $backendConfig;
 
 	/**
+	 * A whitelist of (public) properties that won't be listed as missing when validation the class.
+	 * @var array
+	 */
+	public $ignoreProperties = array();
+
+	/**
 	 * Constructor
 	 * @param string $name  Model name
 	 * @param array $options  Additional configuration options

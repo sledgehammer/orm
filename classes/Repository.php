@@ -76,6 +76,13 @@ class Repository extends Object {
 	private $saving = array();
 
 	/**
+	 * Models which class is validated.
+	 *   $model => (bool) $valid
+	 * @var array
+	 */
+	private $validated = array();
+
+	/**
 	 * Global repository pool. used in getRepository()
 	 * @var array|Repository
 	 */
@@ -829,9 +836,12 @@ class Repository extends Object {
 				}
 			}
 		}
-		// Fase 3: Generate classes based on properties when no class is detected/found
+		// Fase 3: Generate classes based on properties when no class is detected/found.
 		foreach ($backend->configs as $config) {
-			if (substr($config->class, 0, 11) === '\\Generated\\') {
+			if (substr($config->class, 0, 11) !== '\\Generated\\') {
+				$this->validated[$config->name] = false;
+			} else {
+				$this->validated[$config->name] = true; // Generated classes are valid by design.
 				if (class_exists($config->class, false)) {
 					notice('Skipped generating class: "'.$config->class.'", a class with the same name exists');
 					continue;
@@ -1090,6 +1100,21 @@ class Repository extends Object {
 		} else { // new instance
 			$class = $config->class;
 			$instance = new $class;
+		}
+		// Validate the properties in the class.
+		if ($this->validated[$config->name] === false) { // No validated?
+			$properties = get_object_vars($instance);
+			$paths = array_merge($config->properties, $config->ignoreProperties, array_keys($config->belongsTo), array_keys($config->hasMany));
+			foreach ($paths as $path) {
+				$tokens = PropertyPath::parse($path);
+				if (in_array($tokens[0][0], array(PropertyPath::TYPE_ANY, PropertyPath::TYPE_ELEMENT))) {
+					unset($properties[$tokens[0][1]]);
+				}
+			}
+			if (count($properties) !== 0) {
+				warning('Missing mapping for property: '.$config->class.'->'.human_implode(' and ', array_keys($properties)), 'Add "'.current(array_keys($properties)).'" to the ModelConfig->properties or to ModelConfig->ignoreProperties if the property wont be stored in the backend.');
+			}
+			$this->validated[$config->name] = true;
 		}
 		// Map the data onto the instance
 		foreach ($config->properties as $sourcePath => $targetPath) {
