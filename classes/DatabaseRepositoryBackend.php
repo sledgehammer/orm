@@ -204,16 +204,16 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		$db = getDatabase($config['dbLink']);
 		if (is_array($id)) {
 			if (count($config['primaryKeys']) != count($id)) {
-				throw new \InvalidArgumentException('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primaryKeys']).'"');
+				throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primaryKeys']).'"');
 			}
 		} elseif (count($config['primaryKeys']) == 1) {
 			$id = array($config['primaryKeys'][0] => $id); // convert $id to array notation
 		} else {
-			throw new \InvalidArgumentException('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primaryKeys']).'"');
+			throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primaryKeys']).'"');
 		}
 		$data = $db->fetchRow('SELECT * FROM '.$db->quoteIdentifier($config['table']).' WHERE '.$this->generateWhere($id, $config));
 		if ($data === false) {
-			throw new \OutOfBoundsException('Failed to retrieve "'.$this->generateWhere($id, $config).'" from "'.$config['table'].'"');
+			throw new \Exception('Failed to retrieve "'.$this->generateWhere($id, $config).'" from "'.$config['table'].'"');
 		}
 		return $data;
 	}
@@ -249,7 +249,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		$where = $this->generateWhere($old, $config);
 		$result = $db->exec('UPDATE '.$db->quoteIdentifier($config['table']).' SET '.implode(', ', $changes).' WHERE '.$where);
 		if ($result === false) {
-			throw new \RuntimeException('Updating record "'.$where.'"  in "'.$config['table'].'" failed');
+			throw new \Exception('Updating record "'.$where.'"  in "'.$config['table'].'" failed');
 		}
 		return $new;
 	}
@@ -274,7 +274,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		}
 		$result = $db->exec('INSERT INTO '.$db->quoteIdentifier($config['table']).' ('.implode(', ', $columns).') VALUES ('.implode(', ', $values).')');
 		if ($result === false) {
-			throw new \RuntimeException('Adding record into "'.$config['table'].'" failed');
+			throw new \Exception('Adding record into "'.$config['table'].'" failed');
 		}
 		if (count($config['primaryKeys']) == 1) {
 			$idColumn = $config['primaryKeys'][0];
@@ -301,15 +301,15 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		$where = $this->generateWhere($row, $config);
 		$result = $db->exec('DELETE FROM '.$db->quoteIdentifier($config['table']).' WHERE '.$where);
 		if ($result === false) {
-			throw new \RuntimeException('Deleting record "'.$where.'"  from "'.$config['table'].'" failed');
+			throw new \Exception('Deleting record "'.$where.'"  from "'.$config['table'].'" failed');
 		}
 		if ($db instanceof \PDO) {
 			if ($result !== 1) {
-				throw new \RuntimeException('Removing "'.$where.'" from "'.$config['table'].'" failed, '.$result.' rows were affected');
+				throw new \Exception('Removing "'.$where.'" from "'.$config['table'].'" failed, '.$result.' rows were affected');
 			}
 		} elseif ($db instanceof \mysqli) {
 			if ($db->affected_rows != 1) {
-				throw new \RuntimeException('Removing "'.$where.'" from "'.$config['table'].'" failed, '.$db->affected_rows.' rows were affected');
+				throw new \Exception('Removing "'.$where.'" from "'.$config['table'].'" failed, '.$db->affected_rows.' rows were affected');
 			}
 		} else {
 			notice('Implement affected_rows for '.get_class($db));
@@ -327,12 +327,12 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		$where = array();
 		foreach ($config['primaryKeys'] as $column) {
 			if (isset($keys[$column]) == false) {
-				throw new \InvalidArgumentException('Missing key: "'.$column.'"'); // @todo better error
+				throw new \Exception('Missing key: "'.$column.'"'); // @todo better error
 			}
 			$where[] = $db->quoteIdentifier($column).' = '.$this->quote($db, $column, $keys[$column]);
 		}
 		if (count($where) == 0) {
-			throw new \LengthException('Invalid config, no "primaryKeys" defined');
+			throw new \Exception('Invalid config, no "primaryKeys" defined');
 		}
 		return implode(' AND ', $where);
 	}

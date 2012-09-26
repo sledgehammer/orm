@@ -29,7 +29,7 @@ abstract class ActiveRecord extends Observable {
 		}
 		if (count(func_get_args()) != 0) {
 			$model = $this->_model;
-			throw new \InvalidArgumentException('Parameters not allowed for "new '.get_class($this).'()", use $'.strtolower($model).' = repository->get'.$model.'($id); or  $'.strtolower($model).' = '.$model.'::find($id)');
+			throw new \Exception('Parameters not allowed for "new '.get_class($this).'()", use $'.strtolower($model).' = repository->get'.$model.'($id); or  $'.strtolower($model).' = '.$model.'::find($id)');
 		}
 	}
 
@@ -92,7 +92,7 @@ abstract class ActiveRecord extends Observable {
 
 	function save() {
 		if ($this->_state == 'deleted') {
-			throw new \OutOfBoundsException(get_class($this).'->save() not allowed on deleted objects');
+			throw new \Exception(get_class($this).'->save() not allowed on deleted objects');
 		}
 		$repo = getRepository($this->_repository);
 		return $repo->save($this->_model, $this);

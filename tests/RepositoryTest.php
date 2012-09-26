@@ -78,7 +78,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo = new RepositoryTester();
 		new \Exception;
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
-		$this->setExpectedException('OutOfBoundsException', 'Failed to retrieve "id = \'-1\'" from "customers"');
+		$this->setExpectedException('Exception', 'Failed to retrieve "id = \'-1\'" from "customers"');
 		@$repo->getCustomer('-1'); // Invalid/not-existing ID
 	}
 
@@ -90,7 +90,7 @@ class RepositoryTest extends DatabaseTestCase {
 		if ($this->getDatabase()->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
 			$this->markTestSkipped('SQLite doesn\'t truncate values');
 		}
-		$this->setExpectedException('RuntimeException', 'The $id parameter doesn\'t match the retrieved data. {1s} != {1}');
+		$this->setExpectedException('Exception', 'The $id parameter doesn\'t match the retrieved data. {1s} != {1}');
 		$customer1s = $repo->getCustomer('1s');
 	}
 

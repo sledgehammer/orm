@@ -180,7 +180,7 @@ class Repository extends Object {
 		$indexFromData = $this->resolveIndex($data, $config);
 		if ($index != $indexFromData) {
 			unset($this->objects[$model][$index]); // cleanup invalid entry
-			throw new \RuntimeException('The $id parameter doesn\'t match the retrieved data. '.$index.' != '.$indexFromData);
+			throw new \Exception('The $id parameter doesn\'t match the retrieved data. '.$index.' != '.$indexFromData);
 		}
 		$this->objects[$model][$index]['data'] = $data;
 		$this->objects[$model][$index]['state'] = 'retrieved';

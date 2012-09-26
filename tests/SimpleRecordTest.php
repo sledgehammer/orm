@@ -124,7 +124,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 		try {
 			$record->save();
 			$this->fail('Expecting an exception');
-		} catch(\OutOfBoundsException $e) {
+		} catch(\Exception $e) {
 			$this->assertEquals($e->getMessage(), 'Sledgehammer\SimpleRecord->save() not allowed on deleted objects');
 		}
 		$this->assertTableContents('customers', array(
