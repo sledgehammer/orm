@@ -86,6 +86,95 @@ class Inflector extends Object {
 	);
 
 	/**
+	 * Special characters, which are not allowed in class or variable names.
+	 * @var string
+	 */
+	static $specialCharacters = ' +-=!@#$%^&*()<>?\'"[](){}`~\\:;,.';
+
+	/**
+	 * Keyords are disallowed as model/class name.
+	 * @link http://php.net/manual/en/reserved.keywords.php
+	 * @var array
+	 */
+	static $reservedKeywords = array(
+		// PHP Keywords
+		'__halt_compiler',
+		'abstract',
+		'and',
+		'array',
+		'as',
+		'break',
+		'callable',
+		'case',
+		'catch',
+		'class',
+		'clone',
+		'const',
+		'continue',
+		'declare',
+		'default',
+		'die',
+		'do',
+		'echo',
+		'else',
+		'elseif',
+		'empty',
+		'enddeclare',
+		'endfor',
+		'endforeach',
+		'endif',
+		'endswitch',
+		'endwhile',
+		'eval',
+		'exit',
+		'extends',
+		'final',
+		'for',
+		'foreach',
+		'function',
+		'global',
+		'goto',
+		'if',
+		'implements',
+		'include',
+		'include_once',
+		'instanceof',
+		'insteadof',
+		'interface',
+		'isset',
+		'list',
+		'namespace',
+		'new',
+		'or',
+		'print',
+		'private',
+		'protected',
+		'public',
+		'require',
+		'require_once',
+		'return',
+		'static',
+		'switch',
+		'throw',
+		'trait',
+		'try',
+		'unset',
+		'use',
+		'var',
+		'while',
+		'xor',
+		// Compile-time constants (converted to lowercase)
+		'__class__',
+		'__dir__',
+		'__file__',
+		'__function__',
+		'__line__',
+		'__method__',
+		'__namespace__',
+		'__trait__',
+	);
+
+	/**
 	 * Returns the plural form of the word in the string
 	 *
 	 * @param string $singular
@@ -141,26 +230,71 @@ class Inflector extends Object {
 	}
 
 	/**
-	 * Create a model name from a plural table name.
+	 * Returns a valid classname in PascalCase.
 	 *
-	 * customers => Customer
-	 * cart_items => CartItem
+	 *  Examples:
+	 *   customer => Customer
+	 * when options[singularizeLast] is enabled:
+	 *   customers => Customer
+	 *   cart_items => CartItem
 	 *
-	 * @param string $table
-	 * @param string $prefix  Database/table prefix
+	 * @param string $name A (table) name
+	 * @param string $options array(
+	 *   'stripPrefix' => Remove the given database/table prefix
+	 *   'singularizeLast' => (bool) default: true
+	 * )
 	 * @return string
 	 */
-	static function modelize($table, $prefix = '') {
-		if ($prefix != '' && substr($table, 0, strlen($prefix)) == $prefix) {
-			$table = substr($table, strlen($prefix)); // Strip prefix
+	static function modelize($name, $options = array()) {
+		$defaults = array(
+			'prefix' => '',
+			'singularizeLast' => false
+		);
+		$options = array_merge($defaults, $options);
+		if ($options['prefix'] != '' && substr($name, 0, strlen($options['prefix'])) == $options['prefix']) {
+			$name = substr($name, strlen($options['prefix'])); // Strip prefix
 		}
-		$words = explode('_', $table);
+		// Split into words on "_" and invalid characters, etc. ("ä" etc are allowed in classnames)
+		$words = preg_split('/['.preg_quote(self::$specialCharacters.'_').']+/i', $name);
+		// Ucfist all the words
 		foreach ($words as $i => $word) {
 			$words[$i] = ucfirst($word);
 		}
-		$last = count($words) - 1;
-		$words[$last] = Inflector::singularize($words[$last]);
-		return implode('', $words);
+		// Singularize the last word
+		if ($options['singularizeLast']) {
+			$last = count($words) - 1;
+			$words[$last] = Inflector::singularize($words[$last]);
+		}
+		// Merge all the words into 1 string.
+		$model = implode('', $words);
+		// Append a '_' if the modal is a reserved keyword like "Case", "Final", etc.
+		if (in_array(strtolower($model), self::$reservedKeywords)) {
+			return $model.'_';
+		}
+		// Prefix a '_' if the name starts with a number.
+		if (preg_match('/^[0-9]/', $model)) { //
+			return '_'.$model;
+		}
+		return $model;
+	}
+
+	/**
+	 * Returns a valid variable/property name.
+	 *
+	 * @param string $name  The (column) name
+	 * @return string
+	 */
+	static function variablize($name) {
+		$words = preg_split('/['.preg_quote(self::$specialCharacters).']+/i', $name);
+		foreach ($words as $i => $word) {
+			$words[$i] = ucfirst($word);
+		}
+		$property = lcfirst(implode('', $words));
+		// Prefix a '_' if the name starts with a number.
+		if (preg_match('/^[0-9]/', $property)) { //
+			return '_'.$property;
+		}
+		return $property;
 	}
 
 	/**

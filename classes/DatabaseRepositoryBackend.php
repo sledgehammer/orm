@@ -63,12 +63,15 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		$models = array();
 		$junctions = array();
 		foreach ($schema as $tableName => $table) {
-			if ($tablePrefix != '' && substr($tableName, 0, strlen($tablePrefix)) == $tablePrefix) {
-				$plural = ucfirst(substr($tableName, strlen($tablePrefix))); // Strip prefix
-			} else {
-				$plural = ucfirst($tableName);
-			}
-			$config = new ModelConfig(Inflector::modelize($tableName, $tablePrefix), array(
+			$name = Inflector::modelize($tableName, array(
+				'stripPrefix' => $tablePrefix,
+				'singularizeLast' => true
+			));
+			$plural = Inflector::modelize($tableName, array(
+				'stripPrefix' => $tablePrefix,
+				'singularizeLast' => false
+			));
+			$config = new ModelConfig($name, array(
 					'plural' => $plural,
 					'backendConfig' => $table,
 				));
@@ -79,7 +82,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 				$default = @$info['default'];
 				$config->defaults[$column] = $default;
 				if (empty($info['foreignKeys'])) {
-					$property = $this->variablize($column);
+					$property = Inflector::variablize($column);
 					$config->properties[$column] = $property;
 				} else {
 					if (count($info['foreignKeys']) > 1) {
@@ -104,9 +107,13 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 					} else {
 						unset($config->defaults[$column]);
 					}
+					$foreignModel = Inflector::modelize($foreignKey['table'], array(
+						'stripPrefix' => $tablePrefix,
+						'singularizeLast' => true
+					));
 					$config->belongsTo[$property] = array(
 						'reference' => $column, // foreignKey
-						'model' => Inflector::modelize($foreignKey['table'], $tablePrefix),
+						'model' => $foreignModel,
 						'id' => $foreignKey['column'], // primary key
 					);
 					$config->defaults[$property] = null;
@@ -148,7 +155,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 				if ($tablePrefix != '' && substr($property, 0, strlen($tablePrefix)) == $tablePrefix) {
 					$property = substr($property, strlen($tablePrefix)); // Strip prefix
 				}
-				$property = $this->variablize($property);
+				$property = Inflector::variablize($property);
 				if (in_array($property, $config->properties)) {
 					notice('Unable to use '.$config->name.'->hasMany['.$property.'] a property with the same name exists');
 					break;
@@ -352,17 +359,6 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	}
 
 	/**
-	 * Returns the columnname as property notation
-	 *
-	 * @param string $column
-	 * @return string
-	 */
-	private function variablize($column) {
-		// @todo implement camelCase?
-		return $column;
-	}
-
-	/**
 	 * Get column and relation information from the database.
 	 *
 	 * @param Database $db
@@ -403,7 +399,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 				'referencedBy' => $referencedBy,
 			);
 			$config = &$schema[$table];
-			$showCreate = $db->fetchRow('SHOW CREATE TABLE '.$table);
+			$showCreate = $db->fetchRow('SHOW CREATE TABLE '.$db->quoteIdentifier($table));
 			$createSyntax = $showCreate['Create Table'];
 			$lines = explode("\n", $createSyntax);
 
