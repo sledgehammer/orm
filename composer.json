@@ -1,0 +1,8 @@
+{
+	"name": "sledgehammer/orm",
+	"type": "sledgehammer-module",
+	"description": "Object relational mapping",
+	"require": {
+		"sledgehammer/core": "*"
+	}
+}
