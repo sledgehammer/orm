@@ -61,7 +61,7 @@ class ModelConfig extends Object {
 	 * @var array  array(
 	 *   $property => array(
 	 *     'model' => $modelName // The foreign model: "Product"
-	 *     'reference' => $column, // foreign_key to thix countainer instance.
+	 *     'reference' => $column, // foreign_key to this container instance.
 	 *     'belongsTo' => $propertyPath, // (optional) The belongsTo in the related instances in a on-to-many relation that refers back to the container instance. Used in save() for implicitly setting the foreignkey value.
 	 *     'through' => $junctionName // (optional) The junction for many-to-many relations.
 	 *     'id' => $column // (optional) foreign_key for the related model in the many-to-many table: "product_id"

@@ -13,7 +13,6 @@ class SimpleRecordTest extends DatabaseTestCase {
 
 	function __construct() {
         parent::__construct();
-//		$this->customer = new SimpleRecord('customers', '__STATIC__', array('dbLink' => $this->dbLink));
 	}
 
 	/**
@@ -89,7 +88,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 
 //		$this->assertEquals(1, $record->getId());
 
-		$this->assertLastQuery('SELECT * FROM customers WHERE id = 1');
+		$this->assertLastQuery("SELECT * FROM customers WHERE id = '1'");
 		// Update
 		$record->name = 'Ing. Bob Fanger';
 		$record->occupation = 'Software developer';

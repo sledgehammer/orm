@@ -67,18 +67,10 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEquals($order1->product, 'Kop koffie');
 	}
 
-	function test_row_not_found_notice() {
-		$repo = new RepositoryTester();
-		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
-		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'Row not found');
-		$repo->getCustomer('-1'); // Invalid/not-existing ID
-	}
-
 	function test_customer_not_found_exception() {
 		$repo = new RepositoryTester();
-		new \Exception;
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
-		$this->setExpectedException('Exception', 'Failed to retrieve "id = \'-1\'" from "customers"');
+		$this->setExpectedException('Exception', 'Record "id = \'-1\'" doesn\'t exist in "customers"');
 		@$repo->getCustomer('-1'); // Invalid/not-existing ID
 	}
 
@@ -120,7 +112,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 		$order2 = $repo->getOrder(2);
 		$clone = clone $order2;
-		$this->assertLastQuery('SELECT * FROM orders WHERE id = 2');
+		$this->assertLastQuery("SELECT * FROM orders WHERE id = '2'");
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'A get*() should execute max 1 query');
 		$this->assertEquals($order2->product, 'Walter PPK 9mm');
 		$this->assertEquals(get_class($order2->customer), 'Sledgehammer\BelongsToPlaceholder', 'The customer property should be an placeholder');
@@ -129,14 +121,14 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
 		$this->assertEquals($order2->customer->name, "James Bond", 'Lazy-load the correct data');
-		$this->assertLastQuery('SELECT * FROM customers WHERE id = 2');
+		$this->assertLastQuery("SELECT * FROM customers WHERE id = '2'");
 		$this->assertFalse($order2->customer instanceof BelongsToPlaceholder, 'The placeholder should be replaced with a real object');
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
 		$order3 = $repo->getOrder(3);
 		$this->assertFalse($order3->customer instanceof BelongsToPlaceholder, 'A loaded instance should be injected directly into the container object');
 		$this->assertEquals($order3->customer->name, "James Bond", 'Lazy-load the correct data');
-		$this->assertLastQuery('SELECT * FROM orders WHERE id = 3');
+		$this->assertLastQuery("SELECT * FROM orders WHERE id = '3'");
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 3, 'No customer queries'); //
 
 		$clone->product = 'Clone';
@@ -190,7 +182,7 @@ class RepositoryTest extends DatabaseTestCase {
 		foreach ($c1->orders as $order) {
 			$this->assertEquals($order->product, 'Kop koffie', 'Only 1 order expected');
 		}
-		$this->assertLastQuery('SELECT * FROM orders WHERE customer_id = 1');
+		$this->assertLastQuery("SELECT * FROM orders WHERE customer_id = 1");
 		$this->assertInstanceOf('Sledgehammer\Collection', $c1->orders, 'The orders property should be replaced with an Collection');
 		$this->assertEquals($c1->orders[0]->product, 'Kop koffie', 'Contents should match the order from customer 1');
 		$this->assertEquals(count($c1->orders), 1, 'Should only contain the order from customer 1');

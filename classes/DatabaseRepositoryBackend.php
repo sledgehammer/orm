@@ -19,6 +19,12 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	static $cacheTimeout = 20;
 
 	/**
+	 * Prepared statements for get() requests.
+	 * @var array
+	 */
+	private $preparedStatements = array();
+
+	/**
 	 * @param array|string $databases
 	 */
 	function __construct($databases = array()) {
@@ -218,11 +224,31 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		} else {
 			throw new \Exception('Incomplete id, table: "'.$config['table'].'" requires: "'.human_implode('", "', $config['primaryKeys']).'"');
 		}
-		$data = $db->fetchRow('SELECT * FROM '.$db->quoteIdentifier($config['table']).' WHERE '.$this->generateWhere($id, $config));
-		if ($data === false) {
+		$params = array();
+		foreach ($config['primaryKeys'] as $column) {
+			if (isset($id[$column]) == false) {
+				throw new \Exception('Missing key: "'.$column.'"'); // @todo better error
+			}
+			$params[] = $id[$column];
+		}
+		if (isset($this->preparedStatements[$config['dbLink']][$config['table']])) {
+			$statement = $this->preparedStatements[$config['dbLink']][$config['table']];
+		} else {
+			$statement = $db->prepare('SELECT * FROM '.$db->quoteIdentifier($config['table']).' WHERE '.$this->generateWhere($id, $config, true));
+			$this->preparedStatements[$config['dbLink']][$config['table']] = $statement;
+		}
+		$success = $statement->execute($params);
+		if ($success === false) {
 			throw new \Exception('Failed to retrieve "'.$this->generateWhere($id, $config).'" from "'.$config['table'].'"');
 		}
-		return $data;
+		$rows = $statement->fetchAll();
+		if (count($rows) !== 1) {
+			if (count($rows) === 0) {
+				throw new \Exception('Record "'.$this->generateWhere($id, $config).'" doesn\'t exist in "'.$config['table'].'"');
+			}
+			throw new \Exception('Multiple record found for "'.$this->generateWhere($id, $config).'" in "'.$config['table'].'"');
+		}
+		return $rows[0];
 	}
 
 	/**
@@ -329,14 +355,18 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	 * @param array $config
 	 * @return string
 	 */
-	private function generateWhere($keys, $config) {
+	private function generateWhere($keys, $config, $prepare = false) {
 		$db = getDatabase($config['dbLink']);
 		$where = array();
 		foreach ($config['primaryKeys'] as $column) {
 			if (isset($keys[$column]) == false) {
 				throw new \Exception('Missing key: "'.$column.'"'); // @todo better error
 			}
-			$where[] = $db->quoteIdentifier($column).' = '.$this->quote($db, $column, $keys[$column]);
+			if ($prepare) {
+				$where[] = $db->quoteIdentifier($column).' = ?';
+			} else {
+				$where[] = $db->quoteIdentifier($column).' = '.$this->quote($db, $column, $keys[$column]);
+			}
 		}
 		if (count($where) == 0) {
 			throw new \Exception('Invalid config, no "primaryKeys" defined');
