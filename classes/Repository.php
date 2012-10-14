@@ -69,6 +69,13 @@ class Repository extends Object {
 	private $collectionMappings = array();
 
 	/**
+	 * Array containing instances that are loading saving/saved in 1 Repository->get() call.
+	 * Used for preventing infinite preloading.
+	 * @var array
+	 */
+	private $loading = array();
+
+	/**
 	 * Array containing instances that are saving/saved in 1 Repository->save() call.
 	 * Used for preventing duplicate saves.
 	 * @var array
@@ -122,12 +129,12 @@ class Repository extends Object {
 				}
 			}
 			if ($usePlural) {
-				if (empty($this->plurals[$arguments[0]])) {
+				if (isset($this->plurals[$arguments[0]])) {
+					$arguments[0] = $this->plurals[$arguments[0]];
+				} else {
 					if (isset($this->configs[$arguments[0]])) {
 						warning('Use plural form "'.array_search($arguments[0], $this->plurals).'"');
 					}
-				} else {
-					$arguments[0] = $this->plurals[$arguments[0]];
 				}
 			}
 			return call_user_func_array(array($this, $method), $arguments);
@@ -140,64 +147,48 @@ class Repository extends Object {
 	 *
 	 * @param string $model
 	 * @param mixed $id  The instance ID
-	 * @param bool $preload  Load relations direct
+	 * @param array $options
+	 *  'preload' => int  The preload recursion level.
+	 *     false or 0: Only the the relation.
+	 *     1: Also the relations of the relation.
+	 *     2: Also the relations of the relations of the relation.
+	 *     N: Etc.
+	 *    true or -1: Load all relations of all relations.
 	 * @return instance
 	 */
-	function get($model, $id, $preload = false) {
+	function get($model, $id, $options = array()) {
 		$config = $this->_getConfig($model);
 		$index = $this->resolveIndex($id, $config);
-		$object = @$this->objects[$model][$index];
-		if ($object !== null) {
-			$instance = $object['instance'];
-			if ($preload) {
-				foreach ($config->belongsTo as $property => $relation) {
-					if ($instance->$property instanceof BelongsToPlaceholder) {
-						$this->loadAssociation($model, $instance, $property, true);
-					}
+		if (isset($this->objects[$model][$index])) {
+			$instance = $this->objects[$model][$index]['instance'];
+		} else {
+			$this->objects[$model][$index] = array(
+				'state' => 'retrieving',
+				'instance' => null,
+				'data' => null,
+			);
+			try {
+				$data = $this->_getBackend($config->backend)->get($id, $config->backendConfig);
+				if (!is_array($data) && !is_object($data)) {
+					throw new InfoException('Invalid response from backend: "'.$config->backend.'"', array('Response' => $data));
 				}
-				foreach ($config->hasMany as $property => $relation) {
-					if ($instance->$property instanceof HasManyPlaceholder) {
-						$this->loadAssociation($model, $instance, $property, true);
-					}
-				}
+			} catch (\Exception $e) {
+				unset($this->objects[$model][$index]);
+				throw $e;
 			}
-			return $instance;
+			$indexFromData = $this->resolveIndex($data, $config);
+			if ($index != $indexFromData) {
+				unset($this->objects[$model][$index]); // cleanup invalid entry
+				throw new \Exception('The $id parameter doesn\'t match the retrieved data. '.$index.' != '.$indexFromData);
+			}
+			$this->objects[$model][$index]['data'] = $data;
+			$this->objects[$model][$index]['state'] = 'retrieved';
+			$instance = $this->convertToInstance($data, $config, $index);
+			$this->objects[$model][$index]['instance'] = $instance;
 		}
-		$this->objects[$model][$index] = array(
-			'state' => 'retrieving',
-			'instance' => null,
-			'data' => null,
-		);
-		try {
-			$data = $this->_getBackend($config->backend)->get($id, $config->backendConfig);
-			if (!is_array($data) && !is_object($data)) {
-				throw new InfoException('Invalid response from backend: "'.$config->backend.'"', array('Response' => $data));
-			}
-		} catch (\Exception $e) {
-			unset($this->objects[$model][$index]);
-			throw $e;
-		}
-		$indexFromData = $this->resolveIndex($data, $config);
-		if ($index != $indexFromData) {
-			unset($this->objects[$model][$index]); // cleanup invalid entry
-			throw new \Exception('The $id parameter doesn\'t match the retrieved data. '.$index.' != '.$indexFromData);
-		}
-		$this->objects[$model][$index]['data'] = $data;
-		$this->objects[$model][$index]['state'] = 'retrieved';
-
-		$instance = $this->convertToInstance($data, $config, $index);
-		$this->objects[$model][$index]['instance'] = $instance;
-		if ($preload) {
-			foreach ($config->belongsTo as $property => $relation) {
-				if ($instance->$property instanceof BelongsToPlaceholder) {
-					$this->loadAssociation($model, $instance, $property, true);
-				}
-			}
-			foreach ($config->hasMany as $property => $relation) {
-				if ($instance->$property instanceof HasManyPlaceholder) {
-					$this->loadAssociation($model, $instance, $property, true);
-				}
-			}
+		if (isset($options['preload']) && $options['preload'] != 0) {
+			$options['preload']--;
+			$this->loadAssociations($model, $this->objects[$model][$index]['instance'], $options);
 		}
 		return $instance;
 	}
@@ -208,10 +199,16 @@ class Repository extends Object {
 	 *
 	 * @param string $model
 	 * @param array/object $data Raw data from the backend
-	 * @param bool $preload  Load relations direct
+	 * @param array $options
+	 *  'preload' => int  The preload recursion level.
+	 *     false or 0: Only the the relation.
+	 *     1: Also the relations of the relation.
+	 *     2: Also the relations of the relations of the relation.
+	 *     N: Etc.
+	 *    true or -1: Load all relations of all relations.
 	 * @return instance
 	 */
-	function convert($model, $data, $preload = false) {
+	function convert($model, $data, $options = array()) {
 		if ($data === null) {
 			throw new \Exception('Parameter $data is required');
 		}
@@ -221,17 +218,19 @@ class Repository extends Object {
 		$object = @$this->objects[$model][$index];
 		if ($object !== null) {
 			// @todo validate $data against $object['data']
-			return $object['instance'];
+			$instance = $object['instance'];
+		} else {
+			$this->objects[$model][$index] = array(
+				'state' => 'retrieved',
+				'instance' => null,
+				'data' => $data,
+			);
+			$instance = $this->convertToInstance($data, $config, $index);
+			$this->objects[$model][$index]['instance'] = $instance;
 		}
-		$this->objects[$model][$index] = array(
-			'state' => 'retrieved',
-			'instance' => null,
-			'data' => $data,
-		);
-		$instance = $this->convertToInstance($data, $config, $index);
-		$this->objects[$model][$index]['instance'] = $instance;
-		if ($preload) {
-			warning('Not implemented');
+		if (isset($options['preload']) && $options['preload'] != 0) {
+			$options['preload']--; // (this unexpectedly aso works for true, because true-- remains true)
+			$this->loadAssociations($model, $instance, $options);
 		}
 		return $instance;
 	}
@@ -240,12 +239,14 @@ class Repository extends Object {
 	 * Retrieve all instances for the specified model.
 	 *
 	 * @param string $model
+	 * @param array $options
 	 * @return Collection
 	 */
-	function all($model) {
+	function all($model, $options = array()) {
 		$config = $this->_getConfig($model);
 		$collection = $this->_getBackend($config->backend)->all($config->backendConfig);
-		return new RepositoryCollection($collection, $model, $this->id, $this->collectionMappings[$model]);
+		$options['mapping'] = $this->collectionMappings[$model];
+		return new RepositoryCollection($collection, $model, $this->id, $options);
 	}
 
 	/**
@@ -254,10 +255,16 @@ class Repository extends Object {
 	 * @param string $model
 	 * @param object $instance  The instance with the relation.
 	 * @param string $property  The relation property.
-	 * @param bool $preload  True: Load related objects of the relation. False: Only load the relation.
+	 * @param array $options
+	 *  'preload' => int  The preload recursion level.
+	 *     false or 0: Only the the relation.
+	 *     1: Also the relations of the relation.
+	 *     2: Also the relations of the relations of the relation.
+	 *     N: Etc.
+	 *    true or -1: Load all relations of all relations.
 	 * @return void
 	 */
-	function loadAssociation($model, $instance, $property, $preload = false) {
+	function loadAssociation($model, $instance, $property, $options = array()) {
 		$config = $this->_getConfig($model);
 		$index = $this->resolveIndex($instance, $config);
 
@@ -272,7 +279,7 @@ class Repository extends Object {
 				throw new \Exception('Unexpected id value: null'); // set property to NULL? or leave it alone?
 			}
 			if ($belongsTo['useIndex']) {
-				$instance->$property = $this->get($belongsTo['model'], $referencedId, $preload);
+				$instance->$property = $this->get($belongsTo['model'], $referencedId, $options);
 				return;
 			}
 			$instances = $this->all($belongsTo['model'])->where(array($belongsTo['id'] => $referencedId));
@@ -293,7 +300,8 @@ class Repository extends Object {
 			}
 			$id = PropertyPath::get($config->id[0], $instance);
 			$related = $this->_getBackend($config->backend)->related($hasMany, $id);
-			$collection = new RepositoryCollection($related, $hasMany['model'], $this->id, $this->collectionMappings[$hasMany['model']]);
+			$options['mapping'] = $this->collectionMappings[$hasMany['model']];
+			$collection = new RepositoryCollection($related, $hasMany['model'], $this->id, $options);
 			if (isset($hasMany['conditions'])) {
 				$collection = $collection->where($hasMany['conditions']);
 			}
@@ -302,6 +310,42 @@ class Repository extends Object {
 			return;
 		}
 		throw new \Exception('No association found for  '.$model.'->'.$property);
+	}
+
+	/**
+	 * Retrieve all related instances (belongTo) and collection (hasMany) and update the $instance.
+	 *
+	 * @param string $model
+	 * @param object $instance  The instance with the relations.
+	 * @param array $options
+	 *  'preload' => int  The recursion level.
+	 *     0: Only the the relation.
+	 *     1: Also the relations of the relation.
+	 *     2: Also the relations of the relations of the relation.
+	 *     N: etc.
+	 *    -1: Load all relations of all relations.
+	 * @return void
+	 */
+	function loadAssociations($model, $instance, $options = array()) {
+		if (in_array($instance, $this->loading, true)) {
+			return;
+		}
+		$first = (count($this->loading) === 0);
+		$this->loading[] = $instance;
+		$config = $this->_getConfig($model);
+		foreach (array_keys($config->belongsTo) as $property) {
+			if ($instance->$property instanceof BelongsToPlaceholder) {
+				$this->loadAssociation($model, $instance, $property, $options);
+			}
+		}
+		foreach (array_keys($config->hasMany) as $property) {
+			if ($instance->$property instanceof HasManyPlaceholder) {
+				$this->loadAssociation($model, $instance, $property, $options);
+			}
+		}
+		if ($first) {
+			$this->loading = array();
+		}
 	}
 
 	/**
@@ -711,7 +755,11 @@ class Repository extends Object {
 	 */
 	function registerBackend($backend) {
 		if ($backend->identifier === null) {
-			throw new \Exception('RepositoryBackend->idenitifier is required');
+			throw new \Exception('RepositoryBackend->identifier is required');
+		}
+		if (count($backend->configs) === 0) {
+			notice(get_class($backend).': "'.$backend->identifier.'" doesn\'t have any ModelConfigs');
+			return;
 		}
 		if (isset($this->backends[$backend->identifier])) {
 			throw new \Exception('RepositoryBackend "'.$backend->identifier.'" already registered');
@@ -1000,20 +1048,34 @@ class Repository extends Object {
 			$php .= "\t * Retrieve an ".$model."\n";
 			$php .= "\t *\n";
 			$php .= "\t * @param mixed \$id  The ".$model." ID\n";
-			$php .= "\t * @param bool \$preload  Load relations direct\n";
+			$php .= "\t * @param array \$options\n";
+			$php .= "\t *  'preload' => int  The preload recursion level.\n";
+			$php .= "\t *     false or 0: Only the the relation.\n";
+			$php .= "\t *     1: Also the relations of the relation.\n";
+			$php .= "\t *     2: Also the relations of the relations of the relation.\n";
+			$php .= "\t *     N: Etc.\n";
+			$php .= "\t *    true or -1: Load all relations of all relations.\n";
 			$php .= "\t * @return ".$config->class."\n";
 			$php .= "\t */\n";
-			$php .= "\tfunction get".$model.'($id, $preload = false) {'."\n";
-			$php .= "\t\treturn \$this->get('".$model."', \$id, \$preload);\n";
+			$php .= "\tfunction get".$model.'($id, $options = array()) {'."\n";
+			$php .= "\t\treturn \$this->get('".$model."', \$id, \$options);\n";
 			$php .= "\t}\n";
 
 			$php .= "\t/**\n";
 			$php .= "\t * Retrieve all ".$config->plural."\n";
 			$php .= "\t *\n";
+			$php .= "\t * @param array \$options\n";
+			$php .= "\t *  'preload' => int  The preload recursion level.\n";
+			$php .= "\t *     false or 0: Only the the relation.\n";
+			$php .= "\t *     1: Also the relations of the relation.\n";
+			$php .= "\t *     2: Also the relations of the relations of the relation.\n";
+			$php .= "\t *     N: Etc.\n";
+			$php .= "\t *    true or -1: Load all relations of all relations.\n";
+			$php .= "\t *\n";
 			$php .= "\t * @return Collection|".$config->class."\n";
 			$php .= "\t */\n";
-			$php .= "\tfunction all".$config->plural.'() {'."\n";
-			$php .= "\t\treturn \$this->all('".$model."');\n";
+			$php .= "\tfunction all".$config->plural.'($options = array()) {'."\n";
+			$php .= "\t\treturn \$this->all('".$model."', \$options);\n";
 			$php .= "\t}\n";
 
 			$php .= "\t/**\n";

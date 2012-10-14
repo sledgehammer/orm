@@ -226,7 +226,6 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEquals($c2->orders[0], 'test', 'Set by array offset');
 		$this->assertInstanceOf('Sledgehammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
 
-
 		$c2 = $this->getDirtyCustomer(2);
 		$clone = clone $c2;
 		unset($c2->orders[0]);
@@ -235,16 +234,17 @@ class RepositoryTest extends DatabaseTestCase {
 
 		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder is already replaced');
 		$this->assertEquals($clone->orders[1]->product, 'Spycam');
-		//	$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
+//		$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
 	}
 
 	function test_getWildcard_preload() {
 		$repo = new RepositoryTester();
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 
-		$order = $repo->getOrder(2, true);
+		$order = $repo->getOrder(2, array('preload' => true));
 		$this->assertFalse($order->customer instanceof BelongsToPlaceholder, 'Should not be a BelongsToPlaceholder');
 		$this->assertInstanceOf('Sledgehammer\Collection', $order->customer->orders, 'Should not be a HasManyPlaceholder');
+		$this->assertInstanceOf('Sledgehammer\Collection', $order->customer->groups[0]->customers, 'Should not be a HasManyPlaceholder');
 	}
 
 	function test_removeWildcard() {

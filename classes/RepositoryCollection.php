@@ -27,7 +27,13 @@ class RepositoryCollection extends Collection {
 	 * Paths with direct mapping to the backend data.
 	 * @var array array($path => $column)
 	 */
-	protected $mapping;
+	protected $mapping = array();
+
+	/**
+	 * Convert options.
+	 * @var array
+	 */
+	protected $options = array();
 
 	/**
 	 * True when all raw elements been converted to repository items. (Triggered by offsetSet, toArray, etc)
@@ -40,12 +46,18 @@ class RepositoryCollection extends Collection {
 	 * @param \Traversable|array $data
 	 * @param string $model
 	 * @param string $repository
-	 * @param array $mapping data => object  mapping (reverse from modelConfig mapping)
+	 * @param array $options
+	 *  'mapping' => array
+	 *    data => object  mapping (reverse from modelConfig mapping)
 	 */
-	function __construct($collection, $model, $repository = 'default', $mapping = array()) {
+	function __construct($collection, $model, $repository = 'default', $options = array()) {
 		$this->model = $model;
 		$this->repository = $repository;
-		$this->mapping = $mapping;
+		if (isset($options['mapping'])) {
+			$this->mapping = $options['mapping'];
+			unset($options['mapping']);
+		}
+		$this->options = $options;
 		parent::__construct($collection);
 	}
 
@@ -177,7 +189,7 @@ class RepositoryCollection extends Collection {
 			return $item;
 		}
 		$repo = getRepository($this->repository);
-		return $repo->convert($this->model, $item);
+		return $repo->convert($this->model, $item, $this->options);
 	}
 
 	protected function dataToArray() {
@@ -185,7 +197,7 @@ class RepositoryCollection extends Collection {
 			$repo = getRepository($this->repository);
 			$data = array();
 			foreach ($this->data as $key => $item) {
-				$data[$key] = $repo->convert($this->model, $item);
+				$data[$key] = $repo->convert($this->model, $item, $this->options);
 			}
 			$this->data = $data;
 			$this->isConverted = true;

@@ -21,7 +21,7 @@ abstract class RepositoryBackend extends Object {
 	 *
 	 * @var array|ModelConfig  array('Model name' => ModelConfig, 'Model2 name' => ModelConfig, ...)
 	 */
-	public $configs;
+	public $configs = array();
 
 	/**
 	 * The junction tables
