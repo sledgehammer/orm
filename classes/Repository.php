@@ -194,6 +194,69 @@ class Repository extends Object {
 	}
 
 	/**
+	 * Export an instance (or instance collection) as an array for use before serializing.
+	 *
+	 * Should be used in jsonSerialize when the instance is a JsonSerializable  (PHP 5.4)
+	 * @link http://php.net/manual/en/class.jsonserializable.php
+	 *
+	 * @param string $model
+	 * @param object|Collection $instance 1 instance or a collection of instances
+	 * @param int $depth
+	 * @return array
+	 */
+	function export($model, $instances, $depth = 0) {
+		$export = array();
+		if (is_array($instances) || $instances instanceof HasManyPlaceholder || $instances instanceof Collection) {
+			foreach ($instances as $index => $instance) {
+				$export[$index] = $this->export($model, $instance, $depth);
+			}
+			return $export;
+		}
+		$instance = $instances; // $instances is a single instance
+		static $exported = array();
+		if (in_array($instance, $exported, true)) {
+			throw new \Exception('Recursion leak'); // Sanity check
+		}
+		$first = (count($exported) == 0);
+		$config = $this->_getConfig($model);
+		$exported[] = $instance;
+		try {
+			$relations = array_merge(array_keys($config->belongsTo), array_keys($config->hasMany));
+			foreach ($instance as $property => $value) {
+				if (in_array($property, $relations) === false) { // Not a relation?
+					$export[$property] = $value;
+				} elseif ($depth !== 0) {
+					if (isset($config->belongsTo[$property])) {
+						if (in_array($instance->$property, $exported, true)) { // Already exported
+							continue; // skip property
+						}
+						$export[$property] = $this->export($config->belongsTo[$property]['model'], $instance->$property, $depth - 1);
+					} elseif ($depth !== 1) {
+						$export[$property] = array();
+						foreach ($instance->$property as $index => $item) {
+							if (in_array($item, $exported, true)) { //
+								unset($export[$property]); // skip property
+								break;
+							}
+							$export[$property][$index] = $this->export($config->hasMany[$property]['model'], $item, $depth - 2);
+						}
+					}
+				}
+			}
+			if ($first) {
+				$exported = array();
+			}
+			return $export;
+		} catch (\Exception $e) {
+			if ($first) {
+				$exported = array();
+			}
+			throw $e;
+		}
+
+	}
+
+	/**
 	 * Create a instance from existing $data.
 	 * This won't store the data. For storing data use $repository->save($instance)
 	 *
