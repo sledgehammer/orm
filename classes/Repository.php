@@ -339,7 +339,7 @@ class Repository extends Object {
 		if ($belongsTo !== null) {
 			$referencedId = $object['data'][$belongsTo['reference']];
 			if ($referencedId === null) {
-				throw new \Exception('Unexpected id value: null'); // set property to NULL? or leave it alone?
+				throw new \Exception('Unexpected id value: null'); // set property to null? or leave it alone?
 			}
 			if ($belongsTo['useIndex']) {
 				$instance->$property = $this->get($belongsTo['model'], $referencedId, $options);
@@ -507,8 +507,8 @@ class Repository extends Object {
 			$data = $this->convertToData($this->objects[$model][$index]['instance'], $config);
 			if ($data !== $this->objects[$model][$index]['data']) {
 				throw new InfoException('Reloading failed, instance has pending changes', array(
-					'changed in instance' => array_diff($data, $this->objects[$model][$index]['data']),
-					'backend values' => array_diff($this->objects[$model][$index]['data'], $data),
+					'changed in instance' => array_diff_assoc($data, $this->objects[$model][$index]['data']),
+					'backend values' => array_diff_assoc($this->objects[$model][$index]['data'], $data),
 				));
 			}
 		}
@@ -628,7 +628,7 @@ class Repository extends Object {
 				$object['data'] = $this->_getBackend($config->backend)->add($data, $config->backendConfig);
 				unset($this->created[$config->name][$index]);
 				unset($this->objects[$config->name][$index]);
-				$changes = array_diff($object['data'], $data);
+				$changes = array_diff_assoc($object['data'], $data);
 				if (count($changes) > 0) {
 					foreach ($changes as $column => $value) {
 						$instance->$column = $value; // @todo reversemap the column to the property
@@ -732,7 +732,7 @@ class Repository extends Object {
 						// Delete items that are no longer in the relation
 						if ($old !== null) {
 							if ($collection === null && count($old) > 0) {
-								notice('Unexpected type NULL for property "'.$property.'", expecting an array or Iterator');
+								notice('Unexpected value: null for property "'.$property.'", expecting an array or Iterator');
 							}
 							foreach ($old as $key => $item) {
 								if (array_search($item, $collection, true) === false) {
@@ -1335,7 +1335,7 @@ class Repository extends Object {
 			$config->class = false; // fallback to a generated class
 			foreach ($this->namespaces as $namespace) {
 				$class = $namespace.$config->name;
-				if (class_exists($class, false) || Framework::$autoLoader->getFilename($class) !== null) { // Is the class known?
+				if (class_exists($class, false) || Framework::$autoloader->getFilename($class) !== null) { // Is the class known?
 					$config->class = $class;
 				}
 			}
