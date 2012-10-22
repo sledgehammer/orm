@@ -62,7 +62,7 @@ class ModelConfig extends Object {
 	 *   $property => array(
 	 *     'model' => $modelName // The foreign model: "Product"
 	 *     'reference' => $column, // foreign_key to this container instance.
-	 *     'belongsTo' => $propertyPath, // (optional) The belongsTo in the related instances in a on-to-many relation that refers back to the container instance. Used in save() for implicitly setting the foreignkey value.
+	 *     'belongsTo' => $propertyPath, // (optional) The belongsTo property in the related instances in a one-to-many relation that refers back to the container instance. Used in save() for implicitly setting the foreignkey value.
 	 *     'through' => $junctionName // (optional) The junction for many-to-many relations.
 	 *     'id' => $column // (optional) foreign_key for the related model in the many-to-many table: "product_id"
 	 *     'conditions' => array() // (optional) Additional extra (static) conditions
@@ -104,6 +104,12 @@ class ModelConfig extends Object {
 		foreach ($options as $property => $value) {
 			$this->$property = $value;
 		}
+	}
+
+
+
+	function getPropertyNames() {
+		return array_merge(array_values($this->properties), array_keys($this->belongsTo), array_keys($this->hasMany));
 	}
 
 }

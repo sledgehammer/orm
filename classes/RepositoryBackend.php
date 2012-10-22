@@ -21,7 +21,7 @@ abstract class RepositoryBackend extends Object {
 	 *
 	 * @var array|ModelConfig  array('Model name' => ModelConfig, 'Model2 name' => ModelConfig, ...)
 	 */
-	public $configs = array();
+	public $configs;
 
 	/**
 	 * The junction tables
@@ -134,6 +134,57 @@ abstract class RepositoryBackend extends Object {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Rename a property and remap the relations to the new name.
+	 *
+	 * @param string $model The modelname
+	 * @param string $from  The current propertyname
+	 * @param string $to    The new propertyname
+	 */
+	function renameProperty($model, $from, $to) {
+		$config = $this->configs[$model];
+		if (in_array($to, $config->getPropertyNames())) {
+			notice('Overwriting existing property "'.$to.'"');
+			// Unset original mapping
+			$column = array_search($to, $config->properties);
+			if ($column !== false) {
+				unset($config->properties[$column]);
+			} else {
+				unset($config->belongsTo[$to]);
+				unset($config->hasMany[$to]);
+			}
+		}
+		if (array_key_exists($from, $config->defaults)) {
+			$config->defaults[$to] = $config->defaults[$from];
+			unset($config->defaults[$from]);
+		}
+		$column = array_search($from, $config->properties);
+		if ($column !== false) { // A property?
+			$config->properties[$column] = $to;
+			return;
+		}
+		if (isset($config->belongsTo[$from])) { // A belongsTo relation?
+			$config->belongsTo[$to] = $config->belongsTo[$from];
+			unset($config->belongsTo[$from]);
+			if (isset($config->belongsTo[$to]['model']) && isset($this->configs[$config->belongsTo[$to]['model']])) {
+				$belongsToModel = $this->configs[$config->belongsTo[$to]['model']];
+				foreach ($belongsToModel->hasMany as $property => $hasMany) {
+					if ($hasMany['model'] === $model && $hasMany['belongsTo'] === $from) {
+						$belongsToModel->hasMany[$property]['belongsTo'] = $to;
+						break;
+					}
+				}
+			}
+			return;
+		}
+		if (isset($config->hasMany[$from])) { // A hasMany relation?
+			$config->hasMany[$to] = $config->hasMany[$from];
+			unset($config->hasMany[$from]);
+			return;
+		}
+		notice('Property: "'.$from.' not found"');
 	}
 }
 ?>

@@ -431,8 +431,8 @@ class Repository extends Object {
 			} else {
 				$data = array($config->id[0] => $mixed); // convert the id to array-notation
 			}
-		} elseif ($object['state'] == 'new') { // The instance issn't stored in the backend and only exists in-memory?
-			throw new \Exception('Removing instance failed, the instance issn\'t stored in the backend');
+		} elseif ($object['state'] == 'new') { // The instance isn't stored in the backend and only exists in-memory?
+			throw new \Exception('Removing instance failed, the instance isn\'t stored in the backend');
 		} else {
 			$data = $object['data'];
 		}
@@ -456,6 +456,7 @@ class Repository extends Object {
 				unset($instance->$property);
 			}
 		}
+		// @todo Unload the hasMany objects from memory, they might have been deleted through an CASCADE relation in MySQL.
 		unset($this->objects[$model][$index]); // Remove the object from the repository
 	}
 
