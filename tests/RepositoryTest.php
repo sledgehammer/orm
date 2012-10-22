@@ -16,7 +16,7 @@ class RepositoryTest extends DatabaseTestCase {
 
 	public function __construct() {
 		parent::__construct();
-		DatabaseRepositoryBackend::$cacheTimeout = 0; // always inspect database
+		DatabaseRepositoryBackend::$cacheTimeout = false; // always inspect database
 		if ($this->getDatabase()->getAttribute(\PDO::ATTR_DRIVER_NAME) == 'mysql') {
 			$this->queryCountAfterInspectDatabase = 5;
 		} else {
@@ -111,7 +111,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo = new RepositoryTester();
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 		$order2 = $repo->getOrder(2);
-		$clone = clone $order2;
+		$clone = clone $order2->customer;
 		$this->assertLastQuery("SELECT * FROM orders WHERE id = '2'");
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'A get*() should execute max 1 query');
 		$this->assertEquals($order2->product, 'Walter PPK 9mm');
@@ -131,10 +131,8 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertLastQuery("SELECT * FROM orders WHERE id = '3'");
 		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 3, 'No customer queries'); //
 
-		$clone->product = 'Clone';
-		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder is already replaced');
-		$this->assertEquals($clone->customer->name, 'James Bond');
-		//	$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
+		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder belongs to an other object');
+		$clone->name = 'Clone';
 	}
 
 	function test_allWildcard() {

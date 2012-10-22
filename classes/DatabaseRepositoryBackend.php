@@ -14,9 +14,9 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	public $identifier = 'db';
 
 	/**
-	 * @var int Number of seconds a database schema is cached.
+	 * @var string The TTL of the database schema cache.
 	 */
-	static $cacheTimeout = 20;
+	static $cacheTimeout = '20sec';
 
 	/**
 	 * Prepared statements for get() requests.
@@ -54,17 +54,16 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	function inspectDatabase($dbLink = 'default', $tablePrefix = '') {
 		// Pass 1: Retrieve and parse schema information
 		$db = getDatabase($dbLink);
-		$cacheIdentifier = $dbLink.' '.$tablePrefix.' ';
-		if (count($db->logger->entries) > 0) {
-			$cacheIdentifier .= $db->logger->entries[0][0].' '.$tablePrefix; // Use the connect statement and prefix as identifier.
-		}
-		$cacheFile = TMP_DIR.'DatabaseRepositoryBackend/'.md5($cacheIdentifier).'.json';
-		if (file_exists($cacheFile) && filemtime($cacheFile) > (time() - self::$cacheTimeout)) {
-			$schema = json_decode(file_get_contents($cacheFile), true);
-		} else {
+		if (self::$cacheTimeout === false) {
 			$schema = $this->getSchema($db, $tablePrefix);
-			mkdirs(dirname($cacheFile));
-			file_put_contents($cacheFile, json_encode($schema));
+		} else {
+			$cacheIdentifier = $dbLink.' '.$tablePrefix.' ';
+			if (count($db->logger->entries) > 0) {
+				$cacheIdentifier .= $db->logger->entries[0][0]; // Add the connect statement to the identifier.
+			}
+			$schema = cache('DatabaseRepositoryBackend['.md5($cacheIdentifier).']', self::$cacheTimeout, function () use ($db, $tablePrefix) {
+				return $this->getSchema($db, $tablePrefix);
+			});
 		}
 		$models = array();
 		$junctions = array();

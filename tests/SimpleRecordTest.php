@@ -137,7 +137,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 			$record->delete();
 			$this->fail('Expecting an exception');
 		} catch(\Exception $e) {
-			$this->assertEquals($e->getMessage(), 'Removing instance failed, the instance issn\'t stored in the backend');
+			$this->assertEquals($e->getMessage(), 'Removing instance failed, the instance isn\'t stored in the backend');
 		}
 	}
 

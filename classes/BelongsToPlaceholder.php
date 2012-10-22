@@ -7,6 +7,8 @@ namespace Sledgehammer;
  * This Placeholder facilitates lazy loading of belongsTo relations.
  * A BelongsToPlaceholder object behaves like the object from the repository, but only retrieves the real object on-access or on-change.
  *
+ * @todo Implement ArrayAcces and Iterator interfaces. Which the target property might support.
+ *
  * @package ORM
  */
 class BelongsToPlaceholder extends Object {
@@ -56,8 +58,9 @@ class BelongsToPlaceholder extends Object {
 	 * @return void
 	 */
 	private function __replacePlaceholder() {
-		if (is_string($this->__placeholder) === false) { // Is the placeholder already replaced
-			notice('This placeholder is already replaced', 'Did you clone the object?');
+		if (is_string($this->__placeholder) === false) { // Is the placeholder already replaced?
+			// Multiple lookups are valid use-case.
+			// The property (as placeholder) could be passed to another function as a value.
 			return;
 		}
 		$parts = explode('/', $this->__placeholder);
