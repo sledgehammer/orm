@@ -89,6 +89,10 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 				if (empty($info['foreignKeys'])) {
 					$property = Inflector::variablize($column);
 					$config->properties[$column] = $property;
+					if ($info['type'] === 'tinyint(1)' && $info['null'] === false) {
+						$config->readFilters[$column] = __CLASS__.'::valueToBool';
+						$config->writeFilters[$column] = __CLASS__.'::boolToValue';
+					}
 				} else {
 					if (count($info['foreignKeys']) > 1) {
 						notice('Multiple foreign-keys per column not supported');
@@ -445,6 +449,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 					$column = substr($parts[0], 1, -1);
 					$config['columns'][$column] = array(
 						'type' => $parts[1],
+						'null' => true,
 					);
 					$columnConfig = &$config['columns'][$column];
 					for ($i = 2; $i < count($parts); $i++) {
@@ -655,6 +660,36 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		return $i - $offset;
 	}
 
+	/**
+	 * Convert value from the database to a boolean.
+	 * Doesn't convert all values. (tinyint(1) can also be a number or might be null)
+	 *
+	 * @param string $value
+	 * @return bool
+	 */
+	static function valueToBool($value) {
+		if ($value === '1') {
+			return true;
+		}
+		if ($value === '0') {
+			return false;
+		}
+		return $value;
+	}
+
+	/**
+	 * Convert a boolean to a database value.
+	 * Doesn't convert all values. (A tinyint(1) can also be a number or might be null)
+	 *
+	 * @param bool $bool
+	 * @return string
+	 */
+	static function boolToValue($bool) {
+		if (is_bool($bool)) {
+			return (string) intval($bool);
+		}
+		return $bool;
+	}
 }
 
 ?>
