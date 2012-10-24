@@ -834,7 +834,7 @@ class Repository extends Object {
 			if ($config->backend === null) {
 				$config->backend = $backend->identifier;
 			}
-			$this->register($config);
+			$this->registerModel($config);
 		}
 		// Pass 2: Auto detect id's
 		foreach ($backend->configs as $backendConfig) {
@@ -945,6 +945,17 @@ class Repository extends Object {
 				if ($validationError) {
 					warning($validationError);
 					unset($config->hasMany[$property]);
+				}
+			}
+			// Validate read & write filters
+			foreach ($config->readFilters as $column => $filter) {
+				if (empty($config->properties[$column])) {
+					notice('Invalid config: '.$config->name.'->readFilters['.$column.'] isn\'t mapped as property', $filter);
+				}
+			}
+			foreach ($config->writeFilters as $column => $filter) {
+				if (empty($config->properties[$column])) {
+					notice('Invalid config: '.$config->name.'->writeFilters['.$column.'] isn\'t mapped as property', $filter);
 				}
 			}
 		}
@@ -1244,7 +1255,11 @@ class Repository extends Object {
 		}
 		// Map the data onto the instance
 		foreach ($config->properties as $sourcePath => $targetPath) {
-			PropertyPath::set($targetPath, PropertyPath::get($sourcePath, $data), $instance);
+			$value = PropertyPath::get($sourcePath, $data);
+			if (isset($config->readFilters[$sourcePath])) {
+				$value = filter($value, $config->readFilters[$sourcePath]);
+			}
+			PropertyPath::set($targetPath, $value, $instance);
 		}
 		foreach ($config->belongsTo as $property => $relation) {
 			if (isset($relation['convert'])) {
@@ -1307,6 +1322,9 @@ class Repository extends Object {
 		// Map to data
 		foreach ($config->properties as $element => $property) {
 			$value = PropertyPath::get($property, $from);
+			if (isset($config->writeFilters[$element])) {
+				$value = filter($value, $config->writeFilters[$element]);
+			}
 			PropertyPath::set($element, $value, $to);
 		}
 		// Map the belongTo to the "*_id" columns.
@@ -1327,7 +1345,7 @@ class Repository extends Object {
 	 *
 	 * @param ModelConfig $config
 	 */
-	protected function register($config) {
+	protected function registerModel($config) {
 		if (isset($this->configs[$config->name])) {
 			warning('Overwriting model: "'.$config->name.'"'); // @todo? Allow overwritting models? or throw Exception?
 		}

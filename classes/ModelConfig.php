@@ -78,12 +78,27 @@ class ModelConfig extends Object {
 	public $defaults = array();
 
 	/**
+	 * Filter the data from the backend before using setting the values in the instance.
+	 * @var array 'column(PropertyPath)' => filter(callable)
+	 */
+	public $readFilters = array();
+
+	/**
+	 * Filter the property values before writing the data to the backend.
+	 * @var array 'column(PropertyPath)' => filter(callable)
+	 */
+	public $writeFilters = array();
+
+	/**
+	 * The identfier of the backend this config belongs to.
 	 * @var string
 	 */
 	public $backend;
 
 	/**
 	 * An container for RepositoryBackend specific settings.
+	 * This is the config that is passed to create, read, update and delete functions in the backend.
+	 *
 	 * @var mixed
 	 */
 	public $backendConfig;
@@ -96,6 +111,7 @@ class ModelConfig extends Object {
 
 	/**
 	 * Constructor
+	 *
 	 * @param string $name  Model name
 	 * @param array $options  Additional configuration options
 	 */
@@ -106,8 +122,11 @@ class ModelConfig extends Object {
 		}
 	}
 
-
-
+	/**
+	 * Return all property-paths.
+	 *
+	 * @return array
+	 */
 	function getPropertyNames() {
 		return array_merge(array_values($this->properties), array_keys($this->belongsTo), array_keys($this->hasMany));
 	}
