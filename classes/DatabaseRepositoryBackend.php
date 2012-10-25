@@ -61,8 +61,9 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 			if (count($db->logger->entries) > 0) {
 				$cacheIdentifier .= $db->logger->entries[0][0]; // Add the connect statement to the identifier.
 			}
-			$schema = cache('DatabaseRepositoryBackend['.md5($cacheIdentifier).']', self::$cacheTimeout, function () use ($db, $tablePrefix) {
-				return $this->getSchema($db, $tablePrefix);
+			$backend = $this;
+			$schema = cache('DatabaseRepositoryBackend['.md5($cacheIdentifier).']', self::$cacheTimeout, function () use ($backend, $db, $tablePrefix) {
+				return $backend->getSchema($db, $tablePrefix);
 			});
 		}
 		$models = array();
@@ -407,11 +408,12 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	/**
 	 * Get column and relation information from the database.
 	 *
+	 * @private
 	 * @param Database $db
 	 * @param string $prefix  Table prefix
 	 * @return array
 	 */
-	private function getSchema($db, $prefix = '') {
+	function getSchema($db, $prefix = '') {
 		$driver = $db->getAttribute(\PDO::ATTR_DRIVER_NAME);
 		if ($driver == 'mysql') {
 			return $this->getSchemaMySql($db, $prefix);
