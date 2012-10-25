@@ -490,8 +490,8 @@ class Repository extends Object {
 			if (is_object($mixed)) {
 				throw new \Exception('The instance is not bound to this Repository');
 			}
-		} elseif ($object['state'] == 'new') { // The instance issn't stored in the backend and only exists in-memory?
-			throw new \Exception('Reloading instance failed, the instance issn\'t stored in the backend');
+		} elseif ($object['state'] == 'new') { // The instance isn't stored in the backend and only exists in-memory?
+			throw new \Exception('Reloading instance failed, the instance isn\'t stored in the backend');
 		}
 		if (is_object($mixed)) {
 			$id = array();
@@ -1356,6 +1356,7 @@ class Repository extends Object {
 				$class = $namespace.$config->name;
 				if (class_exists($class, false) || Framework::$autoloader->getFilename($class) !== null) { // Is the class known?
 					$config->class = $class;
+					break;
 				}
 			}
 		}

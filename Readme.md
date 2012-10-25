@@ -9,18 +9,19 @@ The Object-relational mapping (ORM) module for the Sledgehammer Framework.
 * Full AutoCompletion support
 * POCO support. The Repository can load Plain Old Class Objects (POCO's)
 * Detect relations from the database
-* A ActiveRecord frontend
+* An ActiveRecord frontend
 * Linq style filtering support
 * Support for complex property mapping. A column "city" can be mapped to property "address->city"
 * 1 database record maps to only 1 instance.
+* Relations are objects, To set the "customer_id" you'll set the "customer" property to a customer object.
+* Cascading save(). A save will update & insert all connected records.
 * Support for multiple backends: PDO (MySQL, SQLite), Webservices (Twitter, etc)
 * Clean queries. (No "1 = 1" where statements, etc)
-
 
 ## Usage
 
 ```php
-// inside your application/init.php
+// inside your bootstrap.php
 $repo = getRepository();
 $repo->registerBackend(new DatabaseRepositoryBackend("default")); // Extract models from the "default" database connection.
 

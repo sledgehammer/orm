@@ -1,4 +1,6 @@
 
+# Idea's for hasMany relations
+
 hasMany behaves like an array and should only load data from the database on-access.
 
 (Common) use cases are:
@@ -26,13 +28,13 @@ Sledgehammer\replace_placeholder($model->items);
     Or does "reset($model->items);" work?
 
 2. Use a placeholder and replace the placeholder with a collection on-access.
-  Add an event-listener to the collection and aid change-detection in the Repository->save()
+  Add an event-listener to the collection and add change-detection in the Repository->save()
 
 Collections
 ------------
 * Allow (additional) filtering.
 * Are Lazy loaded (are promise to a resultset)
-* Allow SQL but that issn't the primary API. (class DatabaseCollection extends Collection)
+* Allow SQL but that isn't the primary API. (class DatabaseCollection extends Collection)
     $collection->sql = $collection->sql->where('RAND() > 0.5'); // Example of custom SQL
 
 Fluent interface
