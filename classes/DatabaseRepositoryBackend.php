@@ -165,7 +165,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 					$property = substr($property, strlen($tablePrefix)); // Strip prefix
 				}
 				$property = Inflector::variablize($property);
-				if (in_array($property, $config->properties)) {
+				if (in_array($property, $config->getPropertyNames())) {
 					notice('Unable to use '.$config->name.'->hasMany['.$property.'] a property with the same name exists');
 					break;
 				}
@@ -183,7 +183,16 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 							break;
 						}
 					}
-				} elseif (isset($junctions[$reference['table']])) {
+				} elseif (empty($junctions[$reference['table']])) {
+					notice('Missing a model or relation for "'.$reference['table'].'" in the database schema');
+				}
+			}
+		}
+		// Pass 3: hasMany junctions
+		foreach ($this->configs as $config) {
+			$table = $schema[$config->backendConfig['table']];
+			foreach ($table['referencedBy'] as $reference) {
+				if (isset($junctions[$reference['table']])) {
 					// Many-to-many realtion
 					$junction = $junctions[$reference['table']];
 					$hasMany = array(
@@ -191,7 +200,6 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 						'fields' => $junction->properties,
 					);
 					foreach ($junction->belongsTo as $belongsToProperty => $belongsTo) {
-
 						if ($belongsTo['model'] === $config->name) {
 							$hasMany['reference'] = $belongsTo['reference'];
 						} else {
@@ -200,10 +208,15 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 							$hasMany['id'] = $belongsTo['reference'];
 						}
 					}
+					if (in_array($property, $config->getPropertyNames())) {
+						$property = Inflector::variablize($reference['table']);
+					}
+					if (in_array($property, $config->getPropertyNames())) {
+						notice('Unable to use '.$property.'->hasMany['.$property.'] a property with the same name exists');
+						break;
+					}
 					$config->hasMany[$property] = $hasMany;
 					$config->defaults[$property] = array();
-				} else {
-					notice('Missing a model or relation for "'.$reference['table'].'" in the database schema');
 				}
 			}
 		}
