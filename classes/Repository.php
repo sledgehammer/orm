@@ -104,14 +104,14 @@ class Repository extends Object {
 	}
 
 	/**
-	 * Handle get$Model(), all$Models(), save$Model(), create$Model() and delete$Model() methods.
+	 * Handle get$Model(), find$Model(), all$Models(), save$Model(), create$Model() and delete$Model() methods.
 	 *
 	 * @param string $method
 	 * @param array $arguments
 	 * @return mixed
 	 */
 	function __call($method, $arguments) {
-		if (preg_match('/^(get|all|save|create|delete|reload)(.+)$/', $method, $matches)) {
+		if (preg_match('/^(get|find|all|save|create|delete|reload)(.+)$/', $method, $matches)) {
 			$method = $matches[1];
 			array_unshift($arguments, $matches[2]);
 			$usePlural = ($method === 'all');
@@ -154,7 +154,7 @@ class Repository extends Object {
 	 *     2: Also the relations of the relations of the relation.
 	 *     N: Etc.
 	 *    true or -1: Load all relations of all relations.
-	 * @return instance
+	 * @return object instance
 	 */
 	function get($model, $id, $options = array()) {
 		$config = $this->_getConfig($model);
@@ -189,6 +189,34 @@ class Repository extends Object {
 		if (isset($options['preload']) && $options['preload'] != 0) {
 			$options['preload']--;
 			$this->loadAssociations($model, $this->objects[$model][$index]['instance'], $options);
+		}
+		return $instance;
+	}
+
+	/**
+	 * Retrieve an instance from the Repository based on criteria other than the id.
+	 * If the id is known use the Repository->get($model, $id) instead.
+	 *
+	 * When the critera matches 0 or more than 1 instances an exception is thrown.
+	 *
+	 * @param string $model
+	 * @param array $$conditions
+	 * @param array $options
+	 * @return object instance
+	 */
+	function find($model, $conditions, $options = array()) {
+		$collection = $this->all($model)->where($conditions);
+		$first = true;
+		foreach ($collection as $item) {
+			if ($first) {
+				$instance = $collection->current();
+				$first = false;
+			} else {
+				throw new InfoException('More than 1 "'.$model.'" model matches the conditions', $conditions);
+			}
+		}
+		if ($first) {
+			throw new InfoException('No "'.$model.'" model found that matches the conditions', $conditions);
 		}
 		return $instance;
 	}
@@ -234,7 +262,7 @@ class Repository extends Object {
 					} elseif ($depth !== 1) {
 						$export[$property] = array();
 						foreach ($instance->$property as $index => $item) {
-							if (in_array($item, $exported, true)) { //
+							if (in_array($item, $exported, true)) {
 								unset($export[$property]); // skip property
 								break;
 							}
@@ -1134,6 +1162,17 @@ class Repository extends Object {
 			$php .= "\t */\n";
 			$php .= "\tfunction get".$model.'($id, $options = array()) {'."\n";
 			$php .= "\t\treturn \$this->get('".$model."', \$id, \$options);\n";
+			$php .= "\t}\n";
+
+			$php .= "\t/**\n";
+			$php .= "\t * Retrieve an ".$model." based on criteria\n";
+			$php .= "\t *\n";
+			$php .= "\t * @param mixed \$conditions\n";
+			$php .= "\t * @param array \$options\n";
+			$php .= "\t * @return ".$config->class."\n";
+			$php .= "\t */\n";
+			$php .= "\tfunction find".$model.'($conditions, $options = array()) {'."\n";
+			$php .= "\t\treturn \$this->find('".$model."', \$conditions, \$options);\n";
 			$php .= "\t}\n";
 
 			$php .= "\t/**\n";

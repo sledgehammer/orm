@@ -102,20 +102,7 @@ abstract class ActiveRecord extends Observable {
 		$model = static::_getModel($options);
 		$repositoryId = static::_getRepostory($options);
 		$repo = getRepository($repositoryId);
-		if (is_array($conditions)) {
-			$collection = $repo->all($model)->where($conditions);
-			$count = $collection->count();
-			if ($count == 0) {
-				throw new \Exception('No "'.$model.'" model matches the conditions');
-			}
-			if ($count != 1) {
-				throw new \Exception('More than 1 "'.$model.'" model matches the conditions');
-			}
-			$collection->rewind();
-			$instance = $collection->current();
-		} else {
-			$instance = $repo->get($model, $conditions);
-		}
+		$instance = $repo->find($model, $conditions);
 		if (get_class($instance) != get_called_class()) {
 			throw new \Exception('Model "'.$model.'"('.get_class($instance).') isn\'t configured as "'.get_called_class());
 		}
