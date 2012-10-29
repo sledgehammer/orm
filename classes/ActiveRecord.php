@@ -102,7 +102,11 @@ abstract class ActiveRecord extends Observable {
 		$model = static::_getModel($options);
 		$repositoryId = static::_getRepostory($options);
 		$repo = getRepository($repositoryId);
-		$instance = $repo->find($model, $conditions);
+		if (is_scalar($conditions)) {
+			$instance = $repo->get($model, $conditions);
+		} else {
+			$instance = $repo->find($model, $conditions);
+		}
 		if (get_class($instance) != get_called_class()) {
 			throw new \Exception('Model "'.$model.'"('.get_class($instance).') isn\'t configured as "'.get_called_class());
 		}

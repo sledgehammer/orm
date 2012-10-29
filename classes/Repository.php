@@ -609,10 +609,19 @@ class Repository extends Object {
 					break;
 				}
 			}
-			// @todo Check if the instance is bound to another $index, aka ID change
-			if ($object === null) {
-				throw new \Exception('The instance is not bound to this Repository');
+		}
+		if ($object === null || $object['instance'] !== $instance) {
+			$resolvedModel = $this->resolveModel($instance);
+			if ($model !== $resolvedModel) {
+				throw new \Exception('Can\'t save an "'.$resolvedModel.'" as an "'.$model.'"');
 			}
+			// id/index change-detection
+			foreach ($this->objects[$model] as $object) {
+				if ($object['instance'] === $instance) {
+					throw new \Exception('Change rejected, the index changed from '.$this->resolveIndex($object['data'], $config).' to '.$index);
+				}
+			}
+			throw new \Exception('The instance is not bound to this Repository');
 		}
 
 		$rootSave = (count($this->saving) === 0);
@@ -627,15 +636,6 @@ class Repository extends Object {
 		try {
 			if ($object['state'] == 'saving') {
 				throw new \Exception('Object already in the saving state');
-			}
-			if ($object['instance'] !== $instance) {
-				// id/index change-detection
-				foreach ($this->objects[$model] as $object) {
-					if ($object['instance'] === $instance) {
-						throw new \Exception('Change rejected, the index changed from '.$this->resolveIndex($object['data'], $config).' to '.$index);
-					}
-				}
-				throw new \Exception('The instance is not bound to this Repository');
 			}
 			$this->objects[$model][$index]['state'] = 'saving';
 			if ($instance instanceof Observable && $instance->hasEvent('saving')) {
@@ -704,6 +704,14 @@ class Repository extends Object {
 							// Connect the items to the instance
 							if (is_object($item)) {
 								$item->$belongsToProperty = $instance;
+								if ($item instanceof BelongsToPlaceholder) {
+									$replacedItem = $this->resolvePlaceholder($item, $this->_getConfig($hasMany['model']));
+									if ($replacedItem->$belongsToProperty !== $instance) {
+										throw new \Exception('Invalid placeholder in "'.$model.'->'.$property.'"');
+									}
+									$collection[$key] = $replacedItem;
+									$item = $replacedItem;
+								}
 								$this->save($hasMany['model'], $item, $relationSaveOptions);
 							} elseif ($item !== array_value($old, $key)) {
 								warning('Unable to save the change "'.$item.'" in '.$config->name.'->'.$property.'['.$key.']');
@@ -1519,6 +1527,29 @@ class Repository extends Object {
 			throw new \Exception('Not implemented');
 		}
 		throw new \Exception('Failed to resolve index');
+	}
+
+	/**
+	 * Return the instance the Placeholder points to.
+	 *
+	 * @param BelongsToPlaceholder $placeholder
+	 * @param ModelConfig $config
+	 */
+	protected function resolvePlaceholder($placeholder, $config) {
+		if (($placeholder instanceof BelongsToPlaceholder) === false) {
+			throw new \Exception('Parameter $placeholder must be a BelongsToPlaceholder');
+		}
+		$index = $this->resolveIndex($placeholder, $config);
+		if (empty($this->objects[$config->name][$index]['instance'])) {
+			throw new \Exception('Placeholder "'.$model.' '.$index.'" not loaded');
+		}
+		$instance = $this->objects[$config->name][$index]['instance'];
+		foreach (get_object_vars($instance) as $property => $value) {
+			if ($placeholder->$property !== $value) {
+				throw new \Exception('Placeholder belongs to another model');
+			}
+		}
+		return $instance;
 	}
 
 }
