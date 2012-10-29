@@ -61,10 +61,25 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 
 		$customer1 = $repo->getCustomer(1);
-		$this->assertEquals($customer1->name, "Bob Fanger");
-		$this->assertEquals($customer1->occupation, "Software ontwikkelaar");
+		$this->assertEquals('Bob Fanger', $customer1->name);
+		$this->assertEquals('Software ontwikkelaar', $customer1->occupation);
 		$order1 = $repo->getOrder(1);
-		$this->assertEquals($order1->product, 'Kop koffie');
+		$this->assertEquals('Kop koffie', $order1->product);
+	}
+
+	function test_findWildcard() {
+		$repo = new RepositoryTester();
+		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
+
+		$bob = $repo->findCustomer(array('name' => 'Bob Fanger'));
+		$this->assertEquals('1', $bob->id);
+
+		try {
+			$bob = $repo->findCustomer(array('id >=' => '0'));
+			$this->fail('A find critery should return only 1 instance or throw an exception');
+		} catch (\Exception $e) {
+			$this->assertEquals('More than 1 "Customer" model matches the conditions', $e->getMessage());
+		}
 	}
 
 	function test_customer_not_found_exception() {
@@ -416,6 +431,16 @@ class RepositoryTest extends DatabaseTestCase {
 		} catch (\Exception $e) {
 			$this->assertEquals('Missing mapping for property: \CustomerWithAnExtraProperty->extra', $e->getMessage(), $e->getMessage());
 		}
+	}
+
+	function test_export() {
+		$repo = new Repository();
+		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
+		$c1 = $repo->getCustomer(1);
+		$jsonDeep = json_encode($repo->export('Customer', $c1, true));
+		$this->assertEquals('{"id":"1","name":"Bob Fanger","occupation":"Software ontwikkelaar","orders":[{"id":"1","product":"Kop koffie"}],"groups":[{"id":"1","title":"Hacker"}]}', $jsonDeep);
+		$jsonShallow = json_encode($repo->export('Customer', $c1, 0));
+		$this->assertEquals('{"id":"1","name":"Bob Fanger","occupation":"Software ontwikkelaar"}', $jsonShallow);
 	}
 
 	/**

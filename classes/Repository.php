@@ -281,7 +281,6 @@ class Repository extends Object {
 			}
 			throw $e;
 		}
-
 	}
 
 	/**
@@ -805,7 +804,6 @@ class Repository extends Object {
 													break;
 												}
 											}
-
 										}
 									} else {
 										warning('Unable to remove item['.$key.']: "'.$item.'" from '.$config->name.'->'.$property);
@@ -876,7 +874,7 @@ class Repository extends Object {
 		foreach ($backend->configs as $backendConfig) {
 			$config = $this->configs[$backendConfig->name];
 			if (count($config->id) === 0) {
-				if( isset($config->properties['id'])) { // No id set, but the column 'id' exists?
+				if (isset($config->properties['id'])) { // No id set, but the column 'id' exists?
 					$config->id = array('id');
 				} else {
 					warning('Invalid config: '.$config->name.'->id is not configured and could not detect an "id" element');
