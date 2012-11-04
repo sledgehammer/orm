@@ -111,7 +111,7 @@ class Repository extends Object {
 	 * @return mixed
 	 */
 	function __call($method, $arguments) {
-		if (preg_match('/^(get|find|all|save|create|delete|reload)(.+)$/', $method, $matches)) {
+		if (preg_match('/^(get|one|all|save|create|delete|reload)(.+)$/', $method, $matches)) {
 			$method = $matches[1];
 			array_unshift($arguments, $matches[2]);
 			$usePlural = ($method === 'all');
@@ -204,7 +204,7 @@ class Repository extends Object {
 	 * @param array $options
 	 * @return object instance
 	 */
-	function find($model, $conditions, $options = array()) {
+	function one($model, $conditions, $options = array()) {
 		$collection = $this->all($model)->where($conditions);
 		$first = true;
 		foreach ($collection as $item) {
@@ -329,14 +329,19 @@ class Repository extends Object {
 	 * Retrieve all instances for the specified model.
 	 *
 	 * @param string $model
+	 * @param mixed $conditions
 	 * @param array $options
 	 * @return Collection
 	 */
-	function all($model, $options = array()) {
+	function all($model, $conditions = null, $options = array()) {
 		$config = $this->_getConfig($model);
 		$collection = $this->_getBackend($config->backend)->all($config->backendConfig);
 		$options['mapping'] = $this->collectionMappings[$model];
-		return new RepositoryCollection($collection, $model, $this->id, $options);
+		$repoCollection =  new RepositoryCollection($collection, $model, $this->id, $options);
+		if ($conditions !== null) {
+			return $repoCollection->where($conditions);
+		}
+		return $repoCollection;
 	}
 
 	/**
@@ -1177,8 +1182,8 @@ class Repository extends Object {
 			$php .= "\t * @param array \$options\n";
 			$php .= "\t * @return ".$config->class."\n";
 			$php .= "\t */\n";
-			$php .= "\tfunction find".$model.'($conditions, $options = array()) {'."\n";
-			$php .= "\t\treturn \$this->find('".$model."', \$conditions, \$options);\n";
+			$php .= "\tfunction one".$model.'($conditions, $options = array()) {'."\n";
+			$php .= "\t\treturn \$this->one('".$model."', \$conditions, \$options);\n";
 			$php .= "\t}\n";
 
 			$php .= "\t/**\n";

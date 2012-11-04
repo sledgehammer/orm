@@ -67,16 +67,16 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEquals('Kop koffie', $order1->product);
 	}
 
-	function test_findWildcard() {
+	function test_oneWildcard() {
 		$repo = new RepositoryTester();
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 
-		$bob = $repo->findCustomer(array('name' => 'Bob Fanger'));
+		$bob = $repo->oneCustomer(array('name' => 'Bob Fanger'));
 		$this->assertEquals('1', $bob->id);
 
 		try {
-			$bob = $repo->findCustomer(array('id >=' => '0'));
-			$this->fail('A find critery should return only 1 instance or throw an exception');
+			$bob = $repo->oneCustomer(array('id >=' => '0'));
+			$this->fail('A one critery should return only 1 instance or throw an exception');
 		} catch (\Exception $e) {
 			$this->assertEquals('More than 1 "Customer" model matches the conditions', $e->getMessage());
 		}
@@ -358,12 +358,12 @@ class RepositoryTest extends DatabaseTestCase {
 			'deleteCustomer',
 			'deleteGroup',
 			'deleteOrder',
-			'findCustomer',
-			'findGroup',
-			'findOrder',
 			'getCustomer',
 			'getGroup',
 			'getOrder',
+			'oneCustomer',
+			'oneGroup',
+			'oneOrder',
 			'reloadCustomer',
 			'reloadCustomers',
 			'reloadGroup',
