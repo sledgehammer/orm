@@ -90,7 +90,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 				if (empty($info['foreignKeys'])) {
 					$property = Inflector::variablize($column);
 					$config->properties[$column] = $property;
-					if ($info['type'] === 'tinyint(1)' && $info['null'] === false) {
+					if (substr($info['type'], -10) === 'tinyint(1)' && $info['null'] === false) {
 						$config->readFilters[$column] = __CLASS__.'::valueToBool';
 						$config->writeFilters[$column] = __CLASS__.'::boolToValue';
 					}

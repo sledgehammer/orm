@@ -1176,7 +1176,7 @@ class Repository extends Object {
 			$php .= "\t}\n";
 
 			$php .= "\t/**\n";
-			$php .= "\t * Retrieve an ".$model." based on criteria\n";
+			$php .= "\t * Retrieve one ".$model." based on criteria\n";
 			$php .= "\t *\n";
 			$php .= "\t * @param mixed \$conditions\n";
 			$php .= "\t * @param array \$options\n";
@@ -1189,6 +1189,7 @@ class Repository extends Object {
 			$php .= "\t/**\n";
 			$php .= "\t * Retrieve all ".$config->plural."\n";
 			$php .= "\t *\n";
+			$php .= "\t * @param mixed \$conditions\n";
 			$php .= "\t * @param array \$options\n";
 			$php .= "\t *  'preload' => int  The preload recursion level.\n";
 			$php .= "\t *     false or 0: Only the the relation.\n";
@@ -1199,8 +1200,8 @@ class Repository extends Object {
 			$php .= "\t *\n";
 			$php .= "\t * @return Collection|".$config->class."\n";
 			$php .= "\t */\n";
-			$php .= "\tfunction all".$config->plural.'($options = array()) {'."\n";
-			$php .= "\t\treturn \$this->all('".$model."', \$options);\n";
+			$php .= "\tfunction all".$config->plural.'($conditions = null, $options = array()) {'."\n";
+			$php .= "\t\treturn \$this->all('".$model."', \$conditions, \$options);\n";
 			$php .= "\t}\n";
 
 			$php .= "\t/**\n";
