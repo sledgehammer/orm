@@ -568,6 +568,12 @@ class Repository extends Object {
 		foreach ($values as $path => $value) {
 			PropertyPath::set($path, $value, $instance);
 		}
+		foreach (array_keys($config->hasMany) as $path) {
+			$value = PropertyPath::get($path, $instance);
+			if (is_array($value)) {
+				PropertyPath::set($path, new Collection($value), $instance);
+			}
+		}
 		$this->objects[$model][$index] = array(
 			'state' => 'new',
 			'instance' => $instance,
