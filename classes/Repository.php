@@ -407,10 +407,10 @@ class Repository extends Object {
 				$related = $hasManyBackend->related($hasManyConfig->backendConfig, $hasMany['reference'], $id);
 			} else {
 				// many-to-many relation.
-				$junctionConfig = $this->junctions[$hasMany['through']];
-				$junction = $this->_getBackend($junctionConfig->backend)->related($junctionConfig->backendConfig, $hasMany['reference'], $id);
+				$junction = $this->junctions[$hasMany['through']];
+				$junctionData = $this->_getBackend($junction->backend)->related($junction->backendConfig, $hasMany['reference'], $id);
 
-				$ids = $junction->select($hasMany['id'])->toArray();
+				$ids = $junctionData->select($hasMany['id'])->toArray();
 				if (count($ids) == 0) {
 					$related = new Collection(array());
 				} else {
@@ -756,7 +756,7 @@ class Repository extends Object {
 							$this->save($hasMany['model'], $item, $relationSaveOptions);
 						}
 						$backend = $this->_getBackend($config->backend);
-						$junction = $backend->junctions[$hasMany['through']];
+						$junction = $this->junctions[$hasMany['through']];
 						$hasManyConfig = $this->_getConfig($hasMany['model']);
 						$hasManyIdPath = $hasManyConfig->properties[$config->id[0]];
 
