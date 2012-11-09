@@ -26,6 +26,11 @@ class Repository extends Object {
 	protected $configs = array();
 
 	/**
+	 * Registered junctions (many-to-many)
+	 * @var array|ModelConfig
+	 */
+	protected $junctions = array();
+	/**
 	 * References to instances.
 	 * @var array
 	 */
@@ -394,7 +399,26 @@ class Repository extends Object {
 				throw new \Exception('Complex keys not (yet) supported for hasMany relations');
 			}
 			$id = PropertyPath::get($config->id[0], $instance);
-			$related = $this->_getBackend($config->backend)->related($hasMany, $id);
+
+			$hasManyConfig = $this->_getConfig($hasMany['model']);
+			$hasManyBackend = $this->_getBackend($hasManyConfig->backend);
+			if (isset($hasMany['through']) === false) {
+				// one-to-many relation?
+				$related = $hasManyBackend->related($hasManyConfig->backendConfig, $hasMany['reference'], $id);
+			} else {
+				// many-to-many relation.
+				$junctionConfig = $this->junctions[$hasMany['through']];
+				$junction = $this->_getBackend($junctionConfig->backend)->related($junctionConfig->backendConfig, $hasMany['reference'], $id);
+
+				$ids = $junction->select($hasMany['id'])->toArray();
+				if (count($ids) == 0) {
+					$related = new Collection(array());
+				} else {
+					$idProperty = $hasManyConfig->properties[$hasManyConfig->id[0]];
+					$related = $hasManyBackend->all($hasManyConfig->backendConfig)->where(array($idProperty.' IN' => $ids));
+				}
+			}
+
 			$options['mapping'] = $this->collectionMappings[$hasMany['model']];
 			$collection = new RepositoryCollection($related, $hasMany['model'], $this->id, $options);
 			if (isset($hasMany['conditions'])) {
@@ -881,7 +905,17 @@ class Repository extends Object {
 			}
 			$this->registerModel($config);
 		}
-		// Pass 2: Auto detect id's
+		// Pass 2: Register junctions
+		foreach ($backend->junctions as $junction) {
+			if ($junction->backend === null) {
+				$junction->backend = $backend->identifier;
+			}
+			if (isset($this->junctions[$junction->name])) {
+				notice('overwriting junction '.$junction->name);
+			}
+			$this->junctions[$junction->name] = $junction;
+		}
+		// Pass 3: Auto detect id's
 		foreach ($backend->configs as $backendConfig) {
 			$config = $this->configs[$backendConfig->name];
 			if (count($config->id) === 0) {
@@ -892,7 +926,7 @@ class Repository extends Object {
 				}
 			}
 		}
-		// Pass 3: Validate and correct configs
+		// Pass 4: Validate and correct configs
 		foreach ($backend->configs as $backendConfig) {
 			$config = $this->configs[$backendConfig->name];
 			if (count($config->properties) === 0) {
@@ -1004,7 +1038,7 @@ class Repository extends Object {
 				}
 			}
 		}
-		// Fase 3: Generate classes based on properties when no class is detected/found.
+		// Pass 5: Generate classes based on properties when no class is detected/found.
 		foreach ($backend->configs as $config) {
 			if (substr($config->class, 0, 11) !== '\\Generated\\') {
 				$this->validated[$config->name] = false;
@@ -1053,7 +1087,7 @@ class Repository extends Object {
 				eval($php);
 			}
 		}
-		// Fase 4: Generate or update the AutoComplete Helper for the default repository?
+		// Pass 6: Generate or update the AutoComplete Helper for the default repository?
 		if (ENVIRONMENT == 'development' && isset(Repository::$instances['default']) && Repository::$instances['default']->id == $this->id) {
 			$autoCompleteFile = TMP_DIR.'AutoComplete/repository.ini';
 			if ($this->autoComplete === null) {
@@ -1077,6 +1111,26 @@ class Repository extends Object {
 				}
 			}
 		}
+	}
+
+	/**
+	 *
+	 * @param ModelBehavior $behavior
+	 * @param string $model
+	 */
+	function registerBehavior($behavior, $model) {
+		$config = $this->_getConfig($model);
+		if ($behavior->identifier === null) {
+			$behavior->identifier = uniqid(basename(get_class($behavior)));
+		}
+		if (empty($this->backends[$behavior->identifier])) {
+			$this->backends[$behavior->identifier] = $behavior;
+			$behavior->backend = $this->_getBackend($config->backend);
+		} elseif ($behavior->backend !== $this->_getBackend($config->backend)) {
+			throw new \Exception('Can\'t reuse the same ModelBehavior for multiple backends');
+		}
+		$config->backend = $behavior->identifier;
+		$behavior->register($config);
 	}
 
 	/**

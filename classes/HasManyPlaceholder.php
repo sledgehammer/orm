@@ -31,7 +31,7 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 		return call_user_func_array(array($this->__placeholder, $method), $args);
 	}
 
-	// @todo: mimic array errors and behaviour on propery access and method invocation
+	// @todo: mimic array errors and behavior on propery access and method invocation
 	// Array access
 	function offsetExists($offset) {
 		$this->replacePlaceholder();

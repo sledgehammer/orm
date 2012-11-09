@@ -48,34 +48,19 @@ abstract class RepositoryBackend extends Object {
 
 	/**
 	 * Retrieve all related model-data.
-	 *
+	 */
+	function related($config, $reference, $id) {
+		return $this->all($config)->where(array($reference => $id));
+	}
+
+	/*
 	 * @param array $relation  The hasMany relation
 	 * @param mixed $id  The ID of the container instance.
 	 * @return \Traversable|array
 	 */
-	function related($relation, $id) {
-		if (isset($relation['through']) === false) {
-			// one-to-many relation?
-			$conditions = array($relation['reference'] => $id);
-		} else {
-			// many-to-many relation.
-			$junction = $this->junctions[$relation['through']];
-			$join = $this->all($junction->backendConfig);
-			if (($join instanceof Collection) === false) {
-				$join = new Collection($join);
-			}
-			$ids = $join->where(array($relation['reference'] => $id))->select($relation['id'])->toArray();
-			if (count($ids) === 0) {
-				return new Collection(array());
-			}
-			$conditions = array('id IN' => $ids);
-		}
-		$config = $this->configs[$relation['model']];
-		$all = $this->all($config->backendConfig);
-		if (($all instanceof Collection) === false) {
-			$all = new Collection($all);
-		}
-		return $all->where($conditions);
+	function related_old($relation, $id) {
+		dump($relation);
+
 	}
 
 	/**
