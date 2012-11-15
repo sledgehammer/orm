@@ -74,17 +74,21 @@ class SimpleRecordTest extends DatabaseTestCase {
 		$this->assertInstanceOf('Sledgehammer\HasManyPlaceholder', $record->orders);
 		$orders = $record->orders;
 		$groups = $record->groups;
+		$ratings = $record->ratings;
 		$record->orders = '__PlACEHOLDER__';
 		$record->groups = '__PlACEHOLDER__';
+		$record->ratings = '__PlACEHOLDER__';
 		$this->assertEquals(get_object_vars($record), array(
 			'id' => '1',
 			'name' => 'Bob Fanger',
 			'occupation' => 'Software ontwikkelaar',
 			'orders' => '__PlACEHOLDER__',
 			'groups' => '__PlACEHOLDER__',
+			'ratings' => '__PlACEHOLDER__'
 		));
 		$record->orders = $orders; // restore placeholder
 		$record->groups = $groups; // restore placeholder
+		$record->ratings = $ratings; // restore placeholder
 
 //		$this->assertEquals(1, $record->getId());
 
@@ -111,7 +115,10 @@ class SimpleRecordTest extends DatabaseTestCase {
 	}
 
 	function test_open_delete_update() {
+		// Remove the refernces
 		$this->getDatabase()->query('DELETE FROM orders WHERE customer_id = 1');
+		$this->getDatabase()->query('DELETE FROM memberships WHERE customer_id = 1');
+		$this->getDatabase()->query('DELETE FROM ratings WHERE customer_id = 1');
 		$record = $this->getCustomer(1);
 		$record->delete();
 		$this->assertLastQuery('DELETE FROM customers WHERE id = 1');

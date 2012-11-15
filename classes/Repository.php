@@ -235,57 +235,56 @@ class Repository extends Object {
 	 * @param string $model
 	 * @param object|Collection $instance 1 instance or a collection of instances
 	 * @param int $depth
+	 * @param array (internal) array with instances that should be exported (Detects infinite recursion)
 	 * @return array
 	 */
-	function export($model, $instances, $depth = 0) {
+	function export($model, $instances, $depth = 0, $skip = array()) {
 		$export = array();
 		if (is_array($instances) || $instances instanceof HasManyPlaceholder || $instances instanceof Collection) {
 			foreach ($instances as $index => $instance) {
-				$export[$index] = $this->export($model, $instance, $depth);
+				$export[$index] = $this->export($model, $instance, $depth, $skip);
 			}
 			return $export;
 		}
 		$instance = $instances; // $instances is a single instance
-		static $exported = array();
-		if (in_array($instance, $exported, true)) {
+		if (in_array($instance, $skip, true)) {
 			throw new \Exception('Recursion leak'); // Sanity check
 		}
-		$first = (count($exported) == 0);
 		$config = $this->_getConfig($model);
-		$exported[] = $instance;
-		try {
-			$relations = array_merge(array_keys($config->belongsTo), array_keys($config->hasMany));
-			foreach ($instance as $property => $value) {
-				if (in_array($property, $relations) === false) { // Not a relation?
-					$export[$property] = $value;
-				} elseif ($depth !== 0) {
-					if (isset($config->belongsTo[$property])) {
-						if (in_array($instance->$property, $exported, true)) { // Already exported
-							continue; // skip property
-						}
-						$export[$property] = $this->export($config->belongsTo[$property]['model'], $instance->$property, $depth - 1);
-					} elseif ($depth !== 1) {
-						$export[$property] = array();
-						foreach ($instance->$property as $index => $item) {
-							if (in_array($item, $exported, true)) {
+		$skip[] = $instance;
+		$relations = array_merge(array_keys($config->belongsTo), array_keys($config->hasMany));
+		foreach ($instance as $property => $value) {
+			if (in_array($property, $relations) === false) { // Not a relation?
+				$export[$property] = $value;
+			} elseif ($depth !== 0) {
+				if (isset($config->belongsTo[$property])) {
+					if (in_array($instance->$property, $skip, true)) { // Already exported
+						continue; // skip property
+					}
+					$export[$property] = $this->export($config->belongsTo[$property]['model'], $instance->$property, $depth - 1, $skip);
+				} elseif ($depth !== 1) {
+					$export[$property] = array();
+					foreach ($instance->$property as $index => $item) {
+						if ($item instanceof Junction) {
+							$junctionInstance = $this->resolveInstance($item, $this->_getConfig($config->hasMany[$property]['model']));
+							if (in_array($junctionInstance, $skip, true)) {
 								unset($export[$property]); // skip property
 								break;
 							}
-							$export[$property][$index] = $this->export($config->hasMany[$property]['model'], $item, $depth - 2);
+							$export[$property][$index] = $this->export($config->hasMany[$property]['model'], $junctionInstance, $depth - 2, $skip);
+							PropertyPath::map($item, $export[$property][$index], array_flip($config->hasMany[$property]['fields']));
+						} else {
+							if (in_array($item, $skip, true)) {
+								unset($export[$property]); // skip property
+								break;
+							}
+							$export[$property][$index] = $this->export($config->hasMany[$property]['model'], $item, $depth - 2, $skip);
 						}
 					}
 				}
 			}
-			if ($first) {
-				$exported = array();
-			}
-			return $export;
-		} catch (\Exception $e) {
-			if ($first) {
-				$exported = array();
-			}
-			throw $e;
 		}
+		return $export;
 	}
 
 	/**
@@ -749,9 +748,10 @@ class Repository extends Object {
 					$old = @$this->objects[$model][$index]['hadMany'][$property];
 					if ($old === null && $previousState != 'new' && is_array($collection)) { // Is the property replaced, before the placeholder was replaced?
 						// Load the previous situation
+						$oldValue = $instance->$property;
 						$this->loadAssociation($model, $instance, $property);
 						$old = $instance->$property->toArray();
-						$instance->$property = $collection;
+						$instance->$property = $oldValue;
 					}
 					if (isset($hasMany['collection']['valueField'])) {
 						if (count(array_diff_assoc($old, $collection)) != 0) {
@@ -797,7 +797,15 @@ class Repository extends Object {
 							if ($object['state'] === 'new') {
 								$oldJunctions = array();
 							} else {
-								throw new \Exception('Not implemented'); // @todo: run loadAssociation() to populate the junctions array and restore the property.
+								$oldValue = $instance->$property;
+								$this->loadAssociation($model, $instance, $property);
+								$old = $instance->$property->toArray();
+								$instance->$property = $oldValue;
+								$object = $this->objects[$model][$index];
+								$oldJunctions = $object['junctions'][$property];
+								if ($oldJunctions === null) {
+									throw new \Exception('Failed to determine previous junctions');
+								}
 							}
 						}
 						$junctions = array();

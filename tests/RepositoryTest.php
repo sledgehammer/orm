@@ -10,7 +10,7 @@ class RepositoryTest extends DatabaseTestCase {
 	private $applicationRepositories;
 
 	/**
-	 * @var int Number of queries it takes to inspect the test database (mysql: 3, sqlite: 5)
+	 * @var int Number of queries it takes to inspect the test database (mysql: 5, sqlite: 11)
 	 */
 	private $queryCountAfterInspectDatabase;
 
@@ -18,9 +18,9 @@ class RepositoryTest extends DatabaseTestCase {
 		parent::__construct();
 		DatabaseRepositoryBackend::$cacheTimeout = false; // always inspect database
 		if ($this->getDatabase()->getAttribute(\PDO::ATTR_DRIVER_NAME) == 'mysql') {
-			$this->queryCountAfterInspectDatabase = 5;
+			$this->queryCountAfterInspectDatabase = 6;
 		} else {
-			$this->queryCountAfterInspectDatabase = 9;
+			$this->queryCountAfterInspectDatabase = 11;
 		}
 	}
 
@@ -383,6 +383,8 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->saveCustomer($c1);
 		$this->assertLastQuery("UPDATE customers SET name = 'Charlie Fanger' WHERE id = 1");
 		$c1->orders = array();
+		$c1->ratings = array();
+		$c1->groups = array();
 		$repo->saveCustomer($c1);
 		$repo->deleteCustomer($c1);
 		$this->assertLastQuery('DELETE FROM customers WHERE id = 1');
@@ -438,7 +440,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 		$c1 = $repo->getCustomer(1);
 		$jsonDeep = json_encode($repo->export('Customer', $c1, true));
-		$this->assertEquals('{"id":"1","name":"Bob Fanger","occupation":"Software ontwikkelaar","orders":[{"id":"1","product":"Kop koffie"}],"groups":[{"id":"1","title":"Hacker"}]}', $jsonDeep);
+		$this->assertEquals('{"id":"1","name":"Bob Fanger","occupation":"Software ontwikkelaar","orders":[{"id":"1","product":"Kop koffie"}],"groups":[{"id":"1","title":"Hacker"}],"ratings":[{"id":"1","title":"Hacker","rating":"5"}]}', $jsonDeep);
 		$jsonShallow = json_encode($repo->export('Customer', $c1, 0));
 		$this->assertEquals('{"id":"1","name":"Bob Fanger","occupation":"Software ontwikkelaar"}', $jsonShallow);
 	}
