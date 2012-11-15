@@ -50,3 +50,20 @@ INSERT INTO memberships (customer_id, group_id) VALUES
 	(1, 1),
 	(2, 1),
 	(2, 2);
+
+-- Many-to-many with fields
+CREATE TABLE ratings (
+	customer_id INTEGER NOT NULL,
+	group_id INTEGER NOT NULL,
+	rating INTEGER NOT NULL,
+	PRIMARY KEY(customer_id, group_id),
+	FOREIGN KEY (customer_id) REFERENCES customers (id),
+	FOREIGN KEY (group_id) REFERENCES groups (id)
+);
+
+-- Bob is a Hacker
+-- Bond is a Hacker and a Gambler
+INSERT INTO ratings (customer_id, group_id, rating) VALUES
+	(1, 1, 5),
+	(2, 1, 4),
+	(2, 2, 4);

@@ -21,7 +21,7 @@ class SoftDeleteBehavior extends ModelBehavior {
 	 */
 	function register($config) {
 		if (isset($config->properties[$this->path])) {
-			unset($config->defaults[ $config->properties[$this->path]]); // Remove from the default values
+			unset($config->defaults[$config->properties[$this->path]]); // Remove from the default values
 			unset($config->properties[$this->path]); // Remove property mapping
 		}
 		$config->ignoreProperties[] = $this->path;

@@ -31,6 +31,7 @@ INSERT INTO groups (title) VALUES ("Hacker");
 INSERT INTO groups (title) VALUES ("Gambler");
 INSERT INTO groups (title) VALUES ("Evil");
 
+-- Many-to-many
 CREATE TABLE memberships (
 	customer_id INTEGER NOT NULL,
 	group_id INTEGER NOT NULL,
@@ -44,3 +45,19 @@ CREATE TABLE memberships (
 INSERT INTO memberships (customer_id, group_id) VALUES (1, 1);
 INSERT INTO memberships (customer_id, group_id) VALUES (2, 1);
 INSERT INTO memberships (customer_id, group_id) VALUES (2, 2);
+
+-- Many-to-many with fields
+CREATE TABLE ratings (
+	customer_id INTEGER NOT NULL,
+	group_id INTEGER NOT NULL,
+	rating INTEGER NOT NULL,
+	PRIMARY KEY(customer_id, group_id),
+	FOREIGN KEY (customer_id) REFERENCES customers (id),
+	FOREIGN KEY (group_id) REFERENCES groups (id)
+);
+
+-- Bob is a Hacker
+-- Bond is a Hacker and a Gambler
+INSERT INTO ratings (customer_id, group_id, rating) VALUES (1, 1, 5);
+INSERT INTO ratings (customer_id, group_id, rating) VALUES (2, 1, 4);
+INSERT INTO ratings (customer_id, group_id, rating) VALUES (2, 2, 4);

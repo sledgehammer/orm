@@ -122,8 +122,41 @@ class RecordRelationTest extends DatabaseTestCase {
 
 		$hackerGroup->customers[] = $bob;
 		$repo->saveGroup($hackerGroup);
+
 		$this->assertCount(2, $hackerGroup->customers);
+		$this->assertLastQuery('INSERT INTO memberships (group_id, customer_id) VALUES (1, 1)');
 		$this->assertCount(2, $bob->groups, 'The many-to-many relation should be updated on both ends');
+	}
+
+	function test_many_to_many_relation_with_fields() {
+		$repo = getRepository(__CLASS__);
+		$bob = $repo->getCustomer(1);
+		// Reading
+		$this->assertCount(1, $bob->ratings);
+		$groupRating = $bob->ratings[0];
+		$this->assertEquals("Hacker", $groupRating->title); // Access normal property
+		$this->assertEquals("5", $groupRating->rating); // Access additional property
+		$this->assertInstanceOf('Sledgehammer\Junction', $groupRating);
+
+		// Updating
+		$this->assertCount(1, $bob->ratings);
+		$groupRating->rating = '4'; // Using a string because an int would change detection when saving the $group
+		$repo->saveCustomer($bob);
+		$this->assertLastQuery("UPDATE ratings SET rating = '4' WHERE customer_id = 1 AND group_id = 1");
+
+		$group = $repo->getGroup($groupRating->id);
+		$this->assertCount(2, $group->ratings->toArray());
+		$this->assertLastQuery("SELECT * FROM customers WHERE id IN (1, 2)"); // The many to many for the group was't yet loaded.
+		$this->assertEquals("Bob Fanger", $group->ratings[0]->name, 'Sanity check');
+		$this->assertEquals(4, $group->ratings[0]->rating);
+		$this->assertQueryCount(6, 'Sanity check');
+		$repo->saveGroup($group);
+		$this->assertQueryCount(6, '0 changes, 0 queries.');
+		$group->ratings[0]->rating = 10;
+		$repo->saveGroup($group);
+		$this->assertQuery('UPDATE ratings SET rating = 10 WHERE customer_id = 1 AND group_id = 1');
+		$this->assertQueryCount(7);
+		$this->assertEquals(10, $bob->ratings[0]->rating, 'The many-to-many relation should be updated on both ends');
 	}
 
 //	function test_custom_relation() {

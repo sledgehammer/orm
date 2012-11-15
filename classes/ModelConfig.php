@@ -73,7 +73,7 @@ class ModelConfig extends Object {
 
 	/**
 	 * Default values for new instance.
-	 * @var array
+	 * @var array 'property(PropertyPath)' => default value
 	 */
 	public $defaults = array();
 

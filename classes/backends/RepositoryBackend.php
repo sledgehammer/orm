@@ -48,6 +48,8 @@ abstract class RepositoryBackend extends Object {
 
 	/**
 	 * Retrieve all related model-data.
+	 *
+	 * @return \Traversable|array
 	 */
 	function related($config, $reference, $id) {
 		return $this->all($config)->where(array($reference => $id));

@@ -304,6 +304,19 @@ class Repository extends Object {
 	 * @return instance
 	 */
 	function convert($model, $data, $options = array()) {
+		if (isset($options['junction'])) { // Should the instance be wrapped in a Junction?
+			$junction = $options['junction'];
+			unset($options['junction']);
+			$instance = $this->convert($model, $data, $options);
+			$key = PropertyPath::get($junction['reference'], $instance);
+			$data = @$this->objects[$junction['model']][$junction['index']]['junctions'][$junction['property']][$key]; // $this->objects[$model][$index]['junctions'][$property][$key]
+			if ($data === null) {
+				throw new InfoException('No fields found for this junction', $junction);
+			}
+			$fields = array();
+			PropertyPath::map($data, $fields, $junction['fields']);
+			return new Junction($instance, $fields, true);
+		}
 		if ($data === null) {
 			throw new \Exception('Parameter $data is required');
 		}
@@ -402,6 +415,7 @@ class Repository extends Object {
 
 			$hasManyConfig = $this->_getConfig($hasMany['model']);
 			$hasManyBackend = $this->_getBackend($hasManyConfig->backend);
+			$idProperty = $hasManyConfig->properties[$hasManyConfig->id[0]];
 			if (isset($hasMany['through']) === false) {
 				// one-to-many relation?
 				$related = $hasManyBackend->related($hasManyConfig->backendConfig, $hasMany['reference'], $id);
@@ -409,12 +423,22 @@ class Repository extends Object {
 				// many-to-many relation.
 				$junction = $this->junctions[$hasMany['through']];
 				$junctionData = $this->_getBackend($junction->backend)->related($junction->backendConfig, $hasMany['reference'], $id);
+				$junctions = $junctionData->selectKey($hasMany['id'])->toArray();
+				$this->objects[$model][$index]['junctions'][$property] = $junctions;
+				$ids = array_keys($junctions);
 
-				$ids = $junctionData->select($hasMany['id'])->toArray();
+				if (count($hasMany['fields']) > 0) {
+					$options['junction'] = array(
+						'model' => $model,
+						'index' => $index,
+						'property' => $property,
+						'reference' => $idProperty,
+						'fields' => $hasMany['fields']
+					);
+				}
 				if (count($ids) == 0) {
 					$related = new Collection(array());
 				} else {
-					$idProperty = $hasManyConfig->properties[$hasManyConfig->id[0]];
 					$related = $hasManyBackend->all($hasManyConfig->backendConfig)->where(array($idProperty.' IN' => $ids));
 				}
 			}
@@ -645,6 +669,9 @@ class Repository extends Object {
 			}
 		}
 		if ($object === null || $object['instance'] !== $instance) {
+			if ($instance instanceof Junction) {
+				throw new \Exception('Can\'t save a Junction directly');
+			}
 			$resolvedModel = $this->resolveModel($instance);
 			if ($model !== $resolvedModel) {
 				throw new \Exception('Can\'t save an "'.$resolvedModel.'" as an "'.$model.'"');
@@ -732,14 +759,14 @@ class Repository extends Object {
 						}
 						continue;
 					}
-					if (isset($hasMany['belongsTo'])) {
+					if (isset($hasMany['belongsTo'])) { // Many to One?
 						$belongsToProperty = $hasMany['belongsTo'];
 						foreach ($collection as $key => $item) {
 							// Connect the items to the instance
 							if (is_object($item)) {
 								$item->$belongsToProperty = $instance;
 								if ($item instanceof BelongsToPlaceholder) {
-									$replacedItem = $this->resolvePlaceholder($item, $this->_getConfig($hasMany['model']));
+									$replacedItem = $this->resolveInstance($item, $this->_getConfig($hasMany['model']));
 									if ($replacedItem->$belongsToProperty !== $instance) {
 										throw new \Exception('Invalid placeholder in "'.$model.'->'.$property.'"');
 									}
@@ -751,51 +778,94 @@ class Repository extends Object {
 								warning('Unable to save the change "'.$item.'" in '.$config->name.'->'.$property.'['.$key.']');
 							}
 						}
-					} elseif (isset($hasMany['through'])) {
+					} elseif (isset($hasMany['through'])) { // Many to Many?
+//						dump('Saving '.$model.'->'.$property);
+						$hasManyConfig = $this->_getConfig($hasMany['model']);
+						// Save changes in the related items
 						foreach ($collection as $item) {
+							if ($item instanceof Junction) {
+								$item = $this->resolveInstance($item, $hasManyConfig);
+							}
 							$this->save($hasMany['model'], $item, $relationSaveOptions);
 						}
 						$backend = $this->_getBackend($config->backend);
-						$junction = $this->junctions[$hasMany['through']];
-						$hasManyConfig = $this->_getConfig($hasMany['model']);
+						$junctionConfig = $this->junctions[$hasMany['through']];
+						$junctionBackend = $this->_getBackend($junctionConfig->backend);
 						$hasManyIdPath = $hasManyConfig->properties[$config->id[0]];
 
-						$old = @$this->objects[$model][$index]['hadMany'][$property]; // Use (possibly) old array.
-						if ($old === null) {
-							$oldIds = array();
-						} else {
-							$oldIds = collection($old)->select($hasManyConfig->properties[$config->id[0]])->toArray();
+						$oldJunctions = @$object['junctions'][$property];
+						if ($oldJunctions === null) {
+							if ($object['state'] === 'new') {
+								$oldJunctions = array();
+							} else {
+								dump($object);
+								throw new \Exception('TODO: load junction');
+							}
 						}
+						$junctions = array();
+						$id = PropertyPath::get($config->properties[$config->id[0]], $instance);
 						foreach ($collection as $key => $item) {
-							if (in_array(PropertyPath::get($hasManyIdPath, $item), $oldIds) === false) { // New relation?
-								$data = array(
-									$hasMany['reference'] => PropertyPath::get($config->properties[$config->id[0]], $instance),
-									$hasMany['id'] => PropertyPath::get($hasManyIdPath, $item)
-								);
-								$backend->add($data, $junction->backendConfig);
-								// Add $instance to the $item->hasMany collection.
+							$hasManyId = PropertyPath::get($hasManyIdPath, $item);
+							$oldJunction = @$oldJunctions[$hasManyId];
+							$junction = array(
+								$hasMany['reference'] => $id,
+								$hasMany['id'] => $hasManyId
+							);
+							if ($item instanceof Junction) { // Apply c
+								PropertyPath::map($item, $junction, array_flip($hasMany['fields']));
+							}
+							$junctions[$hasManyId] = $junction;
+							$junctionChanged = false;
+							if ($oldJunction === null) { // New relation?
+								$junctionBackend->add($junction, $junctionConfig->backendConfig);
+								$junctionChanged = true;
+							} else {
+								if (count(array_diff($junction, $oldJunction)) != 0) {
+									$junctionBackend->update($junction, $oldJunction, $junctionConfig->backendConfig);
+									$junctionChanged = true;
+								}
+							}
+							if ($junctionChanged) {
+								// Update the $instance in the $item->hasMany collection.
 								foreach ($hasManyConfig->hasMany as $manyToManyProperty => $manyToMany) {
 									if (isset($manyToMany['through']) && $manyToMany['through'] === $hasMany['through']) {
 										if ($item->$manyToManyProperty instanceof HasManyPlaceholder) {
 											break; // collection not loaded.
 										}
+
+										$manyToManyIndex = $this->resolveIndex($item, $hasManyConfig);
+										$this->objects[$hasMany['model']][$manyToManyIndex]['junctions'][$manyToManyProperty][$id] = $junction; // Prevent adding / updating the junction twice.
 										$manyToManyExists = false;
 										foreach ($item->$manyToManyProperty as $manyToManyKey => $manyToManyItem) {
-											if ($instance === $manyToManyItem) { // Instance already found in the relation?
+											$manyToManyInstance = ($manyToManyItem instanceof Junction) ? $this->resolveInstance($manyToManyItem, $config) : $manyToManyItem;
+											if ($instance === $manyToManyInstance) { // Instance already exists in the relation?
 												$manyToManyExists = true;
 												break;
 											}
 										}
-										if ($manyToManyExists === false) { // Instance not found in the relation?
-											$item->{$manyToManyProperty}[] = $instance; // add instance to the collection/array.
+										if (count($manyToMany['fields']) != 0) { // Update the Junction values
+											if ($manyToManyExists && $manyToManyItem instanceof Junction) {
+												PropertyPath::map($junction, $manyToManyItem, $manyToMany['fields']);
+											} else {
+												$fields = array();
+												PropertyPath::map($junction, $fields, $manyToMany['fields']);
+												$manyToManyItem = new Junction($instance, $fields, true);
+											}
+										} else {
+											$manyToManyItem = $instance;
 										}
-										// Prevent adding the junction twice.
-										$manyToManyIndex = $this->resolveIndex($item, $hasManyConfig);
-										$this->objects[$hasMany['model']][$manyToManyIndex]['hadMany'][$manyToManyProperty][] = $instance;
+										if ($oldJunction === null) {
+											if ($manyToManyExists === false) { // Instance not found in the relation?
+												// @todo Wrap in a Junction?
+												$item->{$manyToManyProperty}[] = $manyToManyItem; // add instance to the collection/array.
+											}
+											$this->objects[$hasMany['model']][$manyToManyIndex]['hadMany'][$manyToManyProperty][] = $manyToManyItem;
+										}
 									}
 								}
 							}
 						}
+						$this->objects[$model][$index]['junctions'][$property] = $junctions;
 					} else {
 						notice('Unable to verify/update foreign key'); // @TODO: implement raw fk injection.
 					}
@@ -816,7 +886,7 @@ class Repository extends Object {
 												$hasMany['reference'] => PropertyPath::get($config->properties[$config->id[0]], $instance),
 												$hasMany['id'] => PropertyPath::get($hasManyIdPath, $item)
 											);
-											$backend->delete($data, $junction->backendConfig);
+											$backend->delete($data, $junctionConfig->backendConfig);
 
 											// Also remove the $instance from the $item->hasMany collection.
 											foreach ($hasManyConfig->hasMany as $manyToManyProperty => $manyToMany) {
@@ -835,12 +905,14 @@ class Repository extends Object {
 													if ($manyToManyKey !== false) {
 														// Update backend data, so re-adding the connection will be detected.
 														unset($this->objects[$hasMany['model']][$manyToManyIndex]['hadMany'][$manyToManyProperty][$manyToManyKey]);
+														unset($this->objects[$hasMany['model']][$manyToManyIndex]['junctions'][$manyToManyProperty][$data[$hasMany['reference']]]);
 													}
 													break;
 												}
 											}
 										}
 									} else {
+										dump($item);
 										warning('Unable to remove item['.$key.']: "'.$item.'" from '.$config->name.'->'.$property);
 									}
 								}
@@ -1182,7 +1254,10 @@ class Repository extends Object {
 	 */
 	function resolveModel($instance) {
 		if ($instance instanceof BelongsToPlaceholder) {
-			throw new \Exception('Unable to determine model for BelongsToPlaceholder\'s');
+			throw new InfoException('Unable to determine model for BelongsToPlaceholder objects', $instance);
+		}
+		if ($instance instanceof Junction) {
+			throw new \Exception('Unable to determine model for Junction objects');
 		}
 		$class = get_class($instance);
 		foreach ($this->configs as $model => $config) {
@@ -1596,20 +1671,20 @@ class Repository extends Object {
 	/**
 	 * Return the instance the Placeholder points to.
 	 *
-	 * @param BelongsToPlaceholder $placeholder
+	 * @param BelongsToPlaceholder|Junction $wrapper
 	 * @param ModelConfig $config
 	 */
-	protected function resolvePlaceholder($placeholder, $config) {
-		if (($placeholder instanceof BelongsToPlaceholder) === false) {
-			throw new \Exception('Parameter $placeholder must be a BelongsToPlaceholder');
+	protected function resolveInstance($wrapper, $config) {
+		if (in_array(get_class($wrapper), array('Sledgehammer\BelongsToPlaceholder', 'Sledgehammer\Junction')) === false) {
+			throw new \Exception('Parameter $placeholder must be a BelongsToPlaceholder or Junction');
 		}
-		$index = $this->resolveIndex($placeholder, $config);
+		$index = $this->resolveIndex($wrapper, $config);
 		if (empty($this->objects[$config->name][$index]['instance'])) {
 			throw new \Exception('Placeholder "'.$model.' '.$index.'" not loaded');
 		}
 		$instance = $this->objects[$config->name][$index]['instance'];
 		foreach (get_object_vars($instance) as $property => $value) {
-			if ($placeholder->$property !== $value) {
+			if ($wrapper->$property !== $value) {
 				throw new \Exception('Placeholder belongs to another model');
 			}
 		}
