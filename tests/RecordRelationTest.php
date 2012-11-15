@@ -157,6 +157,14 @@ class RecordRelationTest extends DatabaseTestCase {
 		$this->assertQuery('UPDATE ratings SET rating = 10 WHERE customer_id = 1 AND group_id = 1');
 		$this->assertQueryCount(7);
 		$this->assertEquals(10, $bob->ratings[0]->rating, 'The many-to-many relation should be updated on both ends');
+
+		// Deleting
+		unset($group->ratings[0]);
+		$repo->saveGroup($group);
+		$this->assertLastQuery('DELETE FROM ratings WHERE customer_id = 1 AND group_id = 1');
+		$this->assertQueryCount(8);
+
+		$this->assertCount(0, $bob->ratings, 'The many-to-many relation should be updated on both ends');
 	}
 
 //	function test_custom_relation() {

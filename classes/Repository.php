@@ -779,7 +779,6 @@ class Repository extends Object {
 							}
 						}
 					} elseif (isset($hasMany['through'])) { // Many to Many?
-//						dump('Saving '.$model.'->'.$property);
 						$hasManyConfig = $this->_getConfig($hasMany['model']);
 						// Save changes in the related items
 						foreach ($collection as $item) {
@@ -798,8 +797,7 @@ class Repository extends Object {
 							if ($object['state'] === 'new') {
 								$oldJunctions = array();
 							} else {
-								dump($object);
-								throw new \Exception('TODO: load junction');
+								throw new \Exception('Not implemented'); // @todo: run loadAssociation() to populate the junctions array and restore the property.
 							}
 						}
 						$junctions = array();
@@ -895,24 +893,27 @@ class Repository extends Object {
 														break; // collection not loaded.
 													}
 													foreach ($item->$manyToManyProperty as $manyToManyKey => $manyToManyItem) {
-														if ($manyToManyItem === $instance) { // Instance found in the relation?
+														$manyToManyInstance = ($manyToManyItem instanceof Junction) ? $this->resolveInstance($manyToManyItem, $config) : $manyToManyItem;
+														if ($manyToManyInstance === $instance) { // Instance found in the relation?
 															unset($item->{$manyToManyProperty}[$manyToManyKey]);
 															break;
 														}
 													}
 													$manyToManyIndex = $this->resolveIndex($item, $hasManyConfig);
-													$manyToManyKey = array_search($instance, $this->objects[$hasMany['model']][$manyToManyIndex]['hadMany'][$manyToManyProperty], true);
-													if ($manyToManyKey !== false) {
-														// Update backend data, so re-adding the connection will be detected.
-														unset($this->objects[$hasMany['model']][$manyToManyIndex]['hadMany'][$manyToManyProperty][$manyToManyKey]);
-														unset($this->objects[$hasMany['model']][$manyToManyIndex]['junctions'][$manyToManyProperty][$data[$hasMany['reference']]]);
+													foreach ($this->objects[$hasMany['model']][$manyToManyIndex]['hadMany'][$manyToManyProperty] as $manyToManyKey => $manyToManyItem) {
+														$manyToManyInstance = ($manyToManyItem instanceof Junction) ? $this->resolveInstance($manyToManyItem, $config) : $manyToManyItem;
+														if ($manyToManyInstance === $instance) { // Instance found in the relation?
+															// Update backend data, so re-adding the connection will be detected.
+															unset($this->objects[$hasMany['model']][$manyToManyIndex]['hadMany'][$manyToManyProperty][$manyToManyKey]);
+															unset($this->objects[$hasMany['model']][$manyToManyIndex]['junctions'][$manyToManyProperty][$data[$hasMany['reference']]]);
+															break;
+														}
 													}
 													break;
 												}
 											}
 										}
 									} else {
-										dump($item);
 										warning('Unable to remove item['.$key.']: "'.$item.'" from '.$config->name.'->'.$property);
 									}
 								}
