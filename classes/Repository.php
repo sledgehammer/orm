@@ -314,7 +314,8 @@ class Repository extends Object {
 			}
 			$fields = array();
 			PropertyPath::map($data, $fields, $junction['fields']);
-			return new Junction($instance, $fields, true);
+			$junctionClass = $junction['class'];
+			return new $junctionClass($instance, $fields, true);
 		}
 		if ($data === null) {
 			throw new \Exception('Parameter $data is required');
@@ -432,7 +433,8 @@ class Repository extends Object {
 						'index' => $index,
 						'property' => $property,
 						'reference' => $idProperty,
-						'fields' => $hasMany['fields']
+						'fields' => $hasMany['fields'],
+						'class' => (isset($hasMany['junctionClass']) ? $hasMany['junctionClass'] : '\Sledgehammer\\Junction')
 					);
 				}
 				if (count($ids) == 0) {
@@ -855,7 +857,8 @@ class Repository extends Object {
 											} else {
 												$fields = array();
 												PropertyPath::map($junction, $fields, $manyToMany['fields']);
-												$manyToManyItem = new Junction($instance, $fields, true);
+												$junctionClass = (isset($hasMany['junctionClass']) ? $hasMany['junctionClass'] : '\Sledgehammer\\Junction');
+												$manyToManyItem = new $junctionClass($instance, $fields, true);
 											}
 										} else {
 											$manyToManyItem = $instance;
@@ -1684,7 +1687,7 @@ class Repository extends Object {
 	 * @param ModelConfig $config
 	 */
 	protected function resolveInstance($wrapper, $config) {
-		if (in_array(get_class($wrapper), array('Sledgehammer\BelongsToPlaceholder', 'Sledgehammer\Junction')) === false) {
+		if (($wrapper instanceof BelongsToPlaceholder) ===  false && ($wrapper instanceof Junction) === false) {
 			throw new \Exception('Parameter $placeholder must be a BelongsToPlaceholder or Junction');
 		}
 		$index = $this->resolveIndex($wrapper, $config);

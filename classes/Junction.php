@@ -13,20 +13,20 @@ class Junction extends Object {
 	 * The object this junction links to.
 	 * @var object
 	 */
-	private $instance;
+	protected $instance;
 
 	/**
 	 * The additional fields in the relation.
 	 * @var array $field => $value
 	 */
-	private $fields;
+	protected $fields;
 
 	/**
 	 * When true, only properties that exist in $fields are available.
 	 * When false: Non existing properties are added to the $fields
 	 * @var bool
 	 */
-	private $validate;
+	protected $validate;
 
 	/**
 	 * Constructor

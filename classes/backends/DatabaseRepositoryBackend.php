@@ -93,6 +93,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 					if (substr($info['type'], -10) === 'tinyint(1)' && $info['null'] === false) {
 						$config->readFilters[$column] = __CLASS__.'::valueToBool';
 						$config->writeFilters[$column] = __CLASS__.'::boolToValue';
+						$config->defaults[$column] = self::valueToBool($config->defaults[$column]);
 					}
 				} else {
 					if (count($info['foreignKeys']) > 1) {
