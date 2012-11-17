@@ -44,13 +44,13 @@ class ModelConfig extends Object {
 	 * Configuration of the belongsTo relation(s)
 	 * @var array  array(
 	 *   $property => array(
-	 *      'reference' => $column  // foreign_key: "product_id"
-	 *      'model' => $modelName   // The foreign model: "Product"
-	 *      'id' => $idColumn (optional) // The id: "id"
+	 *      'reference' => $column,  // foreign_key: "product_id"
+	 *      'model' => $modelName,   // The foreign model: "Product"
+	 *      'id' => $idColumn,       // (optional) The id: "id"
 	 *   ,)
 	 *   $property => array(
-	 *      'convert' => $column  // column with data: array('id' => 1,  'name' => 'James Bond')
-	 *      'model' => $modelName // The model: "Hero"
+	 *      'convert' => $column,  // column with data: array('id' => 1,  'name' => 'James Bond')
+	 *      'model' => $modelName, // The model: "Hero"
 	 *   )
 	 * )
 	 */
@@ -58,15 +58,18 @@ class ModelConfig extends Object {
 
 	/**
 	 * Configuration of the hasMany relation(s)
+	 * Contains both one-to-many and many-to-many relations.
+	 *
 	 * @var array  array(
 	 *   $property => array(
-	 *     'model' => $modelName // The foreign model: "Product"
+	 *     'model' => $modelName, // The foreign model: "Product"
 	 *     'reference' => $column, // foreign_key to this container instance.
 	 *     'belongsTo' => $propertyPath, // (optional) The belongsTo property in the related instances in a one-to-many relation that refers back to the container instance. Used in save() for implicitly setting the foreignkey value.
-	 *     'through' => $junctionName // (optional) The junction for many-to-many relations.
-	 *     'id' => $column // (optional) foreign_key for the related model in the many-to-many table: "product_id"
+	 *     'through' => $junctionName, // (optional) The junction for many-to-many relations.
+	 *     'junctionClass' => $fullclassname, // (optional) The junctionClass to use (defaults to the Sledgehammer\Junction)
+	 *     'id' => $column, // (optional) foreign_key for the related model in the many-to-many table: "product_id"
 	 *     'conditions' => array() // (optional) Additional extra (static) conditions
-	 *   ),
+	 *   )
 	 * )
 	 */
 	public $hasMany = array();

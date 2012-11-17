@@ -6,6 +6,8 @@ namespace Sledgehammer;
 /**
  * A entry in a many-to-many relation where the link/bridge table has additional fields.
  * Behaves as the linked object, but with additional properties.
+ *
+ * @package ORM
  */
 class Junction extends Object {
 
@@ -22,22 +24,21 @@ class Junction extends Object {
 	protected $fields;
 
 	/**
-	 * When true, only properties that exist in $fields are available.
-	 * When false: Non existing properties are added to the $fields
+	 * Allow new properties to be added to $this->fields.
 	 * @var bool
 	 */
-	protected $validate;
+	protected $dynamicFields;
 
 	/**
 	 * Constructor
-	 * @param object $instance
-	 * @param array $fields
-	 * @param bool $validate
+	 * @param object $instance  The instance to link to.
+	 * @param array $fields  The additional fields in the relation.
+	 * @param bool $noAdditionalFields  The $fields parameter contains all fields for this junction.
 	 */
-	function __construct($instance, $fields = array(), $validate = false) {
+	function __construct($instance, $fields = array(), $noAdditionalFields = false) {
 		$this->instance = $instance;
 		$this->fields = $fields;
-		$this->validate = $validate;
+		$this->dynamicFields = !$noAdditionalFields;
 	}
 
 	/**
@@ -53,10 +54,13 @@ class Junction extends Object {
 		if (array_key_exists($property, $this->fields)) {
 			return $this->fields[$property];
 		}
-		if ($this->validate) {
-			return parent::__get($property);
+		if ($this->dynamicFields) {
+			$this->fields[$property] = null;
+			return null;
 		}
-		return null;
+		$properties = reflect_properties($this->instance);
+		$properties['public'] = array_merge($properties['public'], $this->fields);
+		warning('Property "'.$property.'" doesn\'t exist in a '.get_class($this).' ('.get_class($this->instance).') object', build_properties_hint($properties));
 	}
 
 	/**
@@ -70,7 +74,7 @@ class Junction extends Object {
 			$this->instance->$property = $value;
 			return;
 		}
-		if (array_key_exists($property, $this->fields) || $this->validate === false) {
+		if (array_key_exists($property, $this->fields) || $this->dynamicFields) {
 			$this->fields[$property] = $value;
 			return;
 		}
