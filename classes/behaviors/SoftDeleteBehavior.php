@@ -35,7 +35,7 @@ class SoftDeleteBehavior extends ModelBehavior {
 	function get($id, $config) {
 		$data = $this->backend->get($id, $config);
 		if (PropertyPath::get($this->path, $data)) {
-			throw new Exception('Record was deleted');
+			throw new \Exception('Record was deleted');
 		}
 		return $data;
 	}
