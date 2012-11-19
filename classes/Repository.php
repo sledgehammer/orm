@@ -1690,6 +1690,20 @@ class Repository extends Object {
 		if (($wrapper instanceof BelongsToPlaceholder) ===  false && ($wrapper instanceof Junction) === false) {
 			throw new \Exception('Parameter $placeholder must be a BelongsToPlaceholder or Junction');
 		}
+		if ($wrapper instanceof Junction && PropertyPath::get($config->properties[$config->id[0]], $wrapper) === null) {
+			foreach ($this->created[$config->name] as $index => $created) {
+				$isAMatch = true;
+				foreach (get_object_vars($created) as $property => $value) {
+					if ($wrapper->$property !== $value) {
+						$isAMatch = false;
+						break;
+					}
+				}
+				if ($isAMatch) {
+					return $created;
+				}
+			}
+		}
 		$index = $this->resolveIndex($wrapper, $config);
 		if (empty($this->objects[$config->name][$index]['instance'])) {
 			throw new \Exception('Placeholder "'.$model.' '.$index.'" not loaded');
