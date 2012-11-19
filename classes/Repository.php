@@ -895,7 +895,9 @@ class Repository extends Object {
 												$hasMany['reference'] => PropertyPath::get($config->properties[$config->id[0]], $instance),
 												$hasMany['id'] => PropertyPath::get($hasManyIdPath, $item)
 											);
-											$backend->delete($data, $junctionConfig->backendConfig);
+											$junctionConfig = $this->junctions[$hasMany['through']];
+											$junctionBackend = $this->_getBackend($junctionConfig->backend);
+											$junctionBackend->delete($data, $junctionConfig->backendConfig);
 
 											// Also remove the $instance from the $item->hasMany collection.
 											foreach ($hasManyConfig->hasMany as $manyToManyProperty => $manyToMany) {
