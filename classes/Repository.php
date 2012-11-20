@@ -202,25 +202,29 @@ class Repository extends Object {
 	 * Retrieve an instance from the Repository based on criteria other than the id.
 	 * If the id is known use the Repository->get($model, $id) instead.
 	 *
-	 * When the critera matches 0 or more than 1 instances an exception is thrown.
+	 * When the critera matches 0 or more than 1 instances an exception is thrown, unless 'allow_none' is given as an option.
 	 *
 	 * @param string $model
-	 * @param array $$conditions
+	 * @param array $conditions
+	 * @param bool $allowNone  When no match is found, return null instead of throwing an Exception.
 	 * @param array $options
-	 * @return object instance
+	 * @return object|null instance
 	 */
-	function one($model, $conditions, $options = array()) {
-		$collection = $this->all($model)->where($conditions);
+	function one($model, $conditions, $allowNone = false, $options = array()) {
+		$collection = $this->all($model, $conditions, $options);
 		$first = true;
 		foreach ($collection as $item) {
 			if ($first) {
-				$instance = $collection->current();
+				$instance = $item;
 				$first = false;
 			} else {
 				throw new InfoException('More than 1 "'.$model.'" model matches the conditions', $conditions);
 			}
 		}
 		if ($first) {
+			if ($allowNone) {
+				return null;
+			}
 			throw new InfoException('No "'.$model.'" model found that matches the conditions', $conditions);
 		}
 		return $instance;
@@ -1328,11 +1332,12 @@ class Repository extends Object {
 			$php .= "\t * Retrieve one ".$model." based on criteria\n";
 			$php .= "\t *\n";
 			$php .= "\t * @param mixed \$conditions\n";
+			$php .= "\t * @param bool \$allowNone  When no match is found, return null instead of throwing an Exception.\n";
 			$php .= "\t * @param array \$options\n";
 			$php .= "\t * @return ".$config->class."\n";
 			$php .= "\t */\n";
-			$php .= "\tfunction one".$model.'($conditions, $options = array()) {'."\n";
-			$php .= "\t\treturn \$this->one('".$model."', \$conditions, \$options);\n";
+			$php .= "\tfunction one".$model.'($conditions, $allowNone = false, $options = array()) {'."\n";
+			$php .= "\t\treturn \$this->one('".$model."', \$conditions, \$allowNone, \$options);\n";
 			$php .= "\t}\n";
 
 			$php .= "\t/**\n";
