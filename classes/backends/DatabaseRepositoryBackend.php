@@ -706,6 +706,19 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		}
 		return $bool;
 	}
+
+	/**
+	 * Convert value from the database to an int.
+	 *
+	 * @param string $value
+	 * @return int
+	 */
+	static function valueToInt($value) {
+		if (is_string($value) && ($value === '0' || preg_match('/^[1-9]{1}[0-9]{0,9}+$/', $value))) {
+			return intval($value);
+		}
+		return $value;
+	}
 }
 
 ?>
