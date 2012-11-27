@@ -108,15 +108,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 						}
 					}
 					if (array_key_exists($property, $table['columns']) && $property != $column) {
-//						$alternativePropertyName = lcfirst (Inflector::modelize ($foreignKey['table'], $prefix));
-//						if (array_key_exists ($alternativePropertyName, $table['columns']) == false) {
-//							$property = $alternativePropertyName;
-//						} else {
-//							notice('Unable to use belongsTo["'.$property.'"], an column with the same name exists', array('column' => $info));
-//						}
-						notice('Unable to use belongsTo["'.$property.'"], an column with the same name exists', array('column' => $info));
-					} else {
-						unset($config->defaults[$column]);
+						notice('Unable to use belongsTo["'.$property.'"], an column with the same name exists', array('belongsTo' => $info, 'Exising column' => $table['columns'][$property]));
 					}
 					$foreignModel = Inflector::modelize($foreignKey['table'], array(
 						'stripPrefix' => $tablePrefix,
@@ -126,8 +118,9 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 						'reference' => $column, // foreignKey
 						'model' => $foreignModel,
 						'id' => $foreignKey['column'], // primary key
+						'default' => $config->defaults[$column]
 					);
-					$config->defaults[$property] = null;
+					unset($config->defaults[$column]);
 				}
 			}
 

@@ -621,6 +621,11 @@ class Repository extends Object {
 		foreach ($values as $path => $value) {
 			PropertyPath::set($path, $value, $instance);
 		}
+		foreach ($config->belongsTo as $path => $belongsTo) {
+			if (isset($belongsTo['default'])) {
+				PropertyPath::set($path, $this->get($belongsTo['model'], $belongsTo['default']), $instance);
+			}
+		}
 		foreach (array_keys($config->hasMany) as $path) {
 			$value = PropertyPath::get($path, $instance);
 			if (is_array($value)) {
