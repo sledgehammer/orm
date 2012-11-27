@@ -107,7 +107,7 @@ abstract class ActiveRecord extends Observable {
 			if ($allowNone) {
 				try {
 					$instance = $repo->get($model, $conditions);
-				} catch (Exception $e) {
+				} catch (\Exception $e) {
 					$instance = null;
 				}
 			} else {

@@ -391,7 +391,11 @@ class Repository extends Object {
 		}
 		$belongsTo = array_value($config->belongsTo, $property);
 		if ($belongsTo !== null) {
-			$referencedId = $object['data'][$belongsTo['reference']];
+			if ($object['data'] === null) { // Instance is just created?
+				$referencedId = $belongsTo['default'];
+			} else {
+				$referencedId = $object['data'][$belongsTo['reference']];
+			}
 			if ($referencedId === null) {
 				throw new \Exception('Unexpected id value: null'); // set property to null? or leave it alone?
 			}
@@ -621,9 +625,16 @@ class Repository extends Object {
 		foreach ($values as $path => $value) {
 			PropertyPath::set($path, $value, $instance);
 		}
-		foreach ($config->belongsTo as $path => $belongsTo) {
-			if (isset($belongsTo['default'])) {
-				PropertyPath::set($path, $this->get($belongsTo['model'], $belongsTo['default']), $instance);
+		foreach ($config->belongsTo as $path => $relation) {
+			if (isset($relation['default'])) {
+				$belongsToIndex = $this->resolveIndex($relation['default']);
+				$value = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
+				if ($value === null) {
+					$value = new BelongsToPlaceholder($this->id.'/'.$config->name.'/'.$path, $instance, array($relation['id'] => $relation['default']));
+				}
+				PropertyPath::set($path, $value, $instance);
+			} else {
+				PropertyPath::set($path, null, $instance);
 			}
 		}
 		foreach (array_keys($config->hasMany) as $path) {

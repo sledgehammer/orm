@@ -216,7 +216,6 @@ class SimpleRecordTest extends DatabaseTestCase {
 		$order->customer->name = 'New customer';
 		$order->save();
 
-//		$this->assertEquals($orders->customer_id, 3);
 		$this->assertEquals($order->customer->id, 3);
 	}
 

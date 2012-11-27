@@ -445,6 +445,20 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEquals('{"id":"1","name":"Bob Fanger","occupation":"Software ontwikkelaar"}', $jsonShallow);
 	}
 
+	function test_create_with_defaults() {
+		$repo = new Repository();
+		$backend = new DatabaseRepositoryBackend($this->dbLink);
+		$backend->configs['Order']->defaults['product'] = 'Untitled';
+		$backend->configs['Order']->belongsTo['customer']['default'] = 1;
+		$repo->registerBackend($backend);
+		$order = $repo->create('Order');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase);
+		$this->assertEquals($order->customer->id, 1);
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase, 'Uses a BelongToPlaceholder (no queries)');
+		$this->assertEquals($order->customer->name, 'Bob Fanger');
+		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'but queries the db when needed.');
+	}
+
 	/**
 	 * Get a Customer instance where all the properties are still placeholders
 	 * (Slow/Expensive operation, initializes a new Repository on every call)
