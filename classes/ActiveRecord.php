@@ -86,28 +86,37 @@ abstract class ActiveRecord extends Observable {
 	 * Find an instance based on critera.
 	 *
 	 * Usage:
-	 *   ActiveRecordSubclass::find(1)
-	 * 	 ActiveRecordSubclass::find(array('id' => 2));
+	 *   ActiveRecordSubclass::one(1)
+	 *   ActiveRecordSubclass::one(array('id' => 2));
 	 *
 	 * When the critera matches more than 1 instance an exception is thrown.
 	 *
 	 * @param int|string|array $conditions
+	 * @param bool \$allowNone  When no match is found, return null instead of throwing an Exception.
 	 * @param array $options array(
 	 *   'repository' => string (optional) Overwrite the repository.
 	 *   'model' => string (optional) Overwrite the model name.
 	 * )
 	 * @return ActiveRecord
 	 */
-	static function find($conditions, $options = array()) {
+	static function one($conditions, $allowNone = false, $options = array()) {
 		$model = static::_getModel($options);
 		$repositoryId = static::_getRepostory($options);
 		$repo = getRepository($repositoryId);
 		if (is_scalar($conditions)) {
-			$instance = $repo->get($model, $conditions);
+			if ($allowNone) {
+				try {
+					$instance = $repo->get($model, $conditions);
+				} catch (Exception $e) {
+					$instance = null;
+				}
+			} else {
+				$instance = $repo->get($model, $conditions);
+			}
 		} else {
-			$instance = $repo->find($model, $conditions);
+			$instance = $repo->one($model, $conditions, $allowNone);
 		}
-		if (get_class($instance) != get_called_class()) {
+		if ($instance !== null && get_class($instance) != get_called_class()) {
 			throw new \Exception('Model "'.$model.'"('.get_class($instance).') isn\'t configured as "'.get_called_class());
 		}
 		return $instance;

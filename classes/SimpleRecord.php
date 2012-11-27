@@ -12,20 +12,23 @@ namespace Sledgehammer;
 class SimpleRecord extends ActiveRecord {
 
 	/**
+	 * Find an instance based on critera.
+	 *
 	 * @param string $model
 	 * @param mixed $conditions
+	 * @param bool \$allowNone  When no match is found, return null instead of throwing an Exception.
 	 * @param array $options array(
 	 *   'repository' => (string) "default"
 	 *   'preload' => (bool) false
 	 * )
 	 * @return SimpleRecord
 	 */
-	static function find($model, $conditions = null, $options = array()) {
+	static function one($model, $conditions = null, $allowNone = false, $options = array()) {
 		if (count(func_get_args()) < 2) {
 			warning('SimpleRecord::find() requires minimal 2 parameters', 'SimpleRecord::find($model, $conditions, $options = array()');
 		}
 		$options['model'] = $model;
-		return parent::find($conditions, $options);
+		return parent::one($conditions, $allowNone, $options);
 	}
 	/**
 	 *

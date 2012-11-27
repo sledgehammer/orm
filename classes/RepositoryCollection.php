@@ -107,20 +107,30 @@ class RepositoryCollection extends Collection {
 			return parent::where($conditions);
 		}
 		if ($this->data instanceof Collection && is_array($conditions)) {
+			$logicalOperator = extract_logical_operator($conditions);
 			$convertedConditions = array();
+			if ($logicalOperator === false) {
+				if (count($conditions) > 1) {
+					notice('Conditions with multiple conditions require a logical operator.', "Example: array('AND', 'x' => 1, 'y' => 5)");
+				}
+				$minimum = 0;
+			} else {
+				$minimum = 1;
+				$convertedConditions[0] = $logicalOperator;
+			}
 			foreach ($conditions as $path => $value) {
-				if (isset($this->mapping[$path])) {
+				if (($path !== 0 || $logicalOperator === false) && isset($this->mapping[$path])) {
 					$convertedConditions[$this->mapping[$path]] = $value;
 					unset($conditions[$path]);
 				}
 			}
-			if (count($convertedConditions) !== 0) { // There are conditions the low-level collection can handle?
+			if (count($convertedConditions) > $minimum) { // There are conditions the low-level collection can handle?
 				$collection = new RepositoryCollection($this->data->where($convertedConditions), $this->model, $this->repository, $this->mapping);
-				if (count($conditions) == 0) {
+				if (count($conditions) === $minimum) {
 					return $collection;
 				}
 				return $collection->where($conditions); // Apply the remaining conditions
-			} elseif (count($conditions) === 0) { // An empty array was given as $conditions?
+			} elseif (count($conditions) === $minimum) { // An empty array was given as $conditions?
 				return new RepositoryCollection(clone $this->data, $this->model, $this->repository, $this->mapping);
 			}
 		}

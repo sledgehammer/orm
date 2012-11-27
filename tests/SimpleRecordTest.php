@@ -231,7 +231,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 	 * @return SimpleRecord  Een customer-record in UPDATE mode
 	 */
 	private function getCustomer($id) {
-		return SimpleRecord::find('Customer', $id, array('repository' => __CLASS__));
+		return SimpleRecord::one('Customer', $id, false, array('repository' => __CLASS__));
 	}
 
 	/**
@@ -252,7 +252,7 @@ class SimpleRecordTest extends DatabaseTestCase {
 	 * @return SimpleRecord  Een order-record in UPDATE mode
 	 */
 	private function getOrder($id) {
-		return SimpleRecord::find('Order', $id, array('repository' => __CLASS__));
+		return SimpleRecord::one('Order', $id, false, array('repository' => __CLASS__));
 	}
 }
 ?>

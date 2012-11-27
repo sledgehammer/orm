@@ -527,12 +527,12 @@ class Repository extends Object {
 		}
 		$this->objects[$model][$index]['state'] = 'deleting';
 		if ($instance && $instance instanceof Observable && $instance->hasEvent('deleting')) {
-			$instance->trigger('deleting', $this);
+			$instance->trigger('deleting', $instance, $this);
 		}
 		$this->_getBackend($config->backend)->delete($data, $config->backendConfig);
 		if ($instance) {
 			if ($instance instanceof Observable && $instance->hasEvent('deleted')) {
-				$instance->trigger('deleted', $this);
+				$instance->trigger('deleted', $instance, $this);
 			}
 			// Remove all public properties (making the object unusable)
 			$instance = $object['instance'];
@@ -634,10 +634,10 @@ class Repository extends Object {
 		);
 		$this->created[$model][$index] = $instance;
 		if ($instance instanceof Observable && $instance->hasEvent('create')) {
-			$instance->trigger('create', $this, array(
+			$instance->trigger('create', $instance, array(
 				'repository' => $this->id,
 				'model' => $config->name,
-			));
+			), $this);
 		}
 		return $instance;
 	}
@@ -705,7 +705,7 @@ class Repository extends Object {
 			}
 			$this->objects[$model][$index]['state'] = 'saving';
 			if ($instance instanceof Observable && $instance->hasEvent('saving')) {
-				$instance->trigger('saving', $this);
+				$instance->trigger('saving', $instance, $this);
 			}
 
 			// Save belongsTo
@@ -942,7 +942,7 @@ class Repository extends Object {
 			}
 			$this->objects[$model][$index]['state'] = 'saved';
 			if ($instance instanceof Observable && $instance->hasEvent('saved')) {
-				$instance->trigger('saved', $this);
+				$instance->trigger('saved', $instance, $this);
 			}
 		} catch (\Exception $e) {
 			if ($rootSave) {
@@ -1502,10 +1502,10 @@ class Repository extends Object {
 			}
 		}
 		if ($instance instanceof Observable && $instance->hasEvent('load')) {
-			$instance->trigger('load', $this, array(
+			$instance->trigger('load', $instance, array(
 				'repository' => $this->id,
 				'model' => $config->name,
-			));
+			), $this);
 		}
 		return $instance;
 	}
