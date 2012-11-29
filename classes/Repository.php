@@ -626,6 +626,9 @@ class Repository extends Object {
 			PropertyPath::set($path, $value, $instance);
 		}
 		foreach ($config->belongsTo as $path => $relation) {
+			if (array_key_exists($path, $values)) { // A value is provided in the $values array?
+				continue;
+			}
 			if (isset($relation['default'])) {
 				$belongsToIndex = $this->resolveIndex($relation['default']);
 				$value = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
