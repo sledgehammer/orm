@@ -1491,7 +1491,9 @@ class Repository extends Object {
 				PropertyPath::set($property, $value, $instance);
 			} else {
 				$belongsToId = $data[$relation['reference']];
-				if ($belongsToId !== null) {
+				if ($belongsToId === null) {
+					PropertyPath::set($property, null, $instance);
+				} else {
 					if (empty($relation['model'])) { // No model given?
 						throw new \Exception('Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set');
 					}

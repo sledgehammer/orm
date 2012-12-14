@@ -101,8 +101,8 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 					}
 					$foreignKey = $info['foreignKeys'][0];
 					$property = $column;
-					if (preg_match('/_id$/i', $property)) {
-						$alternativePropertyName = substr($property, 0, -3);
+					if (preg_match('/(_id|_code)$/i', $property, $match)) {
+						$alternativePropertyName = substr($property, 0, 0 - strlen($match[1]));
 						if (array_key_exists($alternativePropertyName, $table['columns']) == false) {
 							$property = $alternativePropertyName;
 						}
