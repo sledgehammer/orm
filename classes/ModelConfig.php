@@ -67,6 +67,7 @@ class ModelConfig extends Object {
 	 *     'belongsTo' => $propertyPath, // (optional) The belongsTo property in the related instances in a one-to-many relation that refers back to the container instance. Used in save() for implicitly setting the foreignkey value.
 	 *     'through' => $junctionName, // (optional) The junction for many-to-many relations.
 	 *     'junctionClass' => $fullclassname, // (optional) The junctionClass to use (defaults to the Sledgehammer\Junction)
+	 *     'fields' => array($column => $junctionProperty), // (optional) Mapping for the additional fields in a junction (many-to-many with fields)
 	 *     'id' => $column, // (optional) foreign_key for the related model in the many-to-many table: "product_id"
 	 *     'conditions' => array() // (optional) Additional extra (static) conditions
 	 *   )

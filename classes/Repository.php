@@ -317,7 +317,7 @@ class Repository extends Object {
 				throw new InfoException('No fields found for this junction', $junction);
 			}
 			$fields = array();
-			PropertyPath::map($data, $fields, $junction['fields']);
+			PropertyPath::map($data, $fields, array_flip($junction['fields']));
 			$junctionClass = $junction['class'];
 			return new $junctionClass($instance, $fields, true);
 		}
@@ -842,8 +842,8 @@ class Repository extends Object {
 								$hasMany['reference'] => $id,
 								$hasMany['id'] => $hasManyId
 							);
-							if ($item instanceof Junction) { // Apply c
-								PropertyPath::map($item, $junction, array_flip($hasMany['fields']));
+							if ($item instanceof Junction) {
+								PropertyPath::map($item, $junction, $hasMany['fields']);
 							}
 							$junctions[$hasManyId] = $junction;
 							$junctionChanged = false;
