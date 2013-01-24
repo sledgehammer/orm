@@ -49,6 +49,9 @@ class Junction extends Object {
 	 */
 	function __get($property) {
 		if (property_exists($this->instance, $property)) {
+			if (array_key_exists($property, $this->fields)) {
+				notice('Property "'.$property.'" is ambiguous. It\'s available in both the instance as the junction fields.', "To modify the mapping of the junction field change the value of \$ModelConfig->hasMany[\$relation]['fields']['".$property."']");
+			}
 			return $this->instance->$property;
 		}
 		if (array_key_exists($property, $this->fields)) {
@@ -71,6 +74,9 @@ class Junction extends Object {
 	 */
 	function __set($property, $value) {
 		if (property_exists($this->instance, $property)) {
+			if (array_key_exists($property, $this->fields)) {
+				notice('Property "'.$property.'" is ambiguous. It\'s available in both the instance as the junction fields.', "To modify the mapping of the junction field change the value of \$ModelConfig->hasMany[\$relation]['fields']['".$property."']");
+			}
 			$this->instance->$property = $value;
 			return;
 		}

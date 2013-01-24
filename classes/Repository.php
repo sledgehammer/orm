@@ -784,7 +784,7 @@ class Repository extends Object {
 						}
 						continue;
 					}
-					if (isset($hasMany['belongsTo'])) { // Many to One?
+					if (isset($hasMany['belongsTo'])) { // One to Many?
 						$belongsToProperty = $hasMany['belongsTo'];
 						foreach ($collection as $key => $item) {
 							// Connect the items to the instance
@@ -812,7 +812,6 @@ class Repository extends Object {
 							}
 							$this->save($hasMany['model'], $item, $relationSaveOptions);
 						}
-						$backend = $this->_getBackend($config->backend);
 						$junctionConfig = $this->junctions[$hasMany['through']];
 						$junctionBackend = $this->_getBackend($junctionConfig->backend);
 						$hasManyIdPath = $hasManyConfig->properties[$config->id[0]];
@@ -879,7 +878,7 @@ class Repository extends Object {
 												PropertyPath::map($junction, $manyToManyItem, $manyToMany['fields']);
 											} else {
 												$fields = array();
-												PropertyPath::map($junction, $fields, $manyToMany['fields']);
+												PropertyPath::map($junction, $fields, array_flip($manyToMany['fields']));
 												$junctionClass = (isset($hasMany['junctionClass']) ? $hasMany['junctionClass'] : '\Sledgehammer\\Junction');
 												$manyToManyItem = new $junctionClass($instance, $fields, true);
 											}
