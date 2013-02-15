@@ -167,6 +167,49 @@ class RecordRelationTest extends DatabaseTestCase {
 		$this->assertCount(0, $bob->ratings, 'The many-to-many relation should be updated on both ends');
 	}
 
+	function test_many_to_many_relation_with_mapped_fields() {
+		$repo = new Repository();
+		$backend = new DatabaseRepositoryBackend(array($this->dbLink));
+		$repo->registerBackend($backend);
+		$backend->configs['Customer']->hasMany['ratings']['fields']['rating'] = 'groupRating';
+
+		$bob = $repo->getCustomer(1);
+		// Reading
+		$this->assertCount(1, $bob->ratings);
+		$groupRating = $bob->ratings[0];
+		$this->assertEquals("Hacker", $groupRating->title); // Access normal property
+		$this->assertEquals("5", $groupRating->groupRating); // Access additional property
+		$this->assertInstanceOf('Sledgehammer\Junction', $groupRating);
+
+		// Updating
+		$this->assertCount(1, $bob->ratings);
+		$groupRating->groupRating = '4'; // Using a string because an int would change detection when saving the $group
+		$repo->saveCustomer($bob);
+		$this->assertLastQuery("UPDATE ratings SET rating = '4' WHERE customer_id = 1 AND group_id = 1");
+
+		$group = $repo->getGroup($groupRating->id);
+		$this->assertCount(2, $group->ratings->toArray());
+		$this->assertLastQuery("SELECT * FROM customers WHERE id IN (1, 2)"); // The many to many for the group was't yet loaded.
+		$this->assertEquals("Bob Fanger", $group->ratings[0]->name, 'Sanity check');
+		$this->assertEquals(4, $group->ratings[0]->rating);
+		$this->assertQueryCount(6, 'Sanity check');
+		$repo->saveGroup($group);
+		$this->assertQueryCount(6, '0 changes, 0 queries.');
+		$group->ratings[0]->rating = 10;
+		$repo->saveGroup($group);
+		$this->assertQuery('UPDATE ratings SET rating = 10 WHERE customer_id = 1 AND group_id = 1');
+		$this->assertQueryCount(7);
+		$this->assertEquals(10, $bob->ratings[0]->groupRating, 'The many-to-many relation should be updated on both ends');
+
+		// Deleting
+		unset($group->ratings[0]);
+		$repo->saveGroup($group);
+		$this->assertLastQuery('DELETE FROM ratings WHERE customer_id = 1 AND group_id = 1');
+		$this->assertQueryCount(8);
+
+		$this->assertCount(0, $bob->ratings, 'The many-to-many relation should be updated on both ends');
+	}
+
 //	function test_custom_relation() {
 //		$hasMany = array('products' => new RecordRelation('orders', 'customer_id', array(
 //			'dbLink' => $this->dbLink,

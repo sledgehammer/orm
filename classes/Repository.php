@@ -875,7 +875,7 @@ class Repository extends Object {
 										}
 										if (count($manyToMany['fields']) != 0) { // Update the Junction values
 											if ($manyToManyExists && $manyToManyItem instanceof Junction) {
-												PropertyPath::map($junction, $manyToManyItem, $manyToMany['fields']);
+												PropertyPath::map($junction, $manyToManyItem, array_flip($manyToMany['fields']));
 											} else {
 												$fields = array();
 												PropertyPath::map($junction, $fields, array_flip($manyToMany['fields']));
