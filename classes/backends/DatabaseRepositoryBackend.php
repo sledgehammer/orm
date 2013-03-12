@@ -707,7 +707,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 	 * @return int
 	 */
 	static function valueToInt($value) {
-		if (is_string($value) && ($value === '0' || preg_match('/^[1-9]{1}[0-9]{0,9}+$/', $value))) {
+		if (is_string($value) && ($value === '0' || preg_match('/^-?[1-9]{1}[0-9]{0,9}+$/', $value))) {
 			return intval($value);
 		}
 		return $value;
