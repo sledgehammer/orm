@@ -452,6 +452,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 				$line = str_replace('NOT ', 'NOT_', $line);
 				$line = str_replace(' KEY', '_KEY', $line);
 				$line = str_ireplace('CHARACTER SET', 'CHARACTER_SET', $line);
+				$line = str_ireplace('ON UPDATE', 'ON_UPDATE', $line);
 				$line = str_replace('  ', ' ', $line);
 				$parts = explode(' ', $line);
 				if (substr($parts[0], 0, 1) == '`') { // Column description
@@ -494,7 +495,8 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 										case 'NULL';
 											$default = null;
 											break;
-										case 'CURRENT_TIMESTAMP': $default = null;
+										case 'CURRENT_TIMESTAMP':
+											$default = null;
 											break;
 										default:
 											notice('Unknown default "'.$default.'" in "'.$line.'"');
@@ -513,6 +515,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 								$config['columns'][$column]['comment'] = $comment;
 								break;
 
+							case 'ON_UPDATE':
 							case 'CHARACTER_SET':
 								$i++; // ignore value
 								break;
