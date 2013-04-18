@@ -154,10 +154,15 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 		// Pass 2: hasMany
 		foreach ($this->configs as $config) {
 			$table = $schema[$config->backendConfig['table']];
-			foreach ($table['referencedBy'] as $reference) {
+			foreach ($table['referencedBy'] as $i => $reference) {
 				$property = $reference['table'];
 				if ($tablePrefix != '' && substr($property, 0, strlen($tablePrefix)) == $tablePrefix) {
 					$property = substr($property, strlen($tablePrefix)); // Strip prefix
+				}
+				foreach ($table['referencedBy'] as $j => $otherRef) {
+					if ($i != $j && $otherRef['table']  === $reference['table']) { // The model has relations to the same table.
+						$property = preg_replace('/(_id|_code)$/i', '', $reference['column']).'_'.$property;
+					}
 				}
 				$property = Inflector::variablize($property);
 				if (in_array($property, $config->getPropertyNames())) {
