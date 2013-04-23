@@ -100,12 +100,9 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 						notice('Multiple foreign-keys per column not supported');
 					}
 					$foreignKey = $info['foreignKeys'][0];
-					$property = $column;
-					if (preg_match('/(_id|_code)$/i', $property, $match)) {
-						$alternativePropertyName = substr($property, 0, 0 - strlen($match[1]));
-						if (array_key_exists($alternativePropertyName, $table['columns']) == false) {
-							$property = $alternativePropertyName;
-						}
+					$property = $this->stripIdSuffix($column);
+					if ($column !== $property && array_key_exists($property, $table['columns'])) {
+						$property = $column; // restore prefix, to prevent a naming collision.
 					}
 					if (array_key_exists($property, $table['columns']) && $property != $column) {
 						notice('Unable to use belongsTo["'.$property.'"], an column with the same name exists', array('belongsTo' => $info, 'Exising column' => $table['columns'][$property]));
@@ -161,7 +158,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 				}
 				foreach ($table['referencedBy'] as $j => $otherRef) {
 					if ($i != $j && $otherRef['table']  === $reference['table']) { // The model has relations to the same table.
-						$property = preg_replace('/(_id|_code)$/i', '', $reference['column']).'_'.$property;
+						$property = $this->stripIdSuffix($reference['column']).'_'.$property;
 					}
 				}
 				$property = Inflector::variablize($property);
@@ -645,6 +642,22 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 			unset($config);
 		}
 		return $schema;
+	}
+
+	/**
+	 * Remove the "_id" suffix from a columnname.
+	 *
+	 * @param string $column
+	 * @return string
+	 */
+	private function stripIdSuffix($column) {
+		if (preg_match('/^(.+)(_id|_code)$/i', $column, $match)) { // A "_code", "_id", "_Id" or "_ID" suffix?
+			return $match[1];
+		}
+		if (preg_match('/^(.*[a-z]+)(Id|ID)$/', $column, $match)) { // Example: CustomerId
+			return $match[1];
+		}
+		return $column;
 	}
 
 	/**
