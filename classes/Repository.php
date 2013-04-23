@@ -743,9 +743,15 @@ class Repository extends Object {
 				unset($this->created[$config->name][$index]);
 				unset($this->objects[$config->name][$index]);
 				$changes = array_diff_assoc($object['data'], $data);
-				if (count($changes) > 0) {
+				if (count($changes) > 0) { // Has the data changed, for example by an auto-incremented id?
 					foreach ($changes as $column => $value) {
-						$instance->$column = $value; // @todo reversemap the column to the property
+						if (isset($config->readFilters[$column])) {
+							$value = filter($value, $config->readFilters[$column]);
+						}
+						$property = array_search($column, $config->properties);
+						if ($property !== false) {
+							$instance->$property = $value;
+						}
 					}
 				}
 				$index = $this->resolveIndex($instance, $config);

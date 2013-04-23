@@ -173,5 +173,29 @@ abstract class RepositoryBackend extends Object {
 		}
 		notice('Property: "'.$from.' not found"');
 	}
+
+	/**
+	 * Remove a property
+	 *
+	 * @param string $model The modelname
+	 * @param string $property  The current propertyname
+	 */
+	function skipProperty($model, $property) {
+		$config = $this->configs[$model];
+		$column = array_search($property, $config->properties);
+		unset($config->defaults[$property]);
+		if ($column !== false) { // A property?
+			unset($config->properties[$column]);
+			return;
+		}
+		if ($config->hasMany[$property]) {
+			unset($config->hasMany[$property]);
+			return;
+		}
+		if ($config->belongsTo[$property]) {
+			unset($config->belongsTo[$property]);
+			return;
+		}
+	}
 }
 ?>
