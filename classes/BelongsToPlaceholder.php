@@ -52,6 +52,10 @@ class BelongsToPlaceholder extends Object {
 		return call_user_func_array(array($this->__placeholder, $method), $arguments);
 	}
 
+	function __clone() {
+		throw new \Exception('Cloning is not allowed for repository-bound objects');
+	}
+
 	/**
 	 * Replace the placeholder with the referenced object
 	 *
@@ -74,8 +78,7 @@ class BelongsToPlaceholder extends Object {
 			return;
 		}
 		$repo = getRepository($repositoryId);
-		$repo->loadAssociation($model, $this->__container, $property);
-		$this->__placeholder = PropertyPath::get($property, $this->__container);
+		$this->__placeholder = $repo->resolveProperty($model, $this->__container, $property);
 	}
 
 }

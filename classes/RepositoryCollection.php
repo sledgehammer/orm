@@ -182,11 +182,18 @@ class RepositoryCollection extends Collection {
 		return $this->data;
 	}
 
+	function getQuery() {
+		if ($this->data instanceof Collection) {
+			return $this->data->getQuery();
+		}
+		throw new \Exception('The getQuery() method is not available');
+	}
+
 	function setQuery($query) {
 		if ($this->data instanceof Collection) {
-			$this->data->setQuery($query);
+			return $this->data->setQuery($query);
 		}
-		throw new \Exception('The setQuery() method failed');
+		throw new \Exception('The setQuery() method is not available');
 	}
 
 	/**

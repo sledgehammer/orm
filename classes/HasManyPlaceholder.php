@@ -31,6 +31,10 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 		return call_user_func_array(array($this->__placeholder, $method), $args);
 	}
 
+	function __clone() {
+		throw new \Exception('Cloning is not allowed for repository-bound objects');
+	}
+
 	// @todo: mimic array errors and behavior on propery access and method invocation
 	// Array access
 	function offsetExists($offset) {
@@ -60,22 +64,22 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 	}
 
 	function valid() {
-		$this->replacePlaceholder(true);
+		$this->replacePlaceholder();
 		return $this->__placeholder->valid();
 	}
 
 	function current() {
-		$this->replacePlaceholder(true);
+		$this->replacePlaceholder();
 		return $this->__placeholder->current();
 	}
 
 	function key() {
-		$this->replacePlaceholder(true);
+		$this->replacePlaceholder();
 		return $this->__placeholder->key();
 	}
 
 	function next() {
-		$this->replacePlaceholder(true);
+		$this->replacePlaceholder();
 		return $this->__placeholder->next();
 	}
 
@@ -88,14 +92,12 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 	/**
 	 * Replace the placeholder and return the array.
 	 *
-	 * @param bool $ignoreDuplicateReplacement A foreach($hasManyPlaceholder as $item) will call the iterator methods in this class instead of the Collection
 	 * @return void
 	 */
-	private function replacePlaceholder($ignoreDuplicateReplacement = false) {
+	private function replacePlaceholder() {
 		if (is_string($this->__placeholder) === false) { // Is the __reference already replaced?
-			if ($ignoreDuplicateReplacement === false) {
-				notice('This placeholder is already replaced', 'Did you clone the object?');
-			}
+			// Multiple lookups are valid use-case.
+			// The property (as placeholder) could be passed to another function as a value.
 			return;
 		}
 		$parts = explode('/', $this->__placeholder);
@@ -109,8 +111,7 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 			return;
 		}
 		$repo = getRepository($repositoryId);
-		$repo->loadAssociation($model, $this->__container, $property);
-		$this->__placeholder = PropertyPath::get($property, $this->__container);
+		$this->__placeholder = $repo->resolveProperty($model, $this->__container, $property);
 	}
 
 }

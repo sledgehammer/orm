@@ -193,7 +193,7 @@ class Repository extends Object {
 		}
 		if (isset($options['preload']) && $options['preload'] != 0) {
 			$options['preload']--;
-			$this->loadAssociations($model, $this->objects[$model][$index]['instance'], $options);
+			$this->resolveProperties($model, $this->objects[$model][$index]['instance'], $options);
 		}
 		return $instance;
 	}
@@ -342,7 +342,7 @@ class Repository extends Object {
 		}
 		if (isset($options['preload']) && $options['preload'] != 0) {
 			$options['preload']--; // (this unexpectedly aso works for true, because true-- remains true)
-			$this->loadAssociations($model, $instance, $options);
+			$this->resolveProperties($model, $instance, $options);
 		}
 		return $instance;
 	}
@@ -367,7 +367,7 @@ class Repository extends Object {
 	}
 
 	/**
-	 * Retrieve a related instance (belongTo) or collection (hasMany) and update the $instance.
+	 * Retrieve a related instance (belongsTo) or collection (hasMany) and update the $instance.
 	 *
 	 * @param string $model
 	 * @param object $instance  The instance with the relation.
@@ -379,9 +379,13 @@ class Repository extends Object {
 	 *     2: Also the relations of the relations of the relation.
 	 *     N: Etc.
 	 *    true or -1: Load all relations of all relations.
-	 * @return void
+	 *  'force' => bool //
+	 * @return mixed related instance or null
 	 */
-	function loadAssociation($model, $instance, $property, $options = array()) {
+	function resolveProperty($model, $instance, $property, $options = array()) {
+		if (array_value($options, 'force') == false && !($instance->$property instanceof BelongsToPlaceholder || $instance->$property instanceof HasManyPlaceholder)) { // Already resolved?
+			return $instance->$property;
+		}
 		$config = $this->_getConfig($model);
 		$index = $this->resolveIndex($instance, $config);
 
@@ -400,21 +404,18 @@ class Repository extends Object {
 				throw new \Exception('Unexpected id value: null'); // set property to null? or leave it alone?
 			}
 			if ($belongsTo['useIndex']) {
-				$instance->$property = $this->get($belongsTo['model'], $referencedId, $options);
-				return;
+				return $instance->$property = $this->get($belongsTo['model'], $referencedId, $options);
 			}
 			$instances = $this->all($belongsTo['model'])->where(array($belongsTo['id'] => $referencedId));
 			if (count($instances) != 1) {
 				throw new InfoException('Multiple instances found for key "'.$referencedId.'" for belongsTo '.$model.'->belongsTo['.$property.'] references to non-id field: "'.$belongsTo['id'].'"');
 			}
-			$instance->$property = $instances[0];
-			return;
+			return $instance->$property = $instances[0];
 		}
 		$hasMany = array_value($config->hasMany, $property);
 		if ($hasMany !== null) {
 			if (isset($this->objects[$model][$index]['hadMany'][$property])) {
-				$instance->$property = collection($this->objects[$model][$index]['hadMany'][$property]);
-				return;
+				return $instance->$property = collection($this->objects[$model][$index]['hadMany'][$property]);
 			}
 			if (count($config->id) != 1) {
 				throw new \Exception('Complex keys not (yet) supported for hasMany relations');
@@ -458,8 +459,7 @@ class Repository extends Object {
 				$collection = $collection->where($hasMany['conditions']);
 			}
 			$this->objects[$model][$index]['hadMany'][$property] = $collection->toArray(); // Add a items for change detection
-			$instance->$property = $collection;
-			return;
+			return $instance->$property = $collection;
 		}
 		throw new \Exception('No association found for  '.$model.'->'.$property);
 	}
@@ -478,7 +478,7 @@ class Repository extends Object {
 	 *    -1: Load all relations of all relations.
 	 * @return void
 	 */
-	function loadAssociations($model, $instance, $options = array()) {
+	function resolveProperties($model, $instance, $options = array()) {
 		if (in_array($instance, $this->loading, true)) {
 			return;
 		}
@@ -487,12 +487,12 @@ class Repository extends Object {
 		$config = $this->_getConfig($model);
 		foreach (array_keys($config->belongsTo) as $property) {
 			if ($instance->$property instanceof BelongsToPlaceholder) {
-				$this->loadAssociation($model, $instance, $property, $options);
+				$this->resolveProperty($model, $instance, $property, $options);
 			}
 		}
 		foreach (array_keys($config->hasMany) as $property) {
 			if ($instance->$property instanceof HasManyPlaceholder) {
-				$this->loadAssociation($model, $instance, $property, $options);
+				$this->resolveProperty($model, $instance, $property, $options);
 			}
 		}
 		if ($first) {
@@ -780,8 +780,7 @@ class Repository extends Object {
 					if ($old === null && $previousState != 'new' && is_array($collection)) { // Is the property replaced, before the placeholder was replaced?
 						// Load the previous situation
 						$oldValue = $instance->$property;
-						$this->loadAssociation($model, $instance, $property);
-						$old = $instance->$property->toArray();
+						$old = $this->resolveProperty($model, $instance, $property, array('force' => true))->toArray();
 						$instance->$property = $oldValue;
 					}
 					if (isset($hasMany['collection']['valueField'])) {
@@ -828,8 +827,7 @@ class Repository extends Object {
 								$oldJunctions = array();
 							} else {
 								$oldValue = $instance->$property;
-								$this->loadAssociation($model, $instance, $property);
-								$old = $instance->$property->toArray();
+								$old = $this->resolveProperty($model, $instance, $property, array('force' => true))->toArray();
 								$instance->$property = $oldValue;
 								$object = $this->objects[$model][$index];
 								$oldJunctions = $object['junctions'][$property];

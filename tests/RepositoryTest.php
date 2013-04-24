@@ -10,7 +10,7 @@ class RepositoryTest extends DatabaseTestCase {
 	private $applicationRepositories;
 
 	/**
-	 * @var int Number of queries it takes to inspect the test database (mysql: 5, sqlite: 11)
+	 * @var int Number of queries it takes to inspect the test database (mysql: 6, sqlite: 11)
 	 */
 	private $queryCountAfterInspectDatabase;
 
@@ -126,28 +126,32 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo = new RepositoryTester();
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 		$order2 = $repo->getOrder(2);
-		$clone = clone $order2->customer;
+		try {
+			$clone = clone $order2->customer;
+		} catch (\Exception $e) {
+			$this->assertEquals('Cloning is not allowed for repository-bound objects', $e->getMessage());
+		}
 		$this->assertLastQuery("SELECT * FROM orders WHERE id = '2'");
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'A get*() should execute max 1 query');
+		$this->assertRelativeQueryCount(1, 'A get*() should execute max 1 query');
 		$this->assertEquals($order2->product, 'Walter PPK 9mm');
 		$this->assertEquals(get_class($order2->customer), 'Sledgehammer\BelongsToPlaceholder', 'The customer property should be an placeholder');
 		$this->assertEquals($order2->customer->id, "2");
 		$this->assertEquals(get_class($order2->customer), 'Sledgehammer\BelongsToPlaceholder', 'The placeholder should handle the "id" property');
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
+		$this->assertRelativeQueryCount(1, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
 		$this->assertEquals($order2->customer->name, "James Bond", 'Lazy-load the correct data');
 		$this->assertLastQuery("SELECT * FROM customers WHERE id = '2'");
 		$this->assertFalse($order2->customer instanceof BelongsToPlaceholder, 'The placeholder should be replaced with a real object');
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
+		$this->assertRelativeQueryCount(2, 'Inspecting the id of an belongsTo relation should not generate any queries'); //
 
 		$order3 = $repo->getOrder(3);
 		$this->assertFalse($order3->customer instanceof BelongsToPlaceholder, 'A loaded instance should be injected directly into the container object');
 		$this->assertEquals($order3->customer->name, "James Bond", 'Lazy-load the correct data');
 		$this->assertLastQuery("SELECT * FROM orders WHERE id = '3'");
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 3, 'No customer queries'); //
+		$this->assertRelativeQueryCount(3, 'No customer queries');
 
-		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder belongs to an other object');
-		$clone->name = 'Clone';
+		// $this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder belongs to an other object');
+		// $clone->name = 'Clone';
 	}
 
 	function test_allWildcard() {
@@ -155,12 +159,12 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 
 		$customers = $repo->allCustomers();
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase, 'Delay queries until collections access');
+		$this->assertRelativeQueryCount(0, 'Delay queries until collections access');
 		$customerArray = iterator_to_array($customers);
 		$this->assertEquals(count($customerArray), 2, 'Collection should contain all customers');
 		$this->assertEquals($customerArray[0]->name, 'Bob Fanger');
 		$this->assertEquals($customerArray[1]->name, 'James Bond');
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Sanity check');
+		$this->assertRelativeQueryCount(1, 'Sanity check');
 
 		$counter = 0;
 		foreach ($customers as $customer) {
@@ -170,7 +174,7 @@ class RepositoryTest extends DatabaseTestCase {
 			$counter++;
 		}
 		$this->assertEquals($counter, (2 * 2), '$collection->rewind() works as expected');
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Use only 1 query for multiple loops on all customers');
+		$this->assertRelativeQueryCount(1, 'Use only 1 query for multiple loops on all customers');
 		$this->assertLastQuery('SELECT * FROM customers');
 
 		$names = $repo->allCustomers()->select('name')->toArray();
@@ -179,10 +183,10 @@ class RepositoryTest extends DatabaseTestCase {
 			'James Bond',
 			), $names);
 		$this->assertLastQuery('SELECT name FROM customers');
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2, 'Bypass repository for additional performance');
+		$this->assertRelativeQueryCount(2, 'Bypass repository for additional performance');
 		$struct = $repo->allCustomers()->select(array('name', 'occupation'), 'id')->toArray();
 		$this->assertLastQuery('SELECT id, name, occupation FROM customers');
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 3, 'Bypass repository for additional performance');
+		$this->assertRelativeQueryCount(3, 'Bypass repository for additional performance');
 	}
 
 	function test_hasManyIteratorInterface() {
@@ -232,14 +236,18 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertInstanceOf('Sledgehammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
 
 		$c2 = $this->getDirtyCustomer(2);
-		$clone = clone $c2;
+		try {
+			$clone = clone $c2;
+		} catch (\Exception $e) {
+			$this->assertEquals('Cloning is not allowed for repository-bound objects', $e->getMessage());
+		}
 		unset($c2->orders[0]);
 		$this->assertEquals(count($c2->orders), 1, 'Unset by array offset');
 		$this->assertInstanceOf('Sledgehammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
 
-		$this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder is already replaced');
-		$this->assertEquals($clone->orders[1]->product, 'Spycam');
-//		$this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
+		// $this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder is already replaced'); 
+		// $this->assertEquals($clone->orders[1]->product, 'Spycam');
+		// $this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
 	}
 
 	function test_getWildcard_preload() {
@@ -259,7 +267,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$order1 = $repo->getOrder(1);
 		// remove by instance
 		$repo->deleteOrder($order1);
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2);
+		$this->assertRelativeQueryCount(2);
 		$this->assertLastQuery('DELETE FROM orders WHERE id = 1');
 		// remove by id
 		$repo->deleteOrder('2');
@@ -273,17 +281,17 @@ class RepositoryTest extends DatabaseTestCase {
 		$c1 = $repo->getCustomer(1);
 		$repo->saveCustomer($c1);
 
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'Saving an unmodified instance shouldn\'t generate a query');
+		$this->assertRelativeQueryCount(1, 'Saving an unmodified instance shouldn\'t generate a query');
 		$c1->occupation = 'Webdeveloper';
 		$repo->saveCustomer($c1);
 		$this->assertLastQuery("UPDATE customers SET occupation = 'Webdeveloper' WHERE id = 1");
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2, 'Sanity Check');
+		$this->assertRelativeQueryCount(2, 'Sanity Check');
 		$repo->saveCustomer($c1); // Check if the updated data is now bound to the instance
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 2, 'Saving an unmodified instance shouldn\'t generate a query');
+		$this->assertRelativeQueryCount(2, 'Saving an unmodified instance shouldn\'t generate a query');
 
 		$order2 = $repo->getOrder(2);
 		$repo->saveOrder($order2); // Don't autoload belongTo properties
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 3, 'Saving an unmodified instance shouldn\'t generate a query');
+		$this->assertRelativeQueryCount(3, 'Saving an unmodified instance shouldn\'t generate a query');
 		try {
 			$order2->customer->id = 1; // Changes the id inside the customer object.
 			$repo->saveOrder($order2);
@@ -295,7 +303,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo->validate();
 		$order2->customer->id = "2"; // restore customer object
 		$repo->saveOrder($order2); // The belongTo is autoloaded, but unchanged
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 4, 'Saving an unmodified instance shouldn\'t generate a query');
+		$this->assertRelativeQueryCount(4, 'Saving an unmodified instance shouldn\'t generate a query');
 
 		$c2 = $repo->getCustomer(2);
 		$this->assertEquals($c2->orders[0]->product, 'Walter PPK 9mm', 'Sanity check');
@@ -452,11 +460,15 @@ class RepositoryTest extends DatabaseTestCase {
 		$backend->configs['Order']->belongsTo['customer']['default'] = 1;
 		$repo->registerBackend($backend);
 		$order = $repo->create('Order');
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase);
+		$this->assertRelativeQueryCount(0);
 		$this->assertEquals($order->customer->id, 1);
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase, 'Uses a BelongToPlaceholder (no queries)');
+		$this->assertRelativeQueryCount(0, 'Uses a BelongToPlaceholder (no queries)');
 		$this->assertEquals($order->customer->name, 'Bob Fanger');
-		$this->assertQueryCount($this->queryCountAfterInspectDatabase + 1, 'but queries the db when needed.');
+		$this->assertRelativeQueryCount(1, 'but queries the db when needed.');
+	}
+
+	function assertRelativeQueryCount($expectedCount, $message = null) {
+		return $this->assertQueryCount($this->queryCountAfterInspectDatabase + $expectedCount, $message);
 	}
 
 	/**

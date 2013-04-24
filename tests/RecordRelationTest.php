@@ -6,6 +6,21 @@ namespace Sledgehammer;
 class RecordRelationTest extends DatabaseTestCase {
 
 	/**
+	 * @var int Number of queries it takes to inspect the test database (mysql: 6, sqlite: 11)
+	 */
+	private $queryCountAfterInspectDatabase;
+
+	public function __construct() {
+		parent::__construct();
+		DatabaseRepositoryBackend::$cacheTimeout = false; // always inspect database
+		if ($this->getDatabase()->getAttribute(\PDO::ATTR_DRIVER_NAME) == 'mysql') {
+			$this->queryCountAfterInspectDatabase = 6;
+		} else {
+			$this->queryCountAfterInspectDatabase = 11;
+		}
+	}
+
+	/**
 	 * Elke test_* met een schone database beginnen
 	 * @param Database $db
 	 */
@@ -192,22 +207,26 @@ class RecordRelationTest extends DatabaseTestCase {
 		$this->assertLastQuery("SELECT * FROM customers WHERE id IN (1, 2)"); // The many to many for the group was't yet loaded.
 		$this->assertEquals("Bob Fanger", $group->ratings[0]->name, 'Sanity check');
 		$this->assertEquals(4, $group->ratings[0]->rating);
-		$this->assertQueryCount(6, 'Sanity check');
+		$this->assertRelativeQueryCount(6, 'Sanity check');
 		$repo->saveGroup($group);
-		$this->assertQueryCount(6, '0 changes, 0 queries.');
+		$this->assertRelativeQueryCount(6, '0 changes, 0 queries.');
 		$group->ratings[0]->rating = 10;
 		$repo->saveGroup($group);
 		$this->assertQuery('UPDATE ratings SET rating = 10 WHERE customer_id = 1 AND group_id = 1');
-		$this->assertQueryCount(7);
+		$this->assertRelativeQueryCount(7);
 		$this->assertEquals(10, $bob->ratings[0]->groupRating, 'The many-to-many relation should be updated on both ends');
 
 		// Deleting
 		unset($group->ratings[0]);
 		$repo->saveGroup($group);
 		$this->assertLastQuery('DELETE FROM ratings WHERE customer_id = 1 AND group_id = 1');
-		$this->assertQueryCount(8);
+		$this->assertRelativeQueryCount(8);
 
 		$this->assertCount(0, $bob->ratings, 'The many-to-many relation should be updated on both ends');
+	}
+
+	function assertRelativeQueryCount($expectedCount, $message = null) {
+		return parent::assertQueryCount($this->queryCountAfterInspectDatabase + $expectedCount, $message);
 	}
 
 //	function test_custom_relation() {
