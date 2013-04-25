@@ -49,6 +49,12 @@ class Repository extends Object {
 	protected $created = array();
 
 	/**
+	 * References to instances that have been deleted
+	 * @var array
+	 */
+	protected $deleted = array();
+
+	/**
 	 * The unique identifier of this repository
 	 * @var string
 	 */
@@ -513,6 +519,19 @@ class Repository extends Object {
 	 */
 	function delete($model, $mixed) {
 		$config = $this->_getConfig($model);
+		if (isset($this->deleted[$model])) {
+			$isDeleted = false;
+			if (is_object($mixed)) {
+				$isDeleted = collection($this->deleted[$model])->find($mixed, true);
+			} else { // $mixed is an id
+				$index = $this->resolveIndex($mixed, $config);
+				$isDeleted = isset($this->deleted[$model][$index]);
+			}
+			if ($isDeleted) {
+//				 notice('Already deleted');
+				return;
+			}
+		}
 		$index = $this->resolveIndex($mixed, $config);
 		$object = @$this->objects[$model][$index];
 		if ($object === null) {
@@ -550,7 +569,22 @@ class Repository extends Object {
 				unset($instance->$property);
 			}
 		}
-		// @todo Unload the hasMany objects from memory, they might have been deleted through an CASCADE relation in MySQL.
+		// Remove the instances from connected collections
+		foreach ($this->configs as $connectedConfig) {
+			foreach ($connectedConfig->hasMany as $hasManyPath => $hasManyConfig) {
+				if ($hasManyConfig['model'] === $model && isset($this->objects[$connectedConfig->name])) {
+					foreach ($this->objects[$connectedConfig->name] as $connectedObject) {
+						$collection = PropertyPath::get($hasManyPath, $connectedObject['instance']);
+						if ($collection instanceof Collection) {
+							$collection->remove($instance, true); // Remove the item from the collection (if it's there)
+						}
+						// @todo  Remove the reference from $connectedObject['hadMany'][$hasManyPath]? Could cause issues with many2many relations?
+					}
+				}
+			}
+			// @todo Set the belongsTo to null?
+		}
+		$this->deleted[$model][$index] = $instance; // Register as deleted
 		unset($this->objects[$model][$index]); // Remove the object from the repository
 	}
 

@@ -245,7 +245,7 @@ class RepositoryTest extends DatabaseTestCase {
 		$this->assertEquals(count($c2->orders), 1, 'Unset by array offset');
 		$this->assertInstanceOf('Sledgehammer\Collection', $c2->orders, 'The orders property should be replaced with an Collection');
 
-		// $this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder is already replaced'); 
+		// $this->setExpectedException('PHPUnit_Framework_Error_Notice', 'This placeholder is already replaced');
 		// $this->assertEquals($clone->orders[1]->product, 'Spycam');
 		// $this->fail('clone doesn\'t work with PlaceHolders, but the placeholder should complain');
 	}
@@ -264,14 +264,22 @@ class RepositoryTest extends DatabaseTestCase {
 		$repo = new RepositoryTester();
 		$repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
 
-		$order1 = $repo->getOrder(1);
-		// remove by instance
-		$repo->deleteOrder($order1);
-		$this->assertRelativeQueryCount(2);
-		$this->assertLastQuery('DELETE FROM orders WHERE id = 1');
 		// remove by id
 		$repo->deleteOrder('2');
 		$this->assertLastQuery('DELETE FROM orders WHERE id = 2');
+		$this->assertRelativeQueryCount(1);
+
+		// remove by instance
+		$order1 = $repo->getOrder(1);
+		$this->assertCount(1, $order1->customer->orders->toArray());
+		$customer = $order1->customer;
+		$this->assertRelativeQueryCount(4, 'Sanity check');
+		$repo->deleteOrder($order1);
+		$this->assertRelativeQueryCount(5);
+		$this->assertLastQuery('DELETE FROM orders WHERE id = 1');
+		$this->assertCount(0, $customer->orders->toArray());
+		$repo->saveCustomer($customer);
+		$this->assertRelativeQueryCount(5, 'Saving a connected item should not trigger another DELETE query');
 	}
 
 	function test_saveWildcard() {
