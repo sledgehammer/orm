@@ -24,12 +24,6 @@ class RepositoryCollection extends Collection {
 	protected $repository;
 
 	/**
-	 * Paths with direct mapping to the backend data.
-	 * @var array array($path => $column)
-	 */
-	protected $mapping = array();
-
-	/**
 	 * Convert options.
 	 * @var array
 	 */
@@ -53,9 +47,8 @@ class RepositoryCollection extends Collection {
 	function __construct($collection, $model, $repository = 'default', $options = array()) {
 		$this->model = $model;
 		$this->repository = $repository;
-		if (isset($options['mapping'])) {
-			$this->mapping = $options['mapping'];
-			unset($options['mapping']);
+		if (array_key_exists('mapping', $options) === false) {
+			$options['mapping'] = array();
 		}
 		$this->options = $options;
 		parent::__construct($collection);
@@ -77,23 +70,23 @@ class RepositoryCollection extends Collection {
 			return parent::select($selector, $selectKey);
 		}
 		if ($selectKey !== false && $selectKey !== null) {
-			if (empty($this->mapping[$selectKey])) { // Key not in the mapping array?
+			if (empty($this->options['mapping'][$selectKey])) { // Key not in the mapping array?
 				return parent::select($selector, $selectKey);
 			}
-			$selectKeyMapped = $this->mapping[$selectKey];
+			$selectKeyMapped = $this->options['mapping'][$selectKey];
 		} else {
 			$selectKeyMapped = $selectKey;
 		}
-		if (is_string($selector) && isset($this->mapping[$selector])) {
+		if (is_string($selector) && isset($this->options['mapping'][$selector])) {
 			// Bypass Repository and return the resultset directly from the backend-collection.
-			return $this->data->select($this->mapping[$selector], $selectKeyMapped);
+			return $this->data->select($this->options['mapping'][$selector], $selectKeyMapped);
 		} elseif (is_array($selector)) {
 			$selectorMapped = array();
 			foreach ($selector as $to => $from) {
-				if (empty($this->mapping[$from])) { // Field not in the mapping array?
+				if (empty($this->options['mapping'][$from])) { // Field not in the mapping array?
 					return parent::select($selector, $selectKey);
 				}
-				$selectorMapped[$to] = $this->mapping[$from];
+				$selectorMapped[$to] = $this->options['mapping'][$from];
 			}
 			// Bypass Repository and return the resultset directly from the backend-collection.
 			return $this->data->select($selectorMapped, $selectKeyMapped);
@@ -119,19 +112,19 @@ class RepositoryCollection extends Collection {
 				$convertedConditions[0] = $logicalOperator;
 			}
 			foreach ($conditions as $path => $value) {
-				if (($path !== 0 || $logicalOperator === false) && isset($this->mapping[$path])) {
-					$convertedConditions[$this->mapping[$path]] = $value;
+				if (($path !== 0 || $logicalOperator === false) && isset($this->options['mapping'][$path])) {
+					$convertedConditions[$this->options['mapping'][$path]] = $value;
 					unset($conditions[$path]);
 				}
 			}
 			if (count($convertedConditions) > $minimum) { // There are conditions the low-level collection can handle?
-				$collection = new RepositoryCollection($this->data->where($convertedConditions), $this->model, $this->repository, $this->mapping);
+				$collection = new RepositoryCollection($this->data->where($convertedConditions), $this->model, $this->repository, $this->options);
 				if (count($conditions) === $minimum) {
 					return $collection;
 				}
 				return $collection->where($conditions); // Apply the remaining conditions
 			} elseif (count($conditions) === $minimum) { // An empty array was given as $conditions?
-				return new RepositoryCollection(clone $this->data, $this->model, $this->repository, $this->mapping);
+				return new RepositoryCollection(clone $this->data, $this->model, $this->repository, $this->options);
 			}
 		}
 		return parent::where($conditions);
@@ -139,28 +132,28 @@ class RepositoryCollection extends Collection {
 
 	function skip($length) {
 		if ($this->isConverted === false && $this->data instanceof Collection) {
-			return new RepositoryCollection($this->data->skip($length), $this->model, $this->repository, $this->mapping);
+			return new RepositoryCollection($this->data->skip($length), $this->model, $this->repository, $this->options);
 		}
 		return parent::skip($length);
 	}
 
 	function take($length) {
 		if ($this->isConverted === false && $this->data instanceof Collection) {
-			return new RepositoryCollection($this->data->take($length), $this->model, $this->repository, $this->mapping);
+			return new RepositoryCollection($this->data->take($length), $this->model, $this->repository, $this->options);
 		}
 		return parent::take($length);
 	}
 
 	function orderBy($selector, $method = SORT_REGULAR) {
-		if ($this->isConverted === false && is_string($selector) && isset($this->mapping[$selector]) && $this->data instanceof Collection) {
-			return new RepositoryCollection($this->data->orderBy($this->mapping[$selector], $method), $this->model, $this->repository, $this->mapping);
+		if ($this->isConverted === false && is_string($selector) && isset($this->options['mapping'][$selector]) && $this->data instanceof Collection) {
+			return new RepositoryCollection($this->data->orderBy($this->options['mapping'][$selector], $method), $this->model, $this->repository, $this->options);
 		}
 		return parent::orderBy($selector, $method);
 	}
 
 	function orderByDescending($selector, $method = SORT_REGULAR) {
-		if ($this->isConverted === false && is_string($selector) && isset($this->mapping[$selector]) && $this->data instanceof Collection) {
-			return new RepositoryCollection($this->data->orderByDescending($this->mapping[$selector], $method), $this->model, $this->repository, $this->mapping);
+		if ($this->isConverted === false && is_string($selector) && isset($this->options['mapping'][$selector]) && $this->data instanceof Collection) {
+			return new RepositoryCollection($this->data->orderByDescending($this->options['mapping'][$selector], $method), $this->model, $this->repository, $this->options);
 		}
 		return parent::orderByDescending($selector, $method);
 	}
