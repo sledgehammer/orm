@@ -78,7 +78,7 @@ class BelongsToPlaceholder extends Object {
 			return;
 		}
 		$repo = getRepository($repositoryId);
-		$this->__placeholder = $repo->resolveProperty($model, $this->__container, $property);
+		$this->__placeholder = $repo->resolveProperty($this->__container, $property, array('model' => $model));
 	}
 
 }

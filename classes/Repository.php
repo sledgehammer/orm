@@ -192,8 +192,9 @@ class Repository extends Object {
 			$this->objects[$model][$index]['instance'] = $instance;
 		}
 		if (isset($options['preload']) && $options['preload'] != 0) {
+			$options['model'] = $model;
 			$options['preload']--;
-			$this->resolveProperties($model, $this->objects[$model][$index]['instance'], $options);
+			$this->resolveProperties($this->objects[$model][$index]['instance'], $options);
 		}
 		return $instance;
 	}
@@ -341,8 +342,9 @@ class Repository extends Object {
 			$this->objects[$model][$index]['instance'] = $instance;
 		}
 		if (isset($options['preload']) && $options['preload'] != 0) {
+			$options['model'] = $model;
 			$options['preload']--; // (this unexpectedly aso works for true, because true-- remains true)
-			$this->resolveProperties($model, $instance, $options);
+			$this->resolveProperties($instance, $options);
 		}
 		return $instance;
 	}
@@ -369,7 +371,6 @@ class Repository extends Object {
 	/**
 	 * Retrieve a related instance (belongsTo) or collection (hasMany) and update the $instance.
 	 *
-	 * @param string $model
 	 * @param object $instance  The instance with the relation.
 	 * @param string $property  The relation property.
 	 * @param array $options
@@ -379,13 +380,15 @@ class Repository extends Object {
 	 *     2: Also the relations of the relations of the relation.
 	 *     N: Etc.
 	 *    true or -1: Load all relations of all relations.
-	 *  'force' => bool //
+	 *  'reload' => bool // Override the current value with the connection defined in the backend.
+	 *  'model' => string // The model Improve speed and reliability of the lookup
 	 * @return mixed related instance or null
 	 */
-	function resolveProperty($model, $instance, $property, $options = array()) {
-		if (array_value($options, 'force') == false && !($instance->$property instanceof BelongsToPlaceholder || $instance->$property instanceof HasManyPlaceholder)) { // Already resolved?
+	function resolveProperty($instance, $property, $options = array()) {
+		if (array_value($options, 'reload') == false && !($instance->$property instanceof BelongsToPlaceholder || $instance->$property instanceof HasManyPlaceholder)) { // Already resolved?
 			return $instance->$property;
 		}
+		$model = array_value($options, 'model') ?: $this->resolveModel($instance); // Use te "model" options or detect based on the instance
 		$config = $this->_getConfig($model);
 		$index = $this->resolveIndex($instance, $config);
 
@@ -467,7 +470,6 @@ class Repository extends Object {
 	/**
 	 * Retrieve all related instances (belongTo) and collection (hasMany) and update the $instance.
 	 *
-	 * @param string $model
 	 * @param object $instance  The instance with the relations.
 	 * @param array $options
 	 *  'preload' => int  The recursion level.
@@ -476,23 +478,26 @@ class Repository extends Object {
 	 *     2: Also the relations of the relations of the relation.
 	 *     N: etc.
 	 *    -1: Load all relations of all relations.
+	 *  'model' => string // The model Improve speed and reliability of the lookup
 	 * @return void
 	 */
-	function resolveProperties($model, $instance, $options = array()) {
+	function resolveProperties($instance, $options = array()) {
 		if (in_array($instance, $this->loading, true)) {
 			return;
 		}
 		$first = (count($this->loading) === 0);
 		$this->loading[] = $instance;
+		$model = array_value($options, 'model') ?: $this->resolveModel($instance); // Use te "model" options or detect based on the instance
+		$options['model'] = $model;
 		$config = $this->_getConfig($model);
 		foreach (array_keys($config->belongsTo) as $property) {
 			if ($instance->$property instanceof BelongsToPlaceholder) {
-				$this->resolveProperty($model, $instance, $property, $options);
+				$this->resolveProperty($instance, $property, $options);
 			}
 		}
 		foreach (array_keys($config->hasMany) as $property) {
 			if ($instance->$property instanceof HasManyPlaceholder) {
-				$this->resolveProperty($model, $instance, $property, $options);
+				$this->resolveProperty($instance, $property, $options);
 			}
 		}
 		if ($first) {
@@ -780,7 +785,7 @@ class Repository extends Object {
 					if ($old === null && $previousState != 'new' && is_array($collection)) { // Is the property replaced, before the placeholder was replaced?
 						// Load the previous situation
 						$oldValue = $instance->$property;
-						$old = $this->resolveProperty($model, $instance, $property, array('force' => true))->toArray();
+						$old = $this->resolveProperty($instance, $property, array('model' => $model, 'reload' => true))->toArray();
 						$instance->$property = $oldValue;
 					}
 					if (isset($hasMany['collection']['valueField'])) {
@@ -827,7 +832,7 @@ class Repository extends Object {
 								$oldJunctions = array();
 							} else {
 								$oldValue = $instance->$property;
-								$old = $this->resolveProperty($model, $instance, $property, array('force' => true))->toArray();
+								$old = $this->resolveProperty($instance, $property, array('model' => $model, 'reload' => true))->toArray();
 								$instance->$property = $oldValue;
 								$object = $this->objects[$model][$index];
 								$oldJunctions = $object['junctions'][$property];
