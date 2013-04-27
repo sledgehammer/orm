@@ -55,6 +55,15 @@ class RepositoryCollection extends Collection {
 	}
 
 	function getIterator() {
+		if ($this->isConverted) {
+			return parent::getIterator();
+		}
+		if ($this->data instanceof \IteratorAggregate) {
+			return new RepositoryCollectionIterator($this->data->getIterator(), $this->repository, $this->model);
+		}
+		if (is_array($this->data)) {
+			return new RepositoryCollectionIterator(new \ArrayIterator($this->data), $this->repository, $this->model);
+		}
 		$this->dataToArray();
 		return parent::getIterator();
 	}
