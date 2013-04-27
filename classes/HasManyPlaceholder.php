@@ -9,7 +9,7 @@ namespace Sledgehammer;
  *
  * @package ORM
  */
-class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Countable {
+class HasManyPlaceholder extends Object implements \ArrayAccess, \IteratorAggregate, \Countable {
 
 	/**
 	 * @var string|Collection Initialy a reference "repository/model/property", but will be replaced with the referenced Collection
@@ -57,30 +57,10 @@ class HasManyPlaceholder extends Object implements \ArrayAccess, \Iterator, \Cou
 		return $this->__placeholder->offsetUnset($offset);
 	}
 
-	// Iterator
-	function rewind() {
+	// IteratorAggregate
+	function getIterator() {
 		$this->replacePlaceholder();
-		return $this->__placeholder->rewind();
-	}
-
-	function valid() {
-		$this->replacePlaceholder();
-		return $this->__placeholder->valid();
-	}
-
-	function current() {
-		$this->replacePlaceholder();
-		return $this->__placeholder->current();
-	}
-
-	function key() {
-		$this->replacePlaceholder();
-		return $this->__placeholder->key();
-	}
-
-	function next() {
-		$this->replacePlaceholder();
-		return $this->__placeholder->next();
+		return $this->__placeholder->getIterator();
 	}
 
 	// Countable

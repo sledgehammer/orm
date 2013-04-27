@@ -54,15 +54,9 @@ class RepositoryCollection extends Collection {
 		parent::__construct($collection);
 	}
 
-	/**
-	 * Iterator::current()
-	 * @return object
-	 */
-	function current() {
-		if ($this->isConverted) {
-			return parent::current();
-		}
-		return $this->convertItem(parent::current());
+	function getIterator() {
+		$this->dataToArray();
+		return parent::getIterator();
 	}
 
 	function select($selector, $selectKey = false) {
@@ -189,6 +183,18 @@ class RepositoryCollection extends Collection {
 		throw new \Exception('The setQuery() method is not available');
 	}
 
+	protected function dataToArray() {
+		if ($this->isConverted === false) {
+			$repo = getRepository($this->repository);
+			$data = array();
+			foreach ($this->data as $key => $item) {
+				$data[$key] = $repo->convert($this->model, $item, $this->options);
+			}
+			$this->data = $data;
+			$this->isConverted = true;
+		}
+	}
+
 	/**
 	 * Convert the raw data to an repository object
 	 * @param mixed $item
@@ -200,18 +206,6 @@ class RepositoryCollection extends Collection {
 		}
 		$repo = getRepository($this->repository);
 		return $repo->convert($this->model, $item, $this->options);
-	}
-
-	protected function dataToArray() {
-		if ($this->isConverted === false) {
-			$repo = getRepository($this->repository);
-			$data = array();
-			foreach ($this->data as $key => $item) {
-				$data[$key] = $repo->convert($this->model, $item, $this->options);
-			}
-			$this->data = $data;
-			$this->isConverted = true;
-		}
 	}
 
 }

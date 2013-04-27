@@ -11,6 +11,14 @@ namespace Sledgehammer;
  */
 class SimpleRecord extends ActiveRecord {
 
+	function __set($property, $value) {
+		if ($this->_state == 'constructed') {
+			$this->$property = $value; // Add properties on the fly (in the construction fase)
+		} else {
+			return parent::__set($property, $value);
+		}
+	}
+
 	/**
 	 * Find an instance based on critera.
 	 *
@@ -30,6 +38,7 @@ class SimpleRecord extends ActiveRecord {
 		$options['model'] = $model;
 		return parent::one($conditions, $allowNone, $options);
 	}
+
 	/**
 	 *
 	 * @param string $model
@@ -61,12 +70,6 @@ class SimpleRecord extends ActiveRecord {
 		return parent::create($values, $options);
 	}
 
-	public function __set($property, $value) {
-		if ($this->_state == 'constructed') {
-			$this->$property = $value; // Add properties on the fly (in the construction fase)
-		} else {
-			return parent::__set($property, $value);
-		}
-	}
 }
+
 ?>

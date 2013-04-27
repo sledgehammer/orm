@@ -30,6 +30,7 @@ class Repository extends Object {
 	 * @var array|ModelConfig
 	 */
 	protected $junctions = array();
+
 	/**
 	 * References to instances.
 	 * @var array
@@ -367,7 +368,7 @@ class Repository extends Object {
 		$config = $this->_getConfig($model);
 		$collection = $this->_getBackend($config->backend)->all($config->backendConfig);
 		$options['mapping'] = $this->collectionMappings[$model];
-		$repoCollection =  new RepositoryCollection($collection, $model, $this->id, $options);
+		$repoCollection = new RepositoryCollection($collection, $model, $this->id, $options);
 		if ($conditions !== null) {
 			return $repoCollection->where($conditions);
 		}
@@ -807,7 +808,7 @@ class Repository extends Object {
 						continue; // No changes (It's not even accessed)
 					}
 					$collection = $instance->$property;
-					if ($collection instanceof \Iterator) {
+					if ($collection instanceof \Traversable) {
 						$collection = iterator_to_array($collection);
 					}
 					if ($collection === null) {
@@ -1757,7 +1758,7 @@ class Repository extends Object {
 	 * @param ModelConfig $config
 	 */
 	protected function resolveInstance($wrapper, $config) {
-		if (($wrapper instanceof BelongsToPlaceholder) ===  false && ($wrapper instanceof Junction) === false) {
+		if (($wrapper instanceof BelongsToPlaceholder) === false && ($wrapper instanceof Junction) === false) {
 			throw new \Exception('Parameter $placeholder must be a BelongsToPlaceholder or Junction');
 		}
 		if ($wrapper instanceof Junction && PropertyPath::get($config->properties[$config->id[0]], $wrapper) === null) {
