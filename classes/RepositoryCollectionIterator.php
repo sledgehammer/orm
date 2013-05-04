@@ -5,6 +5,8 @@
 namespace Sledgehammer;
 /**
  * Helper class for the RepositoryCollection, which converts data to the mode instances when needed.
+ *
+ * @package ORM
  */
 class RepositoryCollectionIterator extends Object implements \Iterator {
 
