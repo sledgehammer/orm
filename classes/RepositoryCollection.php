@@ -115,8 +115,15 @@ class RepositoryCollection extends Collection {
 				$convertedConditions[0] = $logicalOperator;
 			}
 			foreach ($conditions as $path => $value) {
-				if (($path !== 0 || $logicalOperator === false) && isset($this->options['mapping'][$path])) {
-					$convertedConditions[$this->options['mapping'][$path]] = $value;
+				if (preg_match('/^(.*) ('.COMPARE_OPERATORS.')$/', $path, $match)) {
+					$column = $match[1];
+					$columnOperator = ' '.$match[2];
+				} else {
+					$column = $path;
+					$columnOperator = '';
+				}
+				if (($path !== 0 || $logicalOperator === false) && isset($this->options['mapping'][$column])) {
+					$convertedConditions[$this->options['mapping'][$column].$columnOperator] = $value;
 					unset($conditions[$path]);
 				}
 			}
