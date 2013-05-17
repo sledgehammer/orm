@@ -447,7 +447,7 @@ class RepositoryTest extends DatabaseTestCase {
 			$repo->getCustomer(1);
 			$this->fail('The additional property/missing column should have given a notice.');
 		} catch (\Exception $e) {
-			$this->assertEquals('Missing mapping for property: \CustomerWithAnExtraProperty->extra', $e->getMessage(), $e->getMessage());
+			$this->assertEquals('Unexpected property: "extra" in \CustomerWithAnExtraProperty class for "Customer"', $e->getMessage(), $e->getMessage());
 		}
 	}
 

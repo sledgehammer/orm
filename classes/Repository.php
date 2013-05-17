@@ -1516,7 +1516,14 @@ class Repository extends Object {
 				}
 			}
 			if (count($properties) !== 0) {
-				warning('Missing mapping for property: '.$config->class.'->'.human_implode(' and ', array_keys($properties)), 'Add "'.current(array_keys($properties)).'" to the ModelConfig->properties or to ModelConfig->ignoreProperties if the property wont be stored in the backend.');
+				$causes = array(
+					'1. The column is missing in the backend/database.',
+					'2. The relation/foreign key is missing in the backend/database.',
+					'3. The column has diffent name than the property. Set the ModelConfig->properties[columname] = propertyname.',
+					'4. The property should be ignored by the repository. Add the property to the ModelConfig->ignoreProperties.',
+					'5. The relation couldn\'t be detected. Add an entry to ModelConfig->hasMany or ModelConfig->belongsTo.'
+				);
+				throw new InfoException('Unexpected property: '.quoted_human_implode(' and ', array_keys($properties)).' in '.$config->class.' class for "'.$config->name.'"', '<b>Possible causes:</b><br />'.implode('<br />', $causes));
 			}
 			$this->validated[$config->name] = true;
 		}
