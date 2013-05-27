@@ -76,7 +76,7 @@ class Repository extends Object {
 
 	/**
 	 * Used to speedup the execution RepostoryCollection->where() statements. (allows db WHERE statements)
-	 * @var array
+	 * @var array  array($model => array($propertyPath => $columnPath))
 	 */
 	private $collectionMappings = array();
 
@@ -368,6 +368,8 @@ class Repository extends Object {
 		$config = $this->_getConfig($model);
 		$collection = $this->_getBackend($config->backend)->all($config->backendConfig);
 		$options['mapping'] = $this->collectionMappings[$model];
+		$options['readFilters'] = $config->readFilters;
+		$options['writeFilters'] = $config->writeFilters;
 		$repoCollection = new RepositoryCollection($collection, $model, $this->id, $options);
 		if ($conditions !== null) {
 			return $repoCollection->where($conditions);

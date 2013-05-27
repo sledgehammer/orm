@@ -76,6 +76,9 @@ class RepositoryCollection extends Collection {
 			if (empty($this->options['mapping'][$selectKey])) { // Key not in the mapping array?
 				return parent::select($selector, $selectKey);
 			}
+			if (isset($this->options['readFilters'][$selectKey])) {
+				return parent::select($selector, $selectKey); // @todo, apply the readFilter
+			}
 			$selectKeyMapped = $this->options['mapping'][$selectKey];
 		} else {
 			$selectKeyMapped = $selectKey;
@@ -85,9 +88,13 @@ class RepositoryCollection extends Collection {
 			return $this->data->select($this->options['mapping'][$selector], $selectKeyMapped);
 		} elseif (is_array($selector)) {
 			$selectorMapped = array();
+			$filters = array();
 			foreach ($selector as $to => $from) {
 				if (empty($this->options['mapping'][$from])) { // Field not in the mapping array?
 					return parent::select($selector, $selectKey);
+				}
+				if (isset($this->options['readFilters'][$from])) {
+					return parent::select($selector, $selectKey); // @todo, apply the readFilter
 				}
 				$selectorMapped[$to] = $this->options['mapping'][$from];
 			}
@@ -123,8 +130,18 @@ class RepositoryCollection extends Collection {
 					$columnOperator = '';
 				}
 				if (($path !== 0 || $logicalOperator === false) && isset($this->options['mapping'][$column])) {
-					$convertedConditions[$this->options['mapping'][$column].$columnOperator] = $value;
-					unset($conditions[$path]);
+					$convertCondition = true;
+					if (isset($this->options['writeFilters'][$column])) {
+						if (in_array($columnOperator, array('', '==', '!='))) {
+							$value = filter($value, $this->options['writeFilters'][$column]);
+						} else {
+							$convertCondition = false; // operation can't work reliably with filters
+						}
+					}
+					if ($convertCondition) {
+						$convertedConditions[$this->options['mapping'][$column].$columnOperator] = $value;
+						unset($conditions[$path]);
+					}
 				}
 			}
 			if (count($convertedConditions) > $minimum) { // There are conditions the low-level collection can handle?
