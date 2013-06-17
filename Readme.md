@@ -1,4 +1,3 @@
-
 # Sledgehammer ORM
 
 The Object-relational mapping (ORM) module for the Sledgehammer Framework.
@@ -28,12 +27,12 @@ $repo->registerBackend(new DatabaseRepositoryBackend("default")); // Extract mod
 
 // Somewhere in your application
 $repo = getRepository();
-$customer = $repo->getCustomer($_GET['id]);
+$customer = $repo->getCustomer($_GET['id']);
 $customer->name = $_POST['name'];
 $repo->saveCustomer($customer);
 
 // When the Customer class extends Sledgehammer\ActiveRecord the familiar API is also available
-$customer = Customer::find($_GET['id]);
+$customer = Customer::find($_GET['id']);
 $customer->name = $_POST['name'];
 $customer->save();
 
