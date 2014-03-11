@@ -32,7 +32,7 @@ $customer->name = $_POST['name'];
 $repo->saveCustomer($customer);
 
 // When the Customer class extends Sledgehammer\ActiveRecord the familiar API is also available
-$customer = Customer::find($_GET['id']);
+$customer = Customer::one($_GET['id']);
 $customer->name = $_POST['name'];
 $customer->save();
 
