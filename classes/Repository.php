@@ -1134,8 +1134,8 @@ class Repository extends Object {
                     }
                     if (isset($belongsTo['id'])) {
                         // Add foreign key to the collection mapping
-                        $this->collectionMappings[$config->name][$property . '->' . $belongsTo['id']] = $belongsTo['reference'];
-                        $this->collectionMappings[$config->name][$property . '.' . $belongsTo['id']] = $belongsTo['reference'];
+                        $this->collectionMappings[$config->name][$property . '->' . $belongsToConfig->properties[$belongsTo['id']]] = $belongsTo['reference'];
+                        $this->collectionMappings[$config->name][$property . '.' . $belongsToConfig->properties[$belongsTo['id']]] = $belongsTo['reference'];
                     }
                 }
                 // @todo Add collectionMapping for "convert" relations?
