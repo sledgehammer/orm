@@ -248,7 +248,7 @@ class Inflector extends Object {
      * )
      * @return string
      */
-    static function modelize($name, $options = array()) {
+    static function modelize($name, $options = []) {
         $defaults = array(
             'prefix' => '',
             'singularizeLast' => false

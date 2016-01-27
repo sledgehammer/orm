@@ -34,9 +34,9 @@ class SimpleRecord extends ActiveRecord {
      * )
      * @return SimpleRecord
      */
-    static function one($model, $conditions = null, $allowNone = false, $options = array()) {
+    static function one($model, $conditions = null, $allowNone = false, $options = []) {
         if (count(func_get_args()) < 2) {
-            warning('SimpleRecord::find() requires minimal 2 parameters', 'SimpleRecord::find($model, $conditions, $options = array()');
+            warning('SimpleRecord::find() requires minimal 2 parameters', 'SimpleRecord::find($model, $conditions, $options = []');
         }
         $options['model'] = $model;
         return parent::one($conditions, $allowNone, $options);
@@ -48,9 +48,9 @@ class SimpleRecord extends ActiveRecord {
      * @param array $options
      * @return Collection
      */
-    static function all($model = null, $options = array()) {
+    static function all($model = null, $options = []) {
         if (count(func_get_args()) < 1) {
-            warning('SimpleRecord::all() requires minimal 1 parameter', 'SimpleRecord::all($model, $options = array()');
+            warning('SimpleRecord::all() requires minimal 1 parameter', 'SimpleRecord::all($model, $options = []');
         }
         $options['model'] = $model;
         return parent::all($options);
@@ -65,9 +65,9 @@ class SimpleRecord extends ActiveRecord {
      * )
      * @return SimpleRecord
      */
-    static function create($model = null, $values = array(), $options = array()) {
+    static function create($model = null, $values = [], $options = []) {
         if (count(func_get_args()) < 2) {
-            warning('SimpleRecord::create() requires minimal 1 parameter', 'SimpleRecord::create($model, $values = array(), $options = array()');
+            warning('SimpleRecord::create() requires minimal 1 parameter', 'SimpleRecord::create($model, $values = [], $options = []');
         }
         $options['model'] = $model;
         return parent::create($values, $options);

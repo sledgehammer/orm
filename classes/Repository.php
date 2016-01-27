@@ -26,37 +26,37 @@ class Repository extends Object {
      * Registered models
      * @var array|ModelConfig array(model => config)
      */
-    protected $configs = array();
+    protected $configs = [];
 
     /**
      * Registered junctions (many-to-many)
      * @var array|ModelConfig
      */
-    protected $junctions = array();
+    protected $junctions = [];
 
     /**
      * References to instances.
      * @var array
      */
-    protected $objects = array();
+    protected $objects = [];
 
     /**
      * Mapping of plural notation to singular.
      * @var array array($plural => $singular)
      */
-    protected $plurals = array();
+    protected $plurals = [];
 
     /**
      * References to instances that are not yet added to the backend
      * @var array
      */
-    protected $created = array();
+    protected $created = [];
 
     /**
      * References to instances that have been deleted
      * @var array
      */
-    protected $deleted = array();
+    protected $deleted = [];
 
     /**
      * The unique identifier of this repository
@@ -68,7 +68,7 @@ class Repository extends Object {
      * Registered backends.
      * @var array
      */
-    protected $backends = array();
+    protected $backends = [];
 
     /**
      * The configurations of the previously generated AutoComplete Helper classes.
@@ -81,34 +81,34 @@ class Repository extends Object {
      * Used to speedup the execution RepostoryCollection->where() statements. (allows db WHERE statements)
      * @var array  array($model => array($propertyPath => $columnPath))
      */
-    private $collectionMappings = array();
+    private $collectionMappings = [];
 
     /**
      * Array containing instances that are loading saving/saved in 1 Repository->get() call.
      * Used for preventing infinite preloading.
      * @var array
      */
-    private $loading = array();
+    private $loading = [];
 
     /**
      * Array containing instances that are saving/saved in 1 Repository->save() call.
      * Used for preventing duplicate saves.
      * @var array
      */
-    private $saving = array();
+    private $saving = [];
 
     /**
      * Models which class is validated.
      *   $model => (bool) $valid
      * @var array
      */
-    private $validated = array();
+    private $validated = [];
 
     /**
      * Global repository pool. used in getRepository()
      * @var array|Repository
      */
-    static $instances = array();
+    static $instances = [];
 
     /**
      * Constructor
@@ -171,7 +171,7 @@ class Repository extends Object {
      *    true or -1: Load all relations of all relations.
      * @return object instance
      */
-    function get($model, $id, $options = array()) {
+    function get($model, $id, $options = []) {
         $config = $this->_getConfig($model);
         $index = $this->resolveIndex($id, $config);
         if (isset($this->objects[$model][$index])) {
@@ -221,7 +221,7 @@ class Repository extends Object {
      * @param array $options
      * @return object|null instance
      */
-    function one($model, $conditions, $allowNone = false, $options = array()) {
+    function one($model, $conditions, $allowNone = false, $options = []) {
         $collection = $this->all($model, $conditions, $options);
         $first = true;
         foreach ($collection as $item) {
@@ -253,8 +253,8 @@ class Repository extends Object {
      * @param array (internal) array with instances that should be exported (Detects infinite recursion)
      * @return array
      */
-    function export($model, $instances, $depth = 0, $skip = array()) {
-        $export = array();
+    function export($model, $instances, $depth = 0, $skip = []) {
+        $export = [];
         if (is_array($instances) || $instances instanceof HasManyPlaceholder || $instances instanceof Collection) {
             foreach ($instances as $index => $instance) {
                 $export[$index] = $this->export($model, $instance, $depth, $skip);
@@ -278,7 +278,7 @@ class Repository extends Object {
                     }
                     $export[$property] = $this->export($config->belongsTo[$property]['model'], $instance->$property, $depth - 1, $skip);
                 } elseif ($depth !== 1) {
-                    $export[$property] = array();
+                    $export[$property] = [];
                     foreach ($instance->$property as $index => $item) {
                         if ($item instanceof Junction) {
                             $junctionInstance = $this->resolveInstance($item, $this->_getConfig($config->hasMany[$property]['model']));
@@ -317,7 +317,7 @@ class Repository extends Object {
      *    true or -1: Load all relations of all relations.
      * @return instance
      */
-    function convert($model, $data, $options = array()) {
+    function convert($model, $data, $options = []) {
         if (isset($options['junction'])) { // Should the instance be wrapped in a Junction?
             $junction = $options['junction'];
             unset($options['junction']);
@@ -327,7 +327,7 @@ class Repository extends Object {
             if ($data === null) {
                 throw new InfoException('No fields found for this junction', $junction);
             }
-            $fields = array();
+            $fields = [];
             PropertyPath::map($data, $fields, array_flip($junction['fields']));
             $junctionClass = $junction['class'];
             return new $junctionClass($instance, $fields, true);
@@ -367,7 +367,7 @@ class Repository extends Object {
      * @param array $options
      * @return Collection
      */
-    function all($model, $conditions = null, $options = array()) {
+    function all($model, $conditions = null, $options = []) {
         $config = $this->_getConfig($model);
         $collection = $this->_getBackend($config->backend)->all($config->backendConfig);
         $options['mapping'] = $this->collectionMappings[$model];
@@ -396,7 +396,7 @@ class Repository extends Object {
      *  'model' => string // The model Improve speed and reliability of the lookup
      * @return mixed related instance or null
      */
-    function resolveProperty($instance, $property, $options = array()) {
+    function resolveProperty($instance, $property, $options = []) {
         if (array_value($options, 'reload') == false && !($instance->$property instanceof BelongsToPlaceholder || $instance->$property instanceof HasManyPlaceholder)) { // Already resolved?
             return $instance->$property;
         }
@@ -461,7 +461,7 @@ class Repository extends Object {
                     );
                 }
                 if (count($ids) == 0) {
-                    $related = new Collection(array());
+                    $related = new Collection([]);
                 } else {
                     $related = $hasManyBackend->all($hasManyConfig->backendConfig)->where(array($idProperty . ' IN' => $ids));
                 }
@@ -492,7 +492,7 @@ class Repository extends Object {
      *  'model' => string // The model Improve speed and reliability of the lookup
      * @return void
      */
-    function resolveProperties($instance, $options = array()) {
+    function resolveProperties($instance, $options = []) {
         if (in_array($instance, $this->loading, true)) {
             return;
         }
@@ -512,7 +512,7 @@ class Repository extends Object {
             }
         }
         if ($first) {
-            $this->loading = array();
+            $this->loading = [];
         }
     }
 
@@ -604,7 +604,7 @@ class Repository extends Object {
      *   'discard_changes' => (optional) Reload the instance, even when it has pending changes.
      * )
      */
-    function reload($model, $mixed = null, $options = array()) {
+    function reload($model, $mixed = null, $options = []) {
         $config = $this->_getConfig($model);
         if (array_value($options, 'all')) {
             if ($mixed !== null) {
@@ -627,7 +627,7 @@ class Repository extends Object {
             throw new \Exception('Reloading instance failed, the instance isn\'t stored in the backend');
         }
         if (is_object($mixed)) {
-            $id = array();
+            $id = [];
             foreach ($config->id as $key) {
                 $id[$key] = $object['data'][$key];
             }
@@ -659,7 +659,7 @@ class Repository extends Object {
      * @param array $values  Initial contents of the object (optional)
      * @return object
      */
-    function create($model, $values = array()) {
+    function create($model, $values = []) {
         $config = $this->_getConfig($model);
         $values = array_merge($config->defaults, $values);
         $index = uniqid('TMP-');
@@ -717,7 +717,7 @@ class Repository extends Object {
      *   'keep_missing_related_instances' => bool, false: Auto deletes removed instances
      * }
      */
-    function save($model, $instance, $options = array()) {
+    function save($model, $instance, $options = []) {
         $relationSaveOptions = $options;
         $relationSaveOptions['add_unknown_instance'] = (value($options['reject_unknown_related_instances']) == false);
         $config = $this->_getConfig($model);
@@ -792,9 +792,8 @@ class Repository extends Object {
                         if (isset($config->readFilters[$column])) {
                             $value = filter($value, $config->readFilters[$column]);
                         }
-                        $property = array_search($column, $config->properties);
-                        if ($property !== false) {
-                            $instance->$property = $value;
+                        if (isset($config->properties[$column])) {
+                            PropertyPath::set($config->properties[$column], $value, $instance);
                         }
                     }
                 }
@@ -817,7 +816,7 @@ class Repository extends Object {
                     }
                     if ($collection === null) {
                         notice('Expecting an array for property "' . $property . '"');
-                        $collection = array();
+                        $collection = [];
                     }
                     // Determine old situation
                     $old = @$this->objects[$model][$index]['hadMany'][$property];
@@ -868,7 +867,7 @@ class Repository extends Object {
                         $oldJunctions = @$object['junctions'][$property];
                         if ($oldJunctions === null) {
                             if ($object['state'] === 'new') {
-                                $oldJunctions = array();
+                                $oldJunctions = [];
                             } else {
                                 $oldValue = $instance->$property;
                                 $old = $this->resolveProperty($instance, $property, array('model' => $model, 'reload' => true))->toArray();
@@ -880,7 +879,7 @@ class Repository extends Object {
                                 }
                             }
                         }
-                        $junctions = array();
+                        $junctions = [];
                         $id = PropertyPath::get($config->properties[$config->id[0]], $instance);
                         foreach ($collection as $key => $item) {
                             $hasManyId = PropertyPath::get($hasManyIdPath, $item);
@@ -925,7 +924,7 @@ class Repository extends Object {
                                             if ($manyToManyExists && $manyToManyItem instanceof Junction) {
                                                 PropertyPath::map($junction, $manyToManyItem, array_flip($manyToMany['fields']));
                                             } else {
-                                                $fields = array();
+                                                $fields = [];
                                                 PropertyPath::map($junction, $fields, array_flip($manyToMany['fields']));
                                                 $junctionClass = (isset($hasMany['junctionClass']) ? $hasMany['junctionClass'] : '\Sledgehammer\\Junction');
                                                 $manyToManyItem = new $junctionClass($instance, $fields, true);
@@ -1012,14 +1011,14 @@ class Repository extends Object {
             }
         } catch (\Exception $e) {
             if ($rootSave) {
-                $this->saving = array(); // reset saving array.
+                $this->saving = []; // reset saving array.
             }
             $this->objects[$model][$index]['state'] = $previousState; // @todo Or is an error state more appropriate?
             throw $e;
         }
         if ($rootSave) {
             $saved = count($this->saving);
-            $this->saving = array(); // reset saving array.
+            $this->saving = []; // reset saving array.
             return $saved;
         }
     }
@@ -1250,7 +1249,7 @@ class Repository extends Object {
                 if (file_exists($autoCompleteFile)) {
                     $this->autoComplete = parse_ini_file($autoCompleteFile, true);
                 } else {
-                    $this->autoComplete = array();
+                    $this->autoComplete = [];
                 }
             }
             // Validate AutoCompleteHelper
@@ -1317,7 +1316,7 @@ class Repository extends Object {
             $old = $object['data'];
         }
         $diff = array_diff_assoc($new, $old);
-        $changes = array();
+        $changes = [];
         foreach ($diff as $key => $value) {
             if ($object['state'] == 'new') {
                 $changes[$key]['next'] = $value;
@@ -1390,7 +1389,7 @@ class Repository extends Object {
             $php .= "\t *    true or -1: Load all relations of all relations.\n";
             $php .= "\t * @return " . $config->class . "\n";
             $php .= "\t */\n";
-            $php .= "\tfunction get" . $model . '($id, $options = array()) {' . "\n";
+            $php .= "\tfunction get" . $model . '($id, $options = []) {' . "\n";
             $php .= "\t\treturn \$this->get('" . $model . "', \$id, \$options);\n";
             $php .= "\t}\n";
 
@@ -1402,7 +1401,7 @@ class Repository extends Object {
             $php .= "\t * @param array \$options\n";
             $php .= "\t * @return " . $config->class . "\n";
             $php .= "\t */\n";
-            $php .= "\tfunction one" . $model . '($conditions, $allowNone = false, $options = array()) {' . "\n";
+            $php .= "\tfunction one" . $model . '($conditions, $allowNone = false, $options = []) {' . "\n";
             $php .= "\t\treturn \$this->one('" . $model . "', \$conditions, \$allowNone, \$options);\n";
             $php .= "\t}\n";
 
@@ -1420,7 +1419,7 @@ class Repository extends Object {
             $php .= "\t *\n";
             $php .= "\t * @return Collection|" . $config->class . "\n";
             $php .= "\t */\n";
-            $php .= "\tfunction all" . $config->plural . '($conditions = null, $options = array()) {' . "\n";
+            $php .= "\tfunction all" . $config->plural . '($conditions = null, $options = []) {' . "\n";
             $php .= "\t\treturn \$this->all('" . $model . "', \$conditions, \$options);\n";
             $php .= "\t}\n";
 
@@ -1435,7 +1434,7 @@ class Repository extends Object {
             $php .= "\t *   'keep_missing_related_instances' => bool, false: Auto deletes removed instances\n";
             $php .= "\t * }\n";
             $php .= "\t */\n";
-            $php .= "\tfunction save" . $model . '(' . $instanceVar . ', $options = array()) {' . "\n";
+            $php .= "\tfunction save" . $model . '(' . $instanceVar . ', $options = []) {' . "\n";
             $php .= "\t\treturn \$this->save('" . $model . "', " . $instanceVar . ", \$options);\n";
             $php .= "\t}\n";
 
@@ -1445,7 +1444,7 @@ class Repository extends Object {
             $php .= "\t * @param array \$values (optional) Initial contents of the object \n";
             $php .= "\t * @return " . $config->class . "\n";
             $php .= "\t */\n";
-            $php .= "\tfunction create" . $model . '($values = array()) {' . "\n";
+            $php .= "\tfunction create" . $model . '($values = []) {' . "\n";
             $php .= "\t\treturn \$this->create('" . $model . "', \$values);\n";
             $php .= "\t}\n";
 
@@ -1464,7 +1463,7 @@ class Repository extends Object {
             $php .= "\t * @param " . $config->class . '|mixed ' . $instanceVar . '  An ' . $model . ' or the ' . $model . " ID\n";
             $php .= "\t * @param array \$options  Additional options \n";
             $php .= "\t */\n";
-            $php .= "\tfunction reload" . $model . '(' . $instanceVar . ', $options = array()) {' . "\n";
+            $php .= "\tfunction reload" . $model . '(' . $instanceVar . ', $options = []) {' . "\n";
             $php .= "\t\treturn \$this->reload('" . $model . "', " . $instanceVar . ");\n";
             $php .= "\t}\n";
 
@@ -1593,7 +1592,7 @@ class Repository extends Object {
      * @param ModelConfig $config
      */
     protected function convertToData($instance, $config) {
-        $to = array();
+        $to = [];
         $from = $instance;
         // Put the belongsTo columns at the beginning of the array
         foreach ($config->belongsTo as $property => $relation) {
@@ -1613,8 +1612,9 @@ class Repository extends Object {
             if ($belongsTo === null) {
                 $to[$relation['reference']] = null;
             } else {
-                $idProperty = $relation['id']; // @todo reverse mapping
-                $to[$relation['reference']] = $from->$property->$idProperty;
+                $column = $relation['id'];
+                $config->properties[$column];
+                $to[$relation['reference']] = PropertyPath::get($config->properties[$column], $from->$property);
             }
         }
         return $to;
@@ -1654,7 +1654,7 @@ class Repository extends Object {
             $config->plural = Inflector::pluralize($config->name);
         }
         $this->configs[$config->name] = $config;
-        $this->created[$config->name] = array();
+        $this->created[$config->name] = [];
         if (isset($this->plurals[$config->plural])) {
             warning('Overwriting plural[' . $config->plural . '] "' . $this->plurals[$config->plural] . '" with "' . $config->name . '"');
         }
@@ -1692,7 +1692,7 @@ class Repository extends Object {
     /**
      * Return the ($this->objects) index
      *
-     * @param mixed $from  data, instance or an id strig or array
+     * @param mixed $from  data, instance or an id string or array
      * @param ModelConfig $config
      * @return string
      */
@@ -1747,13 +1747,12 @@ class Repository extends Object {
                 }
                 $id = PropertyPath::get($config->properties[$key], $from);
                 if ($id === null) { // Id value not set?
-                    // Search in the created instances array
                     foreach ($this->created[$config->name] as $index => $created) {
                         if ($from === $created) {
                             return $index;
                         }
                     }
-                    throw new \Exception('Failed to resolve index, missing property: "' . $key . '"');
+                    throw new InfoException('Failed to resolve index, missing property: "' . $key . '"', $from);
                 }
                 return $this->resolveIndex($id);
             }

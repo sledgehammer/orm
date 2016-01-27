@@ -35,13 +35,13 @@ class ModelConfig extends Object {
      * Direct mapping of properties to the backend data structure. array($column => $property)
      * @var array
      */
-    public $properties = array();
+    public $properties = [];
 
     /**
      * The element(s) in the backend data that identifies an instance. Example: array('id') for the 'id' field.
      * @var array
      */
-    public $id = array();
+    public $id = [];
 
     /**
      * Configuration of the belongsTo relation(s)
@@ -57,7 +57,7 @@ class ModelConfig extends Object {
      *   )
      * )
      */
-    public $belongsTo = array();
+    public $belongsTo = [];
 
     /**
      * Configuration of the hasMany relation(s)
@@ -72,29 +72,29 @@ class ModelConfig extends Object {
      *     'junctionClass' => $fullclassname, // (optional) The junctionClass to use (defaults to the Sledgehammer\Junction)
      *     'fields' => array($column => $junctionProperty), // (optional) Mapping for the additional fields in a junction (many-to-many with fields)
      *     'id' => $column, // (optional) foreign_key for the related model in the many-to-many table: "product_id"
-     *     'conditions' => array() // (optional) Additional extra (static) conditions
+     *     'conditions' => [] // (optional) Additional extra (static) conditions
      *   )
      * )
      */
-    public $hasMany = array();
+    public $hasMany = [];
 
     /**
      * Default values for new instance.
      * @var array 'property(PropertyPath)' => default value
      */
-    public $defaults = array();
+    public $defaults = [];
 
     /**
      * Filter the data from the backend before using setting the values in the instance.
      * @var array 'column(PropertyPath)' => filter(callable)
      */
-    public $readFilters = array();
+    public $readFilters = [];
 
     /**
      * Filter the property values before writing the data to the backend.
      * @var array 'column(PropertyPath)' => filter(callable)
      */
-    public $writeFilters = array();
+    public $writeFilters = [];
 
     /**
      * The identfier of the backend this config belongs to.
@@ -114,7 +114,7 @@ class ModelConfig extends Object {
      * A whitelist of (public) properties that won't be listed as missing when validation the class.
      * @var array
      */
-    public $ignoreProperties = array();
+    public $ignoreProperties = [];
 
     /**
      * Constructor
@@ -122,7 +122,7 @@ class ModelConfig extends Object {
      * @param string $name  Model name
      * @param array $options  Additional configuration options
      */
-    function __construct($name, $options = array()) {
+    function __construct($name, $options = []) {
         $this->name = $name;
         foreach ($options as $property => $value) {
             $this->$property = $value;

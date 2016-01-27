@@ -38,7 +38,7 @@ class Junction extends Object {
      * @param array $fields  The additional fields in the relation.
      * @param bool $noAdditionalFields  The $fields parameter contains all fields for this junction.
      */
-    function __construct($instance, $fields = array(), $noAdditionalFields = false) {
+    function __construct($instance, $fields = [], $noAdditionalFields = false) {
         $this->instance = $instance;
         $this->fields = $fields;
         $this->dynamicFields = !$noAdditionalFields;

@@ -25,17 +25,17 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
      * Prepared statements for get() requests.
      * @var array
      */
-    private $preparedStatements = array();
+    private $preparedStatements = [];
 
     /**
      * @param array|string $databases
      */
-    function __construct($databases = array()) {
-        $dbLinks = array();
+    function __construct($databases = []) {
+        $dbLinks = [];
         if (is_string($databases)) { // If options is a string that option is a dbLink
             $this->identifier = $databases . '_db';
-            $dbLinks = array($databases => '');
-            $databases = array();
+            $dbLinks = [$databases => ''];
+            $databases = [];
         }
         foreach ($databases as $key => $value) {
             if (is_int($key)) {
@@ -69,34 +69,35 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
                 return $backend->getSchema($db, $tablePrefix);
             });
         }
-        $models = array();
-        $junctions = array();
+        $models = [];
+        $junctions = [];
         foreach ($schema as $tableName => $table) {
-            $name = Inflector::modelize($tableName, array(
+            $name = Inflector::modelize($tableName, [
                 'prefix' => $tablePrefix,
                 'singularizeLast' => true
-            ));
-            $plural = Inflector::modelize($tableName, array(
+            ]);
+            $plural = Inflector::modelize($tableName, [
                 'prefix' => $tablePrefix,
                 'singularizeLast' => false
-            ));
-            $config = new ModelConfig($name, array(
+            ]);
+            $config = new ModelConfig($name, [
                 'plural' => $plural,
                 'backendConfig' => $table,
-            ));
+            ]);
             $config->backendConfig['dbLink'] = $dbLink;
-            $config->backendConfig['collection'] = array('columns' => array()); // database collection config.
+            $config->backendConfig['collection'] = ['columns' => []]; // database collection config.
             $config->id = $table['primaryKeys'];
             foreach ($table['columns'] as $column => $info) {
                 $default = @$info['default'];
-                $config->defaults[$column] = $default;
+                
                 if (empty($info['foreignKeys'])) {
                     $property = Inflector::variablize($column);
                     $config->properties[$column] = $property;
+                    $config->defaults[$property] = $default;
                     if (substr($info['type'], -10) === 'tinyint(1)' && $info['null'] === false) {
                         $config->readFilters[$column] = __CLASS__ . '::valueToBool';
                         $config->writeFilters[$column] = __CLASS__ . '::boolToValue';
-                        $config->defaults[$column] = self::valueToBool($config->defaults[$column]);
+                        $config->defaults[$property] = self::valueToBool($config->defaults[$column]);
                     }
                 } else {
                     if (count($info['foreignKeys']) > 1) {
@@ -108,21 +109,21 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
                         $property = $column; // restore prefix, to prevent a naming collision.
                     }
                     if (array_key_exists($property, $table['columns']) && $property != $column) {
-                        notice('Unable to use belongsTo["' . $property . '"], an column with the same name exists', array('belongsTo' => $info, 'Exising column' => $table['columns'][$property]));
+                        notice('Unable to use belongsTo["' . $property . '"], an column with the same name exists', ['belongsTo' => $info, 'Exising column' => $table['columns'][$property]]);
                     }
-                    $foreignModel = Inflector::modelize($foreignKey['table'], array(
-                                'prefix' => $tablePrefix,
-                                'singularizeLast' => true
-                    ));
-                    $config->belongsTo[$property] = array(
+                    $foreignModel = Inflector::modelize($foreignKey['table'], [
+                        'prefix' => $tablePrefix,
+                        'singularizeLast' => true
+                    ]);
+                    $config->belongsTo[$property] = [
                         'reference' => $column, // foreignKey
                         'model' => $foreignModel,
                         'id' => $foreignKey['column'], // primary key
-                        'default' => $config->defaults[$column]
-                    );
-                    unset($config->defaults[$column]);
+                        'default' => $default
+                    ];
                 }
             }
+            
 
             // Detect junction table
             if (count($config->id) === 2) {
@@ -174,12 +175,12 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
                     $belongsToModel = $models[$reference['table']];
                     foreach ($belongsToModel->belongsTo as $belongsToProperty => $belongsTo) {
                         if ($belongsTo['model'] == $config->name && $belongsTo['reference'] == $reference['column']) {
-                            $config->hasMany[$property] = array(
+                            $config->hasMany[$property] = [
                                 'model' => $belongsToModel->name,
                                 'reference' => $reference['column'],
                                 'belongsTo' => $belongsToProperty
-                            );
-                            $config->defaults[$property] = array();
+                            ];
+                            $config->defaults[$property] = [];
                             break;
                         }
                     }
@@ -195,10 +196,10 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
                 if (isset($junctions[$reference['table']])) {
                     // Many-to-many realtion
                     $junction = $junctions[$reference['table']];
-                    $hasMany = array(
+                    $hasMany = [
                         'through' => $junction->name,
                         'fields' => $junction->properties,
-                    );
+                    ];
                     foreach ($junction->belongsTo as $belongsToProperty => $belongsTo) {
                         if ($belongsTo['model'] === $config->name) {
                             $hasMany['reference'] = $belongsTo['reference'];
@@ -216,7 +217,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
                         break;
                     }
                     $config->hasMany[$property] = $hasMany;
-                    $config->defaults[$property] = array();
+                    $config->defaults[$property] = [];
                 }
             }
         }
@@ -236,11 +237,11 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
                 throw new \Exception('Incomplete id, table: "' . $config['table'] . '" requires: "' . human_implode('", "', $config['primaryKeys']) . '"');
             }
         } elseif (count($config['primaryKeys']) == 1) {
-            $id = array($config['primaryKeys'][0] => $id); // convert $id to array notation
+            $id = [$config['primaryKeys'][0] => $id]; // convert $id to array notation
         } else {
             throw new \Exception('Incomplete id, table: "' . $config['table'] . '" requires: "' . human_implode('", "', $config['primaryKeys']) . '"');
         }
-        $params = array();
+        $params = [];
         foreach ($config['primaryKeys'] as $column) {
             if (isset($id[$column]) == false) {
                 throw new \Exception('Missing key: "' . $column . '"'); // @todo better error
@@ -286,7 +287,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
      */
     function update($new, $old, $config) {
         $db = getDatabase($config['dbLink']);
-        $changes = array();
+        $changes = [];
         foreach ($new as $column => $value) {
             if ($value !== $old[$column]) { // is the value changed?
                 $changes[] = $db->quoteIdentifier($column) . ' = ' . $this->quote($db, $column, $value);
@@ -312,10 +313,14 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
      */
     function add($data, $config) {
         $db = getDatabase($config['dbLink']);
-        $columns = array();
-        $values = array();
+        $columns = [];
+        $values = [];
+        $idColumn = (count($config['primaryKeys']) == 1) ? $config['primaryKeys'][0] : false;
         foreach ($data as $column => $value) {
-            if ($value === value($config['columns'][$column]['default'])) {
+            if ($column === $idColumn && $value === null) {
+                continue;
+            }
+            if (isset($config['columns'][$column]['default']) && $value === $config['columns'][$column]['default']) {
                 continue;
             }
             $columns[] = $db->quoteIdentifier($column);
@@ -325,16 +330,13 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
         if ($result === false) {
             throw new \Exception('Adding record into "' . $config['table'] . '" failed');
         }
-        if (count($config['primaryKeys']) == 1) {
-            $idColumn = $config['primaryKeys'][0];
-            if ($data[$idColumn] === null) {
-                if ($db instanceof \PDO) {
-                    $data[$idColumn] = $db->lastInsertId();
-                } elseif ($db instanceof \mysqli) {
-                    $data[$idColumn] = $db->insert_id;
-                } else {
-                    notice('Implement insert_id for ' . get_class($db));
-                }
+        if ($idColumn && $data[$idColumn] === null) {
+            if ($db instanceof \PDO) {
+                $data[$idColumn] = $db->lastInsertId();
+            } elseif ($db instanceof \mysqli) {
+                $data[$idColumn] = $db->insert_id;
+            } else {
+                notice('Implement insert_id for ' . get_class($db));
             }
         }
         return $data;
@@ -373,7 +375,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
      */
     private function generateWhere($keys, $config, $prepare = false) {
         $db = getDatabase($config['dbLink']);
-        $where = array();
+        $where = [];
         foreach ($config['primaryKeys'] as $column) {
             if (isset($keys[$column]) == false) {
                 throw new \Exception('Missing key: "' . $column . '"'); // @todo better error
@@ -430,7 +432,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
      * @return array  schema definition
      */
     private function getSchemaMySql($db, $prefix = '') {
-        $schema = array();
+        $schema = [];
         if ($prefix != '') {
             $tables = $db->query('SHOW TABLES LIKE ' . $db->quote($prefix . '%'));
         } else {
@@ -438,13 +440,13 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
         }
         foreach ($tables as $row) {
             $table = current($row);
-            $referencedBy = isset($schema[$table]) ? $schema[$table]['referencedBy'] : array();
-            $schema[$table] = array(
+            $referencedBy = isset($schema[$table]) ? $schema[$table]['referencedBy'] : [];
+            $schema[$table] = [
                 'table' => $table,
-                'columns' => array(),
-                'primaryKeys' => array(),
+                'columns' => [],
+                'primaryKeys' => [],
                 'referencedBy' => $referencedBy,
-            );
+            ];
             $config = &$schema[$table];
             $showCreate = $db->fetchRow('SHOW CREATE TABLE ' . $db->quoteIdentifier($table));
             $createSyntax = $showCreate['Create Table'];
@@ -462,10 +464,10 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
                 $parts = explode(' ', $line);
                 if (substr($parts[0], 0, 1) == '`') { // Column description
                     $column = substr($parts[0], 1, -1);
-                    $config['columns'][$column] = array(
+                    $config['columns'][$column] = [
                         'type' => $parts[1],
                         'null' => true,
-                    );
+                    ];
                     $columnConfig = &$config['columns'][$column];
                     for ($i = 2; $i < count($parts); $i++) {
                         $part = $parts[$i];
@@ -533,7 +535,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
                     }
                 } else { // Key description
                     $exploded = explode(' ', $line);
-                    $parts = array();
+                    $parts = [];
                     for ($i = 0; $i < count($exploded); $i++) {
                         $part = $exploded[$i];
                         if (substr($part, 0, 1) === '`') {
@@ -566,11 +568,11 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
                             $column = substr($parts[3], 1, -1);
                             $foreignTable = $parts[5];
                             $foreignColumn = substr($parts[6], 1, -1);
-                            $config['columns'][$column]['foreignKeys'][] = array(
+                            $config['columns'][$column]['foreignKeys'][] = [
                                 'table' => $foreignTable,
                                 'column' => $foreignColumn
-                            );
-                            $schema[$foreignTable]['referencedBy'][] = array('table' => $table, 'column' => $column);
+                            ];
+                            $schema[$foreignTable]['referencedBy'][] = ['table' => $table, 'column' => $column];
                             break;
 
                         default:
@@ -590,7 +592,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
      * @return array  schema definition
      */
     private function getSchemaSqlite($db, $prefix = false) {
-        $schema = array();
+        $schema = [];
         $sql = 'SELECT tbl_name FROM sqlite_master WHERE type = "table" AND name != "sqlite_sequence"';
         if ($prefix) {
             $sql .= ' tbl_name LIKE ' . $db->quote($prefix . '%');
@@ -600,23 +602,23 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
         foreach ($tables as $row) {
             $table = $row['tbl_name'];
 
-            $schema[$table] = array(
+            $schema[$table] = [
                 'table' => $table,
-                'columns' => array(),
-                'primaryKeys' => array(),
-            );
+                'columns' => [],
+                'primaryKeys' => [],
+            ];
             $config = &$schema[$table];
             if (array_key_exists('referencedBy', $config) == false) {
-                $config['referencedBy'] = array();
+                $config['referencedBy'] = [];
             }
 
             $columns = $db->query('PRAGMA table_info(' . $table . ')');
             foreach ($columns as $column) {
                 $name = $column['name'];
-                $config['columns'][$name] = array(
+                $config['columns'][$name] = [
                     'type' => $column['type'],
                     'null' => ($column['notnull'] == '0'),
-                );
+                ];
                 if ($column['dflt_value'] !== null) {
                     $config['columns'][$name]['default'] = $column['dflt_value'];
                 }
@@ -633,14 +635,14 @@ class DatabaseRepositoryBackend extends RepositoryBackend {
 
             $foreignKeys = $db->query('PRAGMA foreign_key_list(' . $table . ')');
             foreach ($foreignKeys as $key) {
-                $schema[$table]['columns'][$key['from']]['foreignKeys'][] = array(
+                $schema[$table]['columns'][$key['from']]['foreignKeys'][] = [
                     'table' => $key['table'],
                     'column' => $key['to'],
-                );
-                $schema[$key['table']]['referencedBy'][] = array(
+                ];
+                $schema[$key['table']]['referencedBy'][] = [
                     'table' => $table,
                     'column' => $key['from'],
-                );
+                ];
             }
             unset($config);
         }

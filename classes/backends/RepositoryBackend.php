@@ -29,7 +29,7 @@ abstract class RepositoryBackend extends Object {
      * The junction tables
      * @var array|ModelConfig
      */
-    public $junctions = array();
+    public $junctions = [];
 
     /**
      * Retrieve model-data by id.
@@ -55,16 +55,6 @@ abstract class RepositoryBackend extends Object {
      */
     function related($config, $reference, $id) {
         return $this->all($config)->where(array($reference => $id));
-    }
-
-    /*
-     * @param array $relation  The hasMany relation
-     * @param mixed $id  The ID of the container instance.
-     * @return \Traversable|array
-     */
-
-    function related_old($relation, $id) {
-        dump($relation);
     }
 
     /**
@@ -175,7 +165,7 @@ abstract class RepositoryBackend extends Object {
         }
         notice('Property: "' . $from . ' not found"');
     }
-
+    
     /**
      * Remove a property
      *

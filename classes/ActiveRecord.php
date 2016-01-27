@@ -41,12 +41,12 @@ abstract class ActiveRecord extends Observable {
      * @var array
      */
     protected $events = array(
-        'create' => array(), // When a new instance is created (with initial data), but commited to the backend.
-        'load' => array(), // After the data from the backend is injected into the ActiveRecord.
-        'saving' => array(), // Before the data is sent to the backend
-        'saved' => array(), // After the data is sent to the backend
-        'deleting' => array(), // Before the delete operation is sent to the backend
-        'deleted' => array(), // When the Record is deleted
+        'create' => [], // When a new instance is created (with initial data), but commited to the backend.
+        'load' => [], // After the data from the backend is injected into the ActiveRecord.
+        'saving' => [], // Before the data is sent to the backend
+        'saved' => [], // After the data is sent to the backend
+        'deleting' => [], // Before the delete operation is sent to the backend
+        'deleted' => [], // When the Record is deleted
     );
 
     /**
@@ -75,7 +75,7 @@ abstract class ActiveRecord extends Observable {
      * )
      * @return ActiveRecord
      */
-    static function create($values = array(), $options = array()) {
+    static function create($values = [], $options = []) {
         $model = static::_getModel($options);
         $repo = static::_getRepostory($options);
         $instance = $repo->create($model, $values);
@@ -102,7 +102,7 @@ abstract class ActiveRecord extends Observable {
      * )
      * @return ActiveRecord
      */
-    static function one($conditions, $allowNone = false, $options = array()) {
+    static function one($conditions, $allowNone = false, $options = []) {
         $model = static::_getModel($options);
         $repositoryId = static::_getRepostory($options);
         $repo = getRepository($repositoryId);
@@ -134,7 +134,7 @@ abstract class ActiveRecord extends Observable {
      * )
      * @return Collection|ActiveRecord
      */
-    static function all($options = array()) {
+    static function all($options = []) {
         $model = static::_getModel($options);
         $repositoryId = static::_getRepostory($options);
         $repo = getRepository($repositoryId);
@@ -145,7 +145,7 @@ abstract class ActiveRecord extends Observable {
      * Write the state to the persistance layer.
      * @throws \Exception
      */
-    function save($options = array()) {
+    function save($options = []) {
         if ($this->_state == 'deleted') {
             throw new \Exception(get_class($this) . '->save() not allowed on deleted objects');
         }
@@ -197,7 +197,7 @@ abstract class ActiveRecord extends Observable {
      * @param array $options
      * @return string
      */
-    protected static function _getModel($options = array()) {
+    protected static function _getModel($options = []) {
         if (isset($options['model'])) {
             // Use the model given in the parameters
             return $options['model'];
@@ -223,7 +223,7 @@ abstract class ActiveRecord extends Observable {
      * @param array $options
      * @return Repository
      */
-    protected static function _getRepostory($options = array()) {
+    protected static function _getRepostory($options = []) {
         if (isset($options['repository'])) {
             // Use the repository given in the parameters
             return getRepository($options['repository']);

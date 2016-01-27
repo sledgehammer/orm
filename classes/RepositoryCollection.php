@@ -30,7 +30,7 @@ class RepositoryCollection extends Collection {
      * Convert options.
      * @var array
      */
-    protected $options = array();
+    protected $options = [];
 
     /**
      * True when all raw elements been converted to repository items. (Triggered by offsetSet, toArray, etc)
@@ -47,11 +47,11 @@ class RepositoryCollection extends Collection {
      *  'mapping' => array
      *    data => object  mapping (reverse from modelConfig mapping)
      */
-    function __construct($collection, $model, $repository = 'default', $options = array()) {
+    function __construct($collection, $model, $repository = 'default', $options = []) {
         $this->model = $model;
         $this->repository = $repository;
         if (array_key_exists('mapping', $options) === false) {
-            $options['mapping'] = array();
+            $options['mapping'] = [];
         }
         $this->options = $options;
         parent::__construct($collection);
@@ -79,25 +79,27 @@ class RepositoryCollection extends Collection {
             if (empty($this->options['mapping'][$selectKey])) { // Key not in the mapping array?
                 return parent::select($selector, $selectKey);
             }
-            if (isset($this->options['readFilters'][$selectKey])) {
-                return parent::select($selector, $selectKey); // @todo, apply the readFilter
+            if ($this->hasReadFilter($selectKey)) { // Key requires a readFilter?
+                return parent::select($selector, $selectKey); 
             }
             $selectKeyMapped = $this->options['mapping'][$selectKey];
         } else {
             $selectKeyMapped = $selectKey;
         }
         if (is_string($selector) && isset($this->options['mapping'][$selector])) {
+            if ($this->hasReadFilter($selector)) {
+                return parent::select($selector, $selectKey); 
+            }
             // Bypass Repository and return the resultset directly from the backend-collection.
             return $this->data->select($this->options['mapping'][$selector], $selectKeyMapped);
         } elseif (is_array($selector)) {
-            $selectorMapped = array();
-            $filters = array();
+            $selectorMapped = [];
             foreach ($selector as $to => $from) {
                 if (empty($this->options['mapping'][$from])) { // Field not in the mapping array?
                     return parent::select($selector, $selectKey);
                 }
-                if (isset($this->options['readFilters'][$from])) {
-                    return parent::select($selector, $selectKey); // @todo, apply the readFilter
+                if ($this->hasReadFilter($from)) {
+                    return parent::select($selector, $selectKey);
                 }
                 $selectorMapped[$to] = $this->options['mapping'][$from];
             }
@@ -114,7 +116,7 @@ class RepositoryCollection extends Collection {
         }
         if ($this->data instanceof Collection && is_array($conditions)) {
             $logicalOperator = extract_logical_operator($conditions);
-            $convertedConditions = array();
+            $convertedConditions = [];
             if ($logicalOperator === false) {
                 if (count($conditions) > 1) {
                     notice('Conditions with multiple conditions require a logical operator.', "Example: array('AND', 'x' => 1, 'y' => 5)");
@@ -222,7 +224,7 @@ class RepositoryCollection extends Collection {
     protected function dataToArray() {
         if ($this->isConverted === false) {
             $repo = getRepository($this->repository);
-            $data = array();
+            $data = [];
             foreach ($this->data as $key => $item) {
                 $data[$key] = $repo->convert($this->model, $item, $this->options);
             }
@@ -242,6 +244,14 @@ class RepositoryCollection extends Collection {
         }
         $repo = getRepository($this->repository);
         return $repo->convert($this->model, $item, $this->options);
+    }
+    
+    private function hasReadFilter($property) {
+        $column = @$this->options['mapping'][$property];
+        if ($column === null) {
+            return false;
+        }
+        return isset($this->options['readFilters'][$column]);
     }
 
 }

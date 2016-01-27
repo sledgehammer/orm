@@ -31,7 +31,7 @@ class BelongsToPlaceholder extends Object {
      */
     private $__container;
 
-    function __construct($reference, $container, $fields = array()) {
+    function __construct($reference, $container, $fields = []) {
         $this->__placeholder = $reference;
         $this->__container = $container;
         $this->__fields = $fields;
