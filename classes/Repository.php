@@ -10,7 +10,7 @@ namespace Sledgehammer;
  * Repository/DataMapper
  *
  * An API to retrieve and store models from their backends and track their changes.
- * A model is a object orientented interface on top of the data the backend provides.
+ * A model is a object oriented interface on top of the data the backend provides.
  *
  * @package ORM
  */
@@ -66,7 +66,7 @@ class Repository extends Object {
 
     /**
      * Registered backends.
-     * @var array
+     * @var RepositoryBackend[]
      */
     protected $backends = [];
 
@@ -447,10 +447,11 @@ class Repository extends Object {
                 $junction = $this->junctions[$hasMany['through']];
                 $junctionData = $this->_getBackend($junction->backend)->related($junction->backendConfig, $hasMany['reference'], $id);
                 $junctions = $junctionData->selectKey($hasMany['id'])->toArray();
+
                 $this->objects[$model][$index]['junctions'][$property] = $junctions;
                 $ids = array_keys($junctions);
 
-                if (count($hasMany['fields']) > 0) {
+                if (empty($hasMany['fields']) === false && count($hasMany['fields']) > 0) {
                     $options['junction'] = array(
                         'model' => $model,
                         'index' => $index,
@@ -463,7 +464,7 @@ class Repository extends Object {
                 if (count($ids) == 0) {
                     $related = new Collection([]);
                 } else {
-                    $related = $hasManyBackend->all($hasManyConfig->backendConfig)->where(array($idProperty . ' IN' => $ids));
+                    $related = $hasManyBackend->all($hasManyConfig->backendConfig)->where(array($hasManyConfig->id[0] . ' IN' => $ids));
                 }
             }
 
@@ -472,6 +473,7 @@ class Repository extends Object {
             if (isset($hasMany['conditions'])) {
                 $collection = $collection->where($hasMany['conditions']);
             }
+
             $this->objects[$model][$index]['hadMany'][$property] = $collection->toArray(); // Add a items for change detection
             return $instance->$property = $collection;
         }
@@ -862,7 +864,8 @@ class Repository extends Object {
                         }
                         $junctionConfig = $this->junctions[$hasMany['through']];
                         $junctionBackend = $this->_getBackend($junctionConfig->backend);
-                        $hasManyIdPath = $hasManyConfig->properties[$config->id[0]];
+
+                        $hasManyIdPath = $hasManyConfig->properties[$hasManyConfig->id[0]];
 
                         $oldJunctions = @$object['junctions'][$property];
                         if ($oldJunctions === null) {
@@ -1608,13 +1611,12 @@ class Repository extends Object {
         }
         // Map the belongTo to the "*_id" columns.
         foreach ($config->belongsTo as $property => $relation) {
-            $belongsTo = $from->$property;
-            if ($belongsTo === null) {
+            if ($from->$property === null) {
                 $to[$relation['reference']] = null;
             } else {
                 $column = $relation['id'];
-                $config->properties[$column];
-                $to[$relation['reference']] = PropertyPath::get($config->properties[$column], $from->$property);
+                $belongsToConfig = $this->_getConfig($relation['model']);
+                $to[$relation['reference']] = PropertyPath::get($belongsToConfig->properties[$column], $from->$property);
             }
         }
         return $to;

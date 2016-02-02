@@ -21,7 +21,7 @@ abstract class RepositoryBackend extends Object {
     /**
      * The available models in this backend.
      *
-     * @var array|ModelConfig  array('Model name' => ModelConfig, 'Model2 name' => ModelConfig, ...)
+     * @var ModelConfig[] array('Model name' => ModelConfig, 'Model2 name' => ModelConfig, ...)
      */
     public $configs;
 
