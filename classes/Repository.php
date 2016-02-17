@@ -957,7 +957,17 @@ class Repository extends Object {
                                 notice('Unexpected value: null for property "' . $property . '", expecting an array or Iterator');
                             }
                             foreach ($old as $key => $item) {
-                                if (array_search($item, $collection, true) === false) {
+                                if (in_array($item, $collection, true) === false) {
+                                    if ($hasMany['through'] && !empty($hasMany['fields'])) { // Can't compare Junctions using a identity check
+                                        $getJunctionId = PropertyPath::compile($hasManyConfig->properties[$hasMany['id']]);
+                                        $oldId = $getJunctionId($item);
+                                        foreach ($collection as $newItem) {
+                                            $newId = $getJunctionId($newItem);
+                                            if ($newId === $oldId) {
+                                                continue 2; 
+                                            }
+                                        }
+                                    }
                                     if (is_object($item)) {
                                         if (empty($hasMany['through'])) { // one-to-many?
                                             $this->delete($hasMany['model'], $item); // Delete the related model
