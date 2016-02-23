@@ -1,22 +1,28 @@
 <?php
 
 /**
- * Test de functionaliteit van Record (via de GenericRecord class)
+ * Test de functionaliteit van Record (via de GenericRecord class).
  */
 
-namespace Sledgehammer;
+namespace Sledgehammer\Orm;
 
-class RecordRelationTest extends DatabaseTestCase {
+use PDO;
+use Sledgehammer\Core\Database\Connection;
+use Sledgehammer\Orm\Backend\DatabaseRepositoryBackend;
+use SledgehammerTests\Core\DatabaseTestCase;
 
+class RecordRelationTest extends DatabaseTestCase
+{
     /**
      * @var int Number of queries it takes to inspect the test database (mysql: 6, sqlite: 11)
      */
     private $queryCountAfterInspectDatabase;
 
-    public function __construct() {
+    public function __construct()
+    {
         parent::__construct();
         DatabaseRepositoryBackend::$cacheTimeout = false; // always inspect database
-        if ($this->getDatabase()->getAttribute(\PDO::ATTR_DRIVER_NAME) == 'mysql') {
+        if (Connection::instance($this->dbLink)->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql') {
             $this->queryCountAfterInspectDatabase = 6;
         } else {
             $this->queryCountAfterInspectDatabase = 11;
@@ -24,19 +30,22 @@ class RecordRelationTest extends DatabaseTestCase {
     }
 
     /**
-     * Elke test_* met een schone database beginnen
+     * Elke test_* met een schone database beginnen.
+     *
      * @param Database $db
      */
-    function fillDatabase($db) {
-        $db->import(dirname(__FILE__) . '/rebuild_test_database.' . $db->getAttribute(\PDO::ATTR_DRIVER_NAME) . '.sql', $error);
+    public function fillDatabase($db)
+    {
+        $db->import(dirname(__FILE__).'/rebuild_test_database.'.$db->getAttribute(PDO::ATTR_DRIVER_NAME).'.sql', $error);
         $repo = new Repository();
         $backend = new DatabaseRepositoryBackend(array($this->dbLink));
         $repo->registerBackend($backend);
         Repository::$instances[__CLASS__] = $repo;
     }
 
-    function test_hasMany_iterator() {
-        $customer = getRepository(__CLASS__)->getCustomer(1);
+    public function test_hasMany_iterator()
+    {
+        $customer = Repository::instance(__CLASS__)->getCustomer(1);
 //		$this->assertQueryCount(2, 'Geen queries bij het defineren van een relatie'); // Verwacht een SELECT & DESCRIBE
 //		$this->assertQueryCount(2, 'Geen queries voor het opvragen van de relatie');
 
@@ -47,16 +56,17 @@ class RecordRelationTest extends DatabaseTestCase {
         $related = $customer->orders;
 
         foreach ($related as $id => $orders) {
-//			$this->assertEquals($id, 1); // no longer the default (array != dictionany in json, etc)
+            //			$this->assertEquals($id, 1); // no longer the default (array != dictionany in json, etc)
             $this->assertEquals($orders->product, 'Kop koffie');
         }
-        $customer->orders[] = getRepository(__CLASS__)->createOrder(array('product' => 'New product', 'id' => 5));
+        $customer->orders[] = Repository::instance(__CLASS__)->createOrder(array('product' => 'New product', 'id' => 5));
 //		$array = iterator_to_array($customer->orders); // no longer an iterator (incompatible with poco)
 //		$this->assertEquals(value($array[5]->product), 'New product', 'The iterator should include the "additions"'); // no longer able to set the key based on id (it's  just an array)
     }
 
-    function test_hasMany_array_access() {
-        $customer = getRepository(__CLASS__)->getCustomer(2, true);
+    public function test_hasMany_array_access()
+    {
+        $customer = Repository::instance(__CLASS__)->getCustomer(2, true);
         $order = clone $customer->orders[0];
         $this->assertEquals($order->product, 'Walter PPK 9mm');
         $customer->orders[0]->product = 'Magnum';
@@ -74,21 +84,22 @@ class RecordRelationTest extends DatabaseTestCase {
 //			$this->fail('Sanity check failed');
 //		}
 
-        $customer->orders[] = getRepository(__CLASS__)->createOrder(array('product' => 'New product')); // Product zonder ID
-        $customer->orders[] = getRepository(__CLASS__)->createOrder(array('id' => 7, 'product' => 'Wodka Martini'));
+        $customer->orders[] = Repository::instance(__CLASS__)->createOrder(array('product' => 'New product')); // Product zonder ID
+        $customer->orders[] = Repository::instance(__CLASS__)->createOrder(array('id' => 7, 'product' => 'Wodka Martini'));
 //		$this->assertEquals($customer->orders[7]->product, 'Wodka Martini'); // No longer has key based on ID, is just an array
         $this->assertEquals(count($customer->orders), 4, 'There should be 4 items in the relation');
-        getRepository(__CLASS__)->saveCustomer($customer);
+        Repository::instance(__CLASS__)->saveCustomer($customer);
         $this->assertQuery("INSERT INTO orders (customer_id, id, product) VALUES (2, 7, 'Wodka Martini')"); // The "id" comes after the "customer_id" because the belongsTo are mapped before the normal properties
         $this->assertQuery("INSERT INTO orders (customer_id, product) VALUES (2, 'New product')");
         unset($customer->orders[3]);
         $this->assertEquals(count($customer->orders), 3, '1 item removed');
-        getRepository(__CLASS__)->saveCustomer($customer);
+        Repository::instance(__CLASS__)->saveCustomer($customer);
         $this->assertLastQuery('DELETE FROM orders WHERE id = 7');
     }
 
-    function test_hasMany_table_values() {
-        $customer = getRepository(__CLASS__)->getCustomer(2, true);
+    public function test_hasMany_table_values()
+    {
+        $customer = Repository::instance(__CLASS__)->getCustomer(2, true);
         $products = $customer->orders->select('product', 'id')->toArray();
         $this->assertEquals($products, array(
             2 => 'Walter PPK 9mm',
@@ -100,7 +111,7 @@ class RecordRelationTest extends DatabaseTestCase {
         // @todo Test add & delete
 //		$customer->products[8] = 'New product';
         //
-		// Test import
+        // Test import
 //		$customer->products = array(
 //			2 => 'Walter PPK 9mm',
 //			17 => 'Wodka Martini',
@@ -109,19 +120,20 @@ class RecordRelationTest extends DatabaseTestCase {
 //		$this->expectError('Saving changes in complex hasMany relations are not (yet) supported.');
 //		$this->expectError('Unable to save the change "Wodka Martini" in Customer->products[17]');
 //		$this->expectError('Unable to remove item[3]: "Spycam" from Customer->products');
-//		getRepository(__CLASS__)->saveCustomer($customer);
+//		Repository::instance(__CLASS__)->saveCustomer($customer);
     }
 
-    function test_many_to_many_relation() {
-        $repo = getRepository(__CLASS__);
+    public function test_many_to_many_relation()
+    {
+        $repo = Repository::instance(__CLASS__);
         $bob = $repo->getCustomer(1);
         // Reading
         $this->assertCount(1, $bob->groups);
-        $this->assertEquals("Hacker", $bob->groups[0]->title);
+        $this->assertEquals('Hacker', $bob->groups[0]->title);
         $bob->groups[0]->title = 'H4x0r';
 
         // Changing
-        $hackerGroup = getRepository(__CLASS__)->getGroup($bob->groups[0]->id);
+        $hackerGroup = Repository::instance(__CLASS__)->getGroup($bob->groups[0]->id);
         $this->assertEquals('H4x0r', $hackerGroup->title, 'Change should be reflected in the Group instance');
 
         $this->assertCount(2, $hackerGroup->customers);
@@ -146,15 +158,16 @@ class RecordRelationTest extends DatabaseTestCase {
         $this->assertCount(2, $bob->groups, 'The many-to-many relation should be updated on both ends');
     }
 
-    function test_many_to_many_relation_with_fields() {
-        $repo = getRepository(__CLASS__);
+    public function test_many_to_many_relation_with_fields()
+    {
+        $repo = Repository::instance(__CLASS__);
         $bob = $repo->getCustomer(1);
         // Reading
         $this->assertCount(1, $bob->ratings);
         $groupRating = $bob->ratings[0];
-        $this->assertEquals("Hacker", $groupRating->title); // Access normal property
-        $this->assertEquals("5", $groupRating->rating); // Access additional property
-        $this->assertInstanceOf('Sledgehammer\Junction', $groupRating);
+        $this->assertEquals('Hacker', $groupRating->title); // Access normal property
+        $this->assertEquals('5', $groupRating->rating); // Access additional property
+        $this->assertInstanceOf(Junction::class, $groupRating);
 
         // Updating
         $this->assertCount(1, $bob->ratings);
@@ -164,8 +177,8 @@ class RecordRelationTest extends DatabaseTestCase {
 
         $group = $repo->getGroup($groupRating->id);
         $this->assertCount(2, $group->ratings->toArray());
-        $this->assertLastQuery("SELECT * FROM customers WHERE id IN (1, 2)"); // The many to many for the group was't yet loaded.
-        $this->assertEquals("Bob Fanger", $group->ratings[0]->name, 'Sanity check');
+        $this->assertLastQuery('SELECT * FROM customers WHERE id IN (1, 2)'); // The many to many for the group was't yet loaded.
+        $this->assertEquals('Bob Fanger', $group->ratings[0]->name, 'Sanity check');
         $this->assertEquals(4, $group->ratings[0]->rating);
         $this->assertQueryCount(6, 'Sanity check');
         $repo->saveGroup($group);
@@ -185,7 +198,8 @@ class RecordRelationTest extends DatabaseTestCase {
         $this->assertCount(0, $bob->ratings, 'The many-to-many relation should be updated on both ends');
     }
 
-    function test_many_to_many_relation_with_mapped_fields() {
+    public function test_many_to_many_relation_with_mapped_fields()
+    {
         $repo = new Repository();
         $backend = new DatabaseRepositoryBackend(array($this->dbLink));
         $repo->registerBackend($backend);
@@ -195,9 +209,9 @@ class RecordRelationTest extends DatabaseTestCase {
         // Reading
         $this->assertCount(1, $bob->ratings);
         $groupRating = $bob->ratings[0];
-        $this->assertEquals("Hacker", $groupRating->title); // Access normal property
-        $this->assertEquals("5", $groupRating->groupRating); // Access additional property
-        $this->assertInstanceOf('Sledgehammer\Junction', $groupRating);
+        $this->assertEquals('Hacker', $groupRating->title); // Access normal property
+        $this->assertEquals('5', $groupRating->groupRating); // Access additional property
+        $this->assertInstanceOf(Junction::class, $groupRating);
 
         // Updating
         $this->assertCount(1, $bob->ratings);
@@ -207,8 +221,8 @@ class RecordRelationTest extends DatabaseTestCase {
 
         $group = $repo->getGroup($groupRating->id);
         $this->assertCount(2, $group->ratings->toArray());
-        $this->assertLastQuery("SELECT * FROM customers WHERE id IN (1, 2)"); // The many to many for the group was't yet loaded.
-        $this->assertEquals("Bob Fanger", $group->ratings[0]->name, 'Sanity check');
+        $this->assertLastQuery('SELECT * FROM customers WHERE id IN (1, 2)'); // The many to many for the group was't yet loaded.
+        $this->assertEquals('Bob Fanger', $group->ratings[0]->name, 'Sanity check');
         $this->assertEquals(4, $group->ratings[0]->rating);
         $this->assertRelativeQueryCount(6, 'Sanity check');
         $repo->saveGroup($group);
@@ -228,7 +242,8 @@ class RecordRelationTest extends DatabaseTestCase {
         $this->assertCount(0, $bob->ratings, 'The many-to-many relation should be updated on both ends');
     }
 
-    function assertRelativeQueryCount($expectedCount, $message = null) {
+    public function assertRelativeQueryCount($expectedCount, $message = null)
+    {
         return parent::assertQueryCount($this->queryCountAfterInspectDatabase + $expectedCount, $message);
     }
 
@@ -240,5 +255,3 @@ class RecordRelationTest extends DatabaseTestCase {
 //		$this->fail();
 //	}
 }
-
-?>

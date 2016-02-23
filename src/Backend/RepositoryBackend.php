@@ -1,18 +1,17 @@
 <?php
 
+namespace Sledgehammer\Orm\Backend;
+
+use Exception;
+use Sledgehammer\Core\Object;
+use Sledgehammer\Orm\ModelConfig;
+use Traversable;
+
 /**
- * RepositoryBackend
+ * The minimal interface for a (read-only) Repository Backend.
  */
-
-namespace Sledgehammer;
-
-/**
- * The minimal interface for a (read-only) Repository Backend
- *
- * @package ORM
- */
-abstract class RepositoryBackend extends Object {
-
+abstract class RepositoryBackend extends Object
+{
     /**
      * @var string
      */
@@ -26,7 +25,8 @@ abstract class RepositoryBackend extends Object {
     public $configs;
 
     /**
-     * The junction tables
+     * The junction tables.
+     *
      * @var array|ModelConfig
      */
     public $junctions = [];
@@ -36,67 +36,76 @@ abstract class RepositoryBackend extends Object {
      *
      * @return mixed data
      */
-    abstract function get($id, $config);
+    abstract public function get($id, $config);
 
     /**
-     * Retrieve all available model-data
+     * Retrieve all available model-data.
      *
      * @param array $config
-     * @return \Traversable|array
+     *
+     * @return Traversable|array
      */
-    function all($config) {
-        throw new \Exception('Method: ' . get_class($this) . '->all() not implemented');
+    public function all($config)
+    {
+        throw new Exception('Method: '.get_class($this).'->all() not implemented');
     }
 
     /**
      * Retrieve all related model-data.
      *
-     * @return \Traversable|array
+     * @return Traversable|array
      */
-    function related($config, $reference, $id) {
+    public function related($config, $reference, $id)
+    {
         return $this->all($config)->where(array($reference => $id));
     }
 
     /**
-     * Update an existing record
+     * Update an existing record.
      *
      * @param mixed $new
      * @param mixed $old
      * @param array $config
+     *
      * @return mixed updated data
      */
-    function update($new, $old, $config) {
-        throw new \Exception('Method: ' . get_class($this) . '->update() not implemented');
+    public function update($new, $old, $config)
+    {
+        throw new Exception('Method: '.get_class($this).'->update() not implemented');
     }
 
     /**
-     * Add a new record
+     * Add a new record.
      *
      * @param mixed $data
      * @param array $config
+     *
      * @return mixed
      */
-    function add($data, $config) {
-        throw new \Exception('Method: ' . get_class($this) . '->add() not implemented');
+    public function add($data, $config)
+    {
+        throw new Exception('Method: '.get_class($this).'->add() not implemented');
     }
 
     /**
-     * Permanently remove an record based on the data
+     * Permanently remove an record based on the data.
      *
-     * @param array $data  Might only contain the ID
+     * @param array $data   Might only contain the ID
      * @param array $config
      */
-    function delete($data, $config) {
-        throw new \Exception('Method: ' . get_class($this) . '->remove() not implemented');
+    public function delete($data, $config)
+    {
+        throw new Exception('Method: '.get_class($this).'->remove() not implemented');
     }
 
     /**
      * Rename a model and remap the relations to the new name.
      *
-     * @param string $from  Current name
-     * @param string $to    The new name
+     * @param string $from Current name
+     * @param string $to   The new name
      */
-    function renameModel($from, $to) {
+    public function renameModel($from, $to)
+    {
         foreach ($this->configs as $config) {
             if ($config->name === $from) {
                 $config->name = $to;
@@ -122,10 +131,11 @@ abstract class RepositoryBackend extends Object {
      * @param string $from  The current propertyname
      * @param string $to    The new propertyname
      */
-    function renameProperty($model, $from, $to) {
+    public function renameProperty($model, $from, $to)
+    {
         $config = $this->configs[$model];
         if (in_array($to, $config->getPropertyNames())) {
-            notice('Overwriting existing property "' . $to . '"');
+            notice('Overwriting existing property "'.$to.'"');
             // Unset original mapping
             $column = array_search($to, $config->properties);
             if ($column !== false) {
@@ -142,6 +152,7 @@ abstract class RepositoryBackend extends Object {
         $column = array_search($from, $config->properties);
         if ($column !== false) { // A property?
             $config->properties[$column] = $to;
+
             return;
         }
         if (isset($config->belongsTo[$from])) { // A belongsTo relation?
@@ -156,40 +167,43 @@ abstract class RepositoryBackend extends Object {
                     }
                 }
             }
+
             return;
         }
         if (isset($config->hasMany[$from])) { // A hasMany relation?
             $config->hasMany[$to] = $config->hasMany[$from];
             unset($config->hasMany[$from]);
+
             return;
         }
-        notice('Property: "' . $from . ' not found"');
+        notice('Property: "'.$from.' not found"');
     }
-    
+
     /**
-     * Remove a property
+     * Remove a property.
      *
-     * @param string $model The modelname
-     * @param string $property  The current propertyname
+     * @param string $model    The modelname
+     * @param string $property The current propertyname
      */
-    function skipProperty($model, $property) {
+    public function skipProperty($model, $property)
+    {
         $config = $this->configs[$model];
         $column = array_search($property, $config->properties);
         unset($config->defaults[$property]);
         if ($column !== false) { // A property?
             unset($config->properties[$column]);
+
             return;
         }
         if ($config->hasMany[$property]) {
             unset($config->hasMany[$property]);
+
             return;
         }
         if ($config->belongsTo[$property]) {
             unset($config->belongsTo[$property]);
+
             return;
         }
     }
-
 }
-
-?>

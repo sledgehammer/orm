@@ -21,12 +21,13 @@ The Object-relational mapping (ORM) module for the Sledgehammer Framework.
 ## Usage
 
 ```php
+use Sledgehammer\Orm\Repository;
 // inside your bootstrap.php
-$repo = getRepository();
+$repo = Repository::instance();
 $repo->registerBackend(new DatabaseRepositoryBackend("default")); // Extract models from the "default" database connection.
 
 // Somewhere in your application
-$repo = getRepository();
+$repo = Repository::instance();
 $customer = $repo->getCustomer($_GET['id']);
 $customer->name = $_POST['name'];
 $repo->saveCustomer($customer);

@@ -1,0 +1,14 @@
+<phpunit bootstrap="vendor/autoload.php"
+         colors="true"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         stopOnFailure="false"
+         syntaxCheck="true">
+    <php>
+        <env name="APP_ENV" value="phpunit"/>
+    </php>
+    <testsuite name="Sledgehammer Core - TestSuite">
+        <directory>tests/</directory>
+    </testsuite>
+</phpunit>

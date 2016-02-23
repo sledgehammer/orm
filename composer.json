@@ -1,9 +1,23 @@
 {
-	"name": "sledgehammer/orm",
-	"description": "Sledgehammer ORM module: Object relational mapping",
-	"type": "library",
-	"license": "CC-BY-SA-3.0",
-	"require": {
-		"sledgehammer/core": "*"
-	}
+    "name": "sledgehammer/orm",
+    "description": "Sledgehammer ORM module: Object relational mapping",
+    "type": "library",
+    "license": "CC-BY-SA-3.0",
+    "require": {
+        "sledgehammer/core": "*"
+    },
+    "require-dev": {
+        "sledgehammer/core": "16.x-dev"
+    },
+    "autoload": {
+        "psr-4": {
+            "Sledgehammer\\Orm\\": "src/"
+        },
+        "files": ["src/functions.php"]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SledgehammerTests\\Orm\\": "tests"
+        }
+    }
 }

@@ -1,45 +1,54 @@
 <?php
 
 /**
- * Test de functionaliteit van de SimpleRecord en RepositorySQLBackend
- *
+ * Test de functionaliteit van de SimpleRecord en RepositorySQLBackend.
  */
 
-namespace Sledgehammer;
+namespace Sledgehammer\Orm;
 
-class SimpleRecordTest extends DatabaseTestCase {
+use Exception;
+use PDO;
+use Sledgehammer\Core\Collection;
+use Sledgehammer\Core\Database\Connection;
+use Sledgehammer\Orm\Backend\DatabaseRepositoryBackend;
+use SledgehammerTests\Core\DatabaseTestCase;
 
+class SimpleRecordTest extends DatabaseTestCase
+{
     /**
-     * var Record $customer  Een customer-record in STATIC mode
+     * var Record $customer  Een customer-record in STATIC mode.
      */
     private $customer;
 
-    function __construct() {
+    public function __construct()
+    {
         parent::__construct();
     }
 
     /**
-     * Elke test_* met een schone database beginnen
+     * Elke test_* met een schone database beginnen.
      */
-    function fillDatabase($db) {
-        $db->import(dirname(__FILE__) . '/rebuild_test_database.' . $db->getAttribute(\PDO::ATTR_DRIVER_NAME) . '.sql', $error);
+    public function fillDatabase($db)
+    {
+        $db->import(dirname(__FILE__).'/rebuild_test_database.'.$db->getAttribute(PDO::ATTR_DRIVER_NAME).'.sql', $error);
         $repo = new Repository();
+        Repository::$instances[__CLASS__] = $repo;
         $backend = new DatabaseRepositoryBackend(array($this->dbLink));
         foreach ($backend->configs as $config) {
-            $config->class = 'Sledgehammer\SimpleRecord';
+            $config->class = SimpleRecord::class;
         }
         $repo->registerBackend($backend);
-        Repository::$instances[__CLASS__] = $repo;
     }
 
-    function test_create_and_update() {
+    public function test_create_and_update()
+    {
         $record = $this->createCustomer();
         $record->name = 'Naam';
         $record->occupation = 'Beroep';
 //		$record->orders = array(); // @todo SimpleRecord should create an array for thes property
         $this->assertEquals($record->getChanges(), array(
             'name' => array('next' => 'Naam'),
-            'occupation' => array('next' => 'Beroep')
+            'occupation' => array('next' => 'Beroep'),
         ));
         $this->assertEquals($record->id, null);
 //		$this->assertEquals($record->getId(), null);
@@ -70,11 +79,12 @@ class SimpleRecordTest extends DatabaseTestCase {
         ));
     }
 
-    function test_find_and_update() {
+    public function test_find_and_update()
+    {
         $record = $this->getCustomer(1);
         // Object should contain values from the db. %s');
 
-        $this->assertInstanceOf('Sledgehammer\HasManyPlaceholder', $record->orders);
+        $this->assertInstanceOf(HasManyPlaceholder::class, $record->orders);
         $orders = $record->orders;
         $groups = $record->groups;
         $ratings = $record->ratings;
@@ -87,7 +97,7 @@ class SimpleRecordTest extends DatabaseTestCase {
             'occupation' => 'Software ontwikkelaar',
             'orders' => '__PlACEHOLDER__',
             'groups' => '__PlACEHOLDER__',
-            'ratings' => '__PlACEHOLDER__'
+            'ratings' => '__PlACEHOLDER__',
         ));
         $record->orders = $orders; // restore placeholder
         $record->groups = $groups; // restore placeholder
@@ -106,7 +116,8 @@ class SimpleRecordTest extends DatabaseTestCase {
         ));
     }
 
-    function test_update_to_empty_values() {
+    public function test_update_to_empty_values()
+    {
         $record = $this->getCustomer(1);
         $record->occupation = '';
         $record->save();
@@ -116,11 +127,12 @@ class SimpleRecordTest extends DatabaseTestCase {
         ));
     }
 
-    function test_open_delete_update() {
+    public function test_open_delete_update()
+    {
         // Remove the refernces
-        $this->getDatabase()->query('DELETE FROM orders WHERE customer_id = 1');
-        $this->getDatabase()->query('DELETE FROM memberships WHERE customer_id = 1');
-        $this->getDatabase()->query('DELETE FROM ratings WHERE customer_id = 1');
+        Connection::instance($this->dbLink)->query('DELETE FROM orders WHERE customer_id = 1');
+        Connection::instance($this->dbLink)->query('DELETE FROM memberships WHERE customer_id = 1');
+        Connection::instance($this->dbLink)->query('DELETE FROM ratings WHERE customer_id = 1');
         $record = $this->getCustomer(1);
         $record->delete();
         $this->assertLastQuery('DELETE FROM customers WHERE id = 1');
@@ -132,20 +144,21 @@ class SimpleRecordTest extends DatabaseTestCase {
         try {
             $record->save();
             $this->fail('Expecting an exception');
-        } catch (\Exception $e) {
-            $this->assertEquals($e->getMessage(), 'Sledgehammer\SimpleRecord->save() not allowed on deleted objects');
+        } catch (Exception $e) {
+            $this->assertEquals($e->getMessage(), SimpleRecord::class.'->save() not allowed on deleted objects');
         }
         $this->assertTableContents('customers', array(
             array('id' => '2', 'name' => 'James Bond', 'occupation' => 'Spion'),
         ));
     }
 
-    function test_create_and_delete() {
+    public function test_create_and_delete()
+    {
         $record = $this->createCustomer();
         try {
             $record->delete();
             $this->fail('Expecting an exception');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->assertEquals($e->getMessage(), 'Removing instance failed, the instance isn\'t stored in the backend');
         }
     }
@@ -163,7 +176,8 @@ class SimpleRecordTest extends DatabaseTestCase {
 //		$this->assertEquals($record->name, 'Bob Fanger');
 //	}
 
-    function test_all() {
+    public function test_all()
+    {
         $collection = $this->getAllCustomers();
         $this->assertQueryCount(0);
         $records = iterator_to_array($collection);
@@ -174,7 +188,8 @@ class SimpleRecordTest extends DatabaseTestCase {
         $this->assertEquals($records[1]->name, 'James Bond');
     }
 
-    function test_all_with_array() {
+    public function test_all_with_array()
+    {
         $collection = $this->getAllCustomers()->where(array('name' => 'James Bond'));
         $this->assertEquals(count($collection), 1);
         $this->assertLastQuery("SELECT COUNT(*) FROM customers WHERE name = 'James Bond'");
@@ -186,7 +201,8 @@ class SimpleRecordTest extends DatabaseTestCase {
 //		$this->assertLastQuery('SELECT * FROM customers WHERE name = "James Bond"');
 //	}
 
-    function test_belongsTo_detection() {
+    public function test_belongsTo_detection()
+    {
         $order = $this->getOrder(1);
 //		$this->assertEquals($orders->customer_id, 1); // Sanity check
         $this->assertQueryCount(1); // Sanity check
@@ -200,7 +216,8 @@ class SimpleRecordTest extends DatabaseTestCase {
 //		$this->assertQueryCount(5, 'Should generate 1 SELECT query');
     }
 
-    function test_belongsTo_setter() {
+    public function test_belongsTo_setter()
+    {
         $order = $this->getOrder(1);
         $james = $this->getCustomer(2);
         $order->customer = $james;
@@ -210,7 +227,8 @@ class SimpleRecordTest extends DatabaseTestCase {
         )));
     }
 
-    function test_belongsTo_recursief_save() {
+    public function test_belongsTo_recursief_save()
+    {
         $order = $this->createOrder();
         $order->product = 'New product';
 
@@ -222,40 +240,42 @@ class SimpleRecordTest extends DatabaseTestCase {
     }
 
     /**
-     * @return SimpleRecord  Een customer-record in INSERT mode
+     * @return SimpleRecord Een customer-record in INSERT mode
      */
-    private function createCustomer($values = array()) {
+    private function createCustomer($values = array())
+    {
         return SimpleRecord::create('Customer', $values, array('repository' => __CLASS__));
     }
 
     /**
-     * @return SimpleRecord  Een customer-record in UPDATE mode
+     * @return SimpleRecord Een customer-record in UPDATE mode
      */
-    private function getCustomer($id) {
+    private function getCustomer($id)
+    {
         return SimpleRecord::one('Customer', $id, false, array('repository' => __CLASS__));
     }
 
     /**
      * @return Collection
      */
-    private function getAllCustomers() {
+    private function getAllCustomers()
+    {
         return SimpleRecord::all('Customer', array('repository' => __CLASS__));
     }
 
     /**
-     * @return SimpleRecord  Een order-record in INSERT mode
+     * @return SimpleRecord Een order-record in INSERT mode
      */
-    private function createOrder($values = array()) {
+    private function createOrder($values = array())
+    {
         return SimpleRecord::create('Order', $values, array('repository' => __CLASS__));
     }
 
     /**
-     * @return SimpleRecord  Een order-record in UPDATE mode
+     * @return SimpleRecord Een order-record in UPDATE mode
      */
-    private function getOrder($id) {
+    private function getOrder($id)
+    {
         return SimpleRecord::one('Order', $id, false, array('repository' => __CLASS__));
     }
-
 }
-
-?>

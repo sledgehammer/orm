@@ -1,50 +1,51 @@
 <?php
 
-/**
- * CollectionView
- */
+namespace Sledgehammer\Orm;
 
-namespace Sledgehammer;
+use Sledgehammer\Core\Collection;
+use Sledgehammer\Core\PropertyPath;
 
 /**
  * Extract the key/value of the collection based on a propertypath.
- *
- * @package ORM
  */
-class CollectionView extends Collection {
-
+class CollectionView extends Collection
+{
     protected $valueField = null;
     protected $keyField = null;
 
-    function __construct($iterator, $valueField, $keyField = null) {
+    public function __construct($iterator, $valueField, $keyField = null)
+    {
         $this->valueField = $valueField;
         $this->keyField = $keyField;
         parent::__construct($iterator);
     }
 
-    public function key() {
+    public function key()
+    {
         $key = parent::key();
         if ($this->keyField === null) {
             return $key;
         }
+
         return PropertyPath::get($this->keyField, parent::current());
     }
 
-    function current() {
+    public function current()
+    {
         $value = parent::current();
         if ($this->valueField === null) {
             return $value;
         }
+
         return PropertyPath::get($value, $this->valueField);
     }
 
-    public function where($conditions) {
+    public function where($conditions)
+    {
         if ($this->valueField === null && $this->data instanceof Collection) { // The valueField is not set, pass the conditions to the original collection.
-            return new CollectionView($this->data->where($conditions), null, $this->keyField);
+            return new self($this->data->where($conditions), null, $this->keyField);
         }
+
         return parent::where($conditions);
     }
-
 }
-
-?>

@@ -1,13 +1,18 @@
 <?php
 
-namespace Sledgehammer;
+namespace Sledgehammer\Orm;
+
+use Sledgehammer\Core\Debug\ErrorHandler;
+use Sledgehammer\Orm\Backend\ArrayRepositoryBackend;
+use SledgehammerTests\Core\TestCase;
 
 /**
- * ArrayRepositoryBackendTest
+ * ArrayRepositoryBackendTest.
  */
-class ArrayRepositoryBackendTest extends TestCase {
-
-    function test_get() {
+class ArrayRepositoryBackendTest extends TestCase
+{
+    public function test_get()
+    {
         $repo = $this->getRepo();
         $bond = $repo->getActor(0);
         $this->assertSame('Roger Moore', $bond->name);
@@ -15,7 +20,8 @@ class ArrayRepositoryBackendTest extends TestCase {
         $this->assertSame('Arnold Schwarzenegger', $terminator->name);
     }
 
-    function test_all() {
+    public function test_all()
+    {
         $repo = $this->getRepo();
         $actors = $repo->allActors();
         $this->assertCount(2, $actors);
@@ -24,7 +30,8 @@ class ArrayRepositoryBackendTest extends TestCase {
         $this->assertSame('Arnold Schwarzenegger', $sorted[0]->name);
     }
 
-    function test_update() {
+    public function test_update()
+    {
         $repo = $this->getRepo();
         $bond = $repo->getActor(0);
         $bond->name = 'Daniel Craig';
@@ -33,15 +40,17 @@ class ArrayRepositoryBackendTest extends TestCase {
         $this->assertSame($bond->name, 'Daniel Craig');
     }
 
-    function test_add() {
-        Framework::$errorHandler->init();
+    public function test_add()
+    {
+        ErrorHandler::enable();
         $repo = $this->getRepo();
         $neo = $repo->createActor(array('name' => 'Keanu Reeves'));
         $repo->saveActor($neo);
         $this->assertSame(2, $neo->id);
     }
 
-    private function getRepo() {
+    private function getRepo()
+    {
         $backend = new ArrayRepositoryBackend(new ModelConfig('Actor'), array(
             array(
                 'name' => 'Roger Moore',
@@ -52,9 +61,7 @@ class ArrayRepositoryBackendTest extends TestCase {
         ));
         $repo = new Repository();
         $repo->registerBackend($backend);
+
         return $repo;
     }
-
 }
-
-?>

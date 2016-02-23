@@ -1,18 +1,15 @@
 <?php
 
-/**
- * RepositoryCollectionIterator
- */
+namespace Sledgehammer\Orm;
 
-namespace Sledgehammer;
+use Iterator;
+use Sledgehammer\Core\Object;
 
 /**
  * Helper class for the RepositoryCollection, which converts data to the mode instances when needed.
- *
- * @package ORM
  */
-class RepositoryCollectionIterator extends Object implements \Iterator {
-
+class RepositoryCollectionIterator extends Object implements Iterator
+{
     /**
      * @var Iterator
      */
@@ -29,38 +26,41 @@ class RepositoryCollectionIterator extends Object implements \Iterator {
     private $model;
 
     /**
-     *
-     * @param Iterator $iterator
+     * @param Iterator          $iterator
      * @param string|Repository $repository
-     * @param string $model
+     * @param string            $model
      */
-    function __construct($iterator, $repository, $model) {
+    public function __construct($iterator, $repository, $model)
+    {
         $this->iterator = $iterator;
         $this->repository = $repository;
         $this->model = $model;
     }
 
-    function current() {
-        $repo = getRepository($this->repository);
+    public function current()
+    {
+        $repo = Repository::instance($this->repository);
+
         return $repo->convert($this->model, $this->iterator->current());
     }
 
-    function key() {
+    public function key()
+    {
         return $this->iterator->key();
     }
 
-    function next() {
+    public function next()
+    {
         return $this->iterator->next();
     }
 
-    function rewind() {
+    public function rewind()
+    {
         return $this->iterator->rewind();
     }
 
-    function valid() {
+    public function valid()
+    {
         return $this->iterator->valid();
     }
-
 }
-
-?>

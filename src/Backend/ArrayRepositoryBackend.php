@@ -1,18 +1,17 @@
 <?php
 
-/**
- * ArrayRepositoryBackend
- */
+namespace Sledgehammer\Orm\Backend;
 
-namespace Sledgehammer;
+use Exception;
+use Sledgehammer\Core\InfoException;
+use Sledgehammer\Core\PropertyPath;
+use Sledgehammer\Orm\ModelConfig;
 
 /**
  * A RepositoryBackend for 1 model stored in an array.
- *
- * @package ORM
  */
-class ArrayRepositoryBackend extends RepositoryBackend {
-
+class ArrayRepositoryBackend extends RepositoryBackend
+{
     public $identifier = 'array';
 
     /**
@@ -22,12 +21,13 @@ class ArrayRepositoryBackend extends RepositoryBackend {
 
     /**
      * @param ModelConfig $config
-     * @param array $items
+     * @param array       $items
      */
-    function __construct($config, $items) {
+    public function __construct($config, $items)
+    {
         $this->configs[$config->name] = $config;
         $config->backendConfig = array(
-            'indexed' => (count($config->id) === 0)
+            'indexed' => (count($config->id) === 0),
         );
         reset($items);
         $row = current($items);
@@ -47,7 +47,7 @@ class ArrayRepositoryBackend extends RepositoryBackend {
                     $items[$index]['id'] = $index;
                 }
                 if (array_key_exists('id', $config->properties) == false) {
-                    array_key_unshift($config->properties, 'id', 'id');
+                    \Sledgehammer\array_key_unshift($config->properties, 'id', 'id');
                 }
                 $config->backendConfig['key'] = 'id';
             } elseif (count($config->id) == 1) { // Only 1 field as id?
@@ -70,49 +70,58 @@ class ArrayRepositoryBackend extends RepositoryBackend {
      * @param mixed $id
      * @param array $config backendConfig
      */
-    function get($id, $config) {
+    public function get($id, $config)
+    {
         $key = $this->getKey($id, $config);
         $row = $this->items[$key];
         if ($row === null) {
-            throw new \Exception('Element [' . $key . '] not found');
+            throw new Exception('Element ['.$key.'] not found');
         }
+
         return $row;
     }
 
-    function all($config) {
+    public function all($config)
+    {
         return array_values($this->items);
     }
 
-    function update($new, $old, $config) {
+    public function update($new, $old, $config)
+    {
         $key = $this->getKey($old, $config);
         if ($this->items[$key] !== $old) {
-            throw new \Exception('No matching record found, repository has outdated info');
+            throw new Exception('No matching record found, repository has outdated info');
         }
         $this->items[$key] = $new;
+
         return $new;
     }
 
-    function add($data, $config) {
+    public function add($data, $config)
+    {
         $key = PropertyPath::get($config['key'], $data);
         if ($key === null) {
             $this->items[] = $data;
             $keys = array_keys($this->items);
             $key = array_pop($keys);
             $key = PropertyPath::set($config['key'], $key, $data);
+
             return $data;
         }
         $this->getKey($data, $config);
+
         return $data;
     }
 
     /**
-     *
      * @param type $id
+     *
      * @throws Exception
      */
-    private function getKey($id, $config) {
+    private function getKey($id, $config)
+    {
         if ($config['indexed'] == false) {
-            throw new \Exception('Not (yet) supported');
+            throw new Exception('Not (yet) supported');
         }
         if (is_array($id)) {
             $key = $id[$config['key']];
@@ -122,9 +131,7 @@ class ArrayRepositoryBackend extends RepositoryBackend {
         if ($key === null) {
             throw new InfoException('Invalid ID', $id);
         }
+
         return $key;
     }
-
 }
-
-?>
