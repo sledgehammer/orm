@@ -815,7 +815,7 @@ class Repository extends Object
                 if (count($changes) > 0) { // Has the data changed, for example by an auto-incremented id?
                     foreach ($changes as $column => $value) {
                         if (isset($config->readFilters[$column])) {
-                            $value = filter($value, $config->readFilters[$column]);
+                            $value = \Sledgehammer\filter($value, $config->readFilters[$column]);
                         }
                         if (isset($config->properties[$column])) {
                             PropertyPath::set($config->properties[$column], $value, $instance);
@@ -1583,7 +1583,7 @@ class Repository extends Object
         foreach ($config->properties as $sourcePath => $targetPath) {
             $value = PropertyPath::get($sourcePath, $data);
             if (isset($config->readFilters[$sourcePath])) {
-                $value = filter($value, $config->readFilters[$sourcePath]);
+                $value = \Sledgehammer\filter($value, $config->readFilters[$sourcePath]);
             }
             PropertyPath::set($targetPath, $value, $instance);
         }
@@ -1646,7 +1646,7 @@ class Repository extends Object
         foreach ($config->properties as $element => $property) {
             $value = PropertyPath::get($property, $from);
             if (isset($config->writeFilters[$element])) {
-                $value = filter($value, $config->writeFilters[$element]);
+                $value = \Sledgehammer\filter($value, $config->writeFilters[$element]);
             }
             PropertyPath::set($element, $value, $to);
         }
