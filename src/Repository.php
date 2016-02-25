@@ -1230,6 +1230,7 @@ class Repository extends Object
                 }
             }
         }
+        
         // Pass 5: Generate classes based on properties when no class is detected/found.
         foreach ($backend->configs as $config) {
             if (substr($config->class, 0, 11) !== '\\Generated\\') {
@@ -1245,36 +1246,58 @@ class Repository extends Object
                 $namespace = implode('\\', array_slice($parts, 1));
 
                 // Generate class
-                $php = 'namespace '.$namespace.";\nuse ".Object::class.";\nclass ".$config->name." extends Object {\n";
+                $uses = [];
+                $buildAlias = function ($fqcn) use (&$uses) {
+                    if (substr($fqcn, 0, 1) === '\\') {
+                        $fqcn = substr($fqcn, 1);
+                    }
+                    $parts = explode('\\', $fqcn);
+                    $alias = array_pop($parts);
+                    $uses[$fqcn] = $alias;
+                    return $alias;
+                };
+                $alias = $buildAlias(Object::class);
+                $php = "\nclass ".$config->name." extends ".$alias."\n{\n";
                 foreach ($config->properties as $path) {
                     $parsedPath = PropertyPath::parse($path);
                     $property = $parsedPath[0][1];
-                    $php .= "\tpublic $".$property.";\n";
+                    $php .= "    public $".$property.";\n";
                 }
                 foreach ($config->belongsTo as $path => $belongsTo) {
                     $parsedPath = PropertyPath::parse($path);
                     $belongsToConfig = $this->_getConfig($belongsTo['model']);
+                    $alias = $buildAlias($belongsToConfig->class);
                     $property = $parsedPath[0][1];
-                    $php .= "\t/**\n";
-                    $php .= "\t * @var ".$belongsToConfig->class.'  The associated '.$belongsToConfig->name."\n";
-                    $php .= "\t */\n";
-                    $php .= "\tpublic $".$property.";\n";
+                    $php .= "\n";
+                    $php .= "    /**\n";
+                    $php .= "     * @var ".$alias.' The associated '.$belongsToConfig->name."\n";
+                    $php .= "     */\n";
+                    $php .= "    public $".$property.";\n";
                 }
                 foreach ($config->hasMany as $path => $hasMany) {
                     $parsedPath = PropertyPath::parse($path);
                     $hasManyConfig = $this->_getConfig($hasMany['model']);
                     $property = $parsedPath[0][1];
-                    $php .= "\t/**\n";
-                    $php .= "\t * @var ".$hasManyConfig->class."|\Sledgehammer\Collection  A collection with the associated ".$hasManyConfig->plural."\n";
-                    $php .= "\t */\n";
-                    $php .= "\tpublic $".$property.";\n";
+                    $aliasC = $buildAlias(Collection::class);
+                    $alias = $buildAlias($hasManyConfig->class);
+                    $php .= "\n";
+                    $php .= "    /**\n";
+                    $php .= "     * @var ".$aliasC."|".$alias."[] A collection with the associated ".$hasManyConfig->plural."\n";
+                    $php .= "     */\n";
+                    $php .= "    public $".$property.";\n";
                 }
                 $php .= '}';
+                ksort($uses);
+                foreach ($uses as $use => $alias) {
+                    $php = "use ".$use.";\n".$php;
+                }
+                $php = "namespace ".$namespace.";\n\n".$php;
+                
                 if (\Sledgehammer\ENVIRONMENT === 'development' && $namespace === 'Generated') {
                     // Write autoComplete helper
                     // @todo Only write file when needed, aka validate $this->autoComplete
                     \Sledgehammer\mkdirs(\Sledgehammer\TMP_DIR.'AutoComplete');
-                    file_put_contents(\Sledgehammer\TMP_DIR.'AutoComplete/'.$config->name.'.php', "<?php \n".$php."\n\n?>");
+                    file_put_contents(\Sledgehammer\TMP_DIR.'AutoComplete/'.$config->name.'.php', "<?php\n\n".$php."\n");
                 }
                 eval($php);
             }
@@ -1422,106 +1445,106 @@ class Repository extends Object
         $php .= 'class '.$class.' extends \\'.get_class($this)." {\n\n";
         foreach ($this->configs as $model => $config) {
             $instanceVar = '$'.lcfirst($model);
-            $php .= "\t/**\n";
-            $php .= "\t * Retrieve an ".$model."\n";
-            $php .= "\t *\n";
-            $php .= "\t * @param mixed \$id  The ".$model." ID\n";
-            $php .= "\t * @param array \$options\n";
-            $php .= "\t *  'preload' => int  The preload recursion level.\n";
-            $php .= "\t *     false or 0: Only the the relation.\n";
-            $php .= "\t *     1: Also the relations of the relation.\n";
-            $php .= "\t *     2: Also the relations of the relations of the relation.\n";
-            $php .= "\t *     N: Etc.\n";
-            $php .= "\t *    true or -1: Load all relations of all relations.\n";
-            $php .= "\t * @return ".$config->class."\n";
-            $php .= "\t */\n";
-            $php .= "\tfunction get".$model.'($id, $options = []) {'."\n";
-            $php .= "\t\treturn \$this->get('".$model."', \$id, \$options);\n";
-            $php .= "\t}\n";
+            $php .= "    /**\n";
+            $php .= "     * Retrieve an ".$model."\n";
+            $php .= "     *\n";
+            $php .= "     * @param mixed \$id  The ".$model." ID\n";
+            $php .= "     * @param array \$options\n";
+            $php .= "     *  'preload' => int  The preload recursion level.\n";
+            $php .= "     *     false or 0: Only the the relation.\n";
+            $php .= "     *     1: Also the relations of the relation.\n";
+            $php .= "     *     2: Also the relations of the relations of the relation.\n";
+            $php .= "     *     N: Etc.\n";
+            $php .= "     *    true or -1: Load all relations of all relations.\n";
+            $php .= "     * @return ".$config->class."\n";
+            $php .= "     */\n";
+            $php .= "    function get".$model.'($id, $options = []) {'."\n";
+            $php .= "        return \$this->get('".$model."', \$id, \$options);\n";
+            $php .= "    }\n";
 
-            $php .= "\t/**\n";
-            $php .= "\t * Retrieve one ".$model." based on criteria\n";
-            $php .= "\t *\n";
-            $php .= "\t * @param mixed \$conditions\n";
-            $php .= "\t * @param bool \$allowNone  When no match is found, return null instead of throwing an Exception.\n";
-            $php .= "\t * @param array \$options\n";
-            $php .= "\t * @return ".$config->class."\n";
-            $php .= "\t */\n";
-            $php .= "\tfunction one".$model.'($conditions, $allowNone = false, $options = []) {'."\n";
-            $php .= "\t\treturn \$this->one('".$model."', \$conditions, \$allowNone, \$options);\n";
-            $php .= "\t}\n";
+            $php .= "    /**\n";
+            $php .= "     * Retrieve one ".$model." based on criteria\n";
+            $php .= "     *\n";
+            $php .= "     * @param mixed \$conditions\n";
+            $php .= "     * @param bool \$allowNone  When no match is found, return null instead of throwing an Exception.\n";
+            $php .= "     * @param array \$options\n";
+            $php .= "     * @return ".$config->class."\n";
+            $php .= "     */\n";
+            $php .= "    function one".$model.'($conditions, $allowNone = false, $options = []) {'."\n";
+            $php .= "        return \$this->one('".$model."', \$conditions, \$allowNone, \$options);\n";
+            $php .= "    }\n";
 
-            $php .= "\t/**\n";
-            $php .= "\t * Retrieve all ".$config->plural."\n";
-            $php .= "\t *\n";
-            $php .= "\t * @param mixed \$conditions\n";
-            $php .= "\t * @param array \$options\n";
-            $php .= "\t *  'preload' => int  The preload recursion level.\n";
-            $php .= "\t *     false or 0: Only the the relation.\n";
-            $php .= "\t *     1: Also the relations of the relation.\n";
-            $php .= "\t *     2: Also the relations of the relations of the relation.\n";
-            $php .= "\t *     N: Etc.\n";
-            $php .= "\t *    true or -1: Load all relations of all relations.\n";
-            $php .= "\t *\n";
-            $php .= "\t * @return Collection|".$config->class."\n";
-            $php .= "\t */\n";
-            $php .= "\tfunction all".$config->plural.'($conditions = null, $options = []) {'."\n";
-            $php .= "\t\treturn \$this->all('".$model."', \$conditions, \$options);\n";
-            $php .= "\t}\n";
+            $php .= "    /**\n";
+            $php .= "     * Retrieve all ".$config->plural."\n";
+            $php .= "     *\n";
+            $php .= "     * @param mixed \$conditions\n";
+            $php .= "     * @param array \$options\n";
+            $php .= "     *  'preload' => int  The preload recursion level.\n";
+            $php .= "     *     false or 0: Only the the relation.\n";
+            $php .= "     *     1: Also the relations of the relation.\n";
+            $php .= "     *     2: Also the relations of the relations of the relation.\n";
+            $php .= "     *     N: Etc.\n";
+            $php .= "     *    true or -1: Load all relations of all relations.\n";
+            $php .= "     *\n";
+            $php .= "     * @return Collection|".$config->class."\n";
+            $php .= "     */\n";
+            $php .= "    function all".$config->plural.'($conditions = null, $options = []) {'."\n";
+            $php .= "        return \$this->all('".$model."', \$conditions, \$options);\n";
+            $php .= "    }\n";
 
-            $php .= "\t/**\n";
-            $php .= "\t * Store the ".$model."\n";
-            $php .= "\t *\n";
-            $php .= "\t * @param ".$config->class.'  The '.$model." to be saved\n";
-            $php .= "\t * @param array \$options {\n";
-            $php .= "\t *   'ignore_relations' => bool  true: Only save the instance,  false: Save all connected instances,\n";
-            $php .= "\t *   'add_unknown_instance' => bool, false: Reject unknown instances. (use \$repository->create())\n";
-            $php .= "\t *   'reject_unknown_related_instances' => bool, false: Auto adds unknown instances\n";
-            $php .= "\t *   'keep_missing_related_instances' => bool, false: Auto deletes removed instances\n";
-            $php .= "\t * }\n";
-            $php .= "\t */\n";
-            $php .= "\tfunction save".$model.'('.$instanceVar.', $options = []) {'."\n";
-            $php .= "\t\treturn \$this->save('".$model."', ".$instanceVar.", \$options);\n";
-            $php .= "\t}\n";
+            $php .= "    /**\n";
+            $php .= "     * Store the ".$model."\n";
+            $php .= "     *\n";
+            $php .= "     * @param ".$config->class.'  The '.$model." to be saved\n";
+            $php .= "     * @param array \$options {\n";
+            $php .= "     *   'ignore_relations' => bool  true: Only save the instance,  false: Save all connected instances,\n";
+            $php .= "     *   'add_unknown_instance' => bool, false: Reject unknown instances. (use \$repository->create())\n";
+            $php .= "     *   'reject_unknown_related_instances' => bool, false: Auto adds unknown instances\n";
+            $php .= "     *   'keep_missing_related_instances' => bool, false: Auto deletes removed instances\n";
+            $php .= "     * }\n";
+            $php .= "     */\n";
+            $php .= "    function save".$model.'('.$instanceVar.', $options = []) {'."\n";
+            $php .= "        return \$this->save('".$model."', ".$instanceVar.", \$options);\n";
+            $php .= "    }\n";
 
-            $php .= "\t/**\n";
-            $php .= "\t * Create an in-memory ".$model.", ready to be saved.\n";
-            $php .= "\t *\n";
-            $php .= "\t * @param array \$values (optional) Initial contents of the object \n";
-            $php .= "\t * @return ".$config->class."\n";
-            $php .= "\t */\n";
-            $php .= "\tfunction create".$model.'($values = []) {'."\n";
-            $php .= "\t\treturn \$this->create('".$model."', \$values);\n";
-            $php .= "\t}\n";
+            $php .= "    /**\n";
+            $php .= "     * Create an in-memory ".$model.", ready to be saved.\n";
+            $php .= "     *\n";
+            $php .= "     * @param array \$values (optional) Initial contents of the object \n";
+            $php .= "     * @return ".$config->class."\n";
+            $php .= "     */\n";
+            $php .= "    function create".$model.'($values = []) {'."\n";
+            $php .= "        return \$this->create('".$model."', \$values);\n";
+            $php .= "    }\n";
 
-            $php .= "\t/**\n";
-            $php .= "\t * Delete the ".$model."\n";
-            $php .= "\t *\n";
-            $php .= "\t * @param ".$config->class.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
-            $php .= "\t */\n";
-            $php .= "\tfunction delete".$model.'('.$instanceVar.') {'."\n";
-            $php .= "\t\treturn \$this->delete('".$model."', ".$instanceVar.");\n";
-            $php .= "\t}\n";
+            $php .= "    /**\n";
+            $php .= "     * Delete the ".$model."\n";
+            $php .= "     *\n";
+            $php .= "     * @param ".$config->class.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
+            $php .= "     */\n";
+            $php .= "    function delete".$model.'('.$instanceVar.') {'."\n";
+            $php .= "        return \$this->delete('".$model."', ".$instanceVar.");\n";
+            $php .= "    }\n";
 
-            $php .= "\t/**\n";
-            $php .= "\t * Reload the ".$model."\n";
-            $php .= "\t *\n";
-            $php .= "\t * @param ".$config->class.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
-            $php .= "\t * @param array \$options  Additional options \n";
-            $php .= "\t */\n";
-            $php .= "\tfunction reload".$model.'('.$instanceVar.', $options = []) {'."\n";
-            $php .= "\t\treturn \$this->reload('".$model."', ".$instanceVar.");\n";
-            $php .= "\t}\n";
+            $php .= "    /**\n";
+            $php .= "     * Reload the ".$model."\n";
+            $php .= "     *\n";
+            $php .= "     * @param ".$config->class.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
+            $php .= "     * @param array \$options  Additional options \n";
+            $php .= "     */\n";
+            $php .= "    function reload".$model.'('.$instanceVar.', $options = []) {'."\n";
+            $php .= "        return \$this->reload('".$model."', ".$instanceVar.");\n";
+            $php .= "    }\n";
 
             if ($config->plural !== $config->name) {
-                $php .= "\t/**\n";
-                $php .= "\t * Reload all ".$config->plural."\n";
-                $php .= "\t *\n";
-                $php .= "\t * @param array \$options  Additional options \n";
-                $php .= "\t */\n";
-                $php .= "\tfunction reload".$config->plural.'() {'."\n";
-                $php .= "\t\treturn \$this->reload('".$model."', null, array('all' => true));\n";
-                $php .= "\t}\n";
+                $php .= "    /**\n";
+                $php .= "     * Reload all ".$config->plural."\n";
+                $php .= "     *\n";
+                $php .= "     * @param array \$options  Additional options \n";
+                $php .= "     */\n";
+                $php .= "    function reload".$config->plural.'() {'."\n";
+                $php .= "        return \$this->reload('".$model."', null, array('all' => true));\n";
+                $php .= "    }\n";
             }
         }
         $php .= '}';
