@@ -4,11 +4,13 @@
  * Test de functionaliteit van Record (via de GenericRecord class).
  */
 
-namespace Sledgehammer\Orm;
+namespace SledgehammerTests\Orm;
 
 use PDO;
 use Sledgehammer\Core\Database\Connection;
 use Sledgehammer\Orm\Backend\DatabaseRepositoryBackend;
+use Sledgehammer\Orm\Junction;
+use Sledgehammer\Orm\Repository;
 use SledgehammerTests\Core\DatabaseTestCase;
 
 class RecordRelationTest extends DatabaseTestCase
@@ -32,7 +34,7 @@ class RecordRelationTest extends DatabaseTestCase
     /**
      * Elke test_* met een schone database beginnen.
      *
-     * @param Database $db
+     * @param Connection $db
      */
     public function fillDatabase($db)
     {

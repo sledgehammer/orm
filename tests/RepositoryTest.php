@@ -73,6 +73,9 @@ class RepositoryTest extends DatabaseTestCase
         $this->assertQueryCount($queryCount, 'no additional queries');
     }
 
+    /**
+     * @group wc
+     */
     public function test_getWildcard()
     {
         $repo = new RepositoryTester();

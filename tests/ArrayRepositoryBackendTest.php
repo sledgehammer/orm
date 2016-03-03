@@ -1,9 +1,11 @@
 <?php
 
-namespace Sledgehammer\Orm;
+namespace SledgehammerTests\Orm;
 
 use Sledgehammer\Core\Debug\ErrorHandler;
 use Sledgehammer\Orm\Backend\ArrayRepositoryBackend;
+use Sledgehammer\Orm\ModelConfig;
+use Sledgehammer\Orm\Repository;
 use SledgehammerTests\Core\TestCase;
 
 /**

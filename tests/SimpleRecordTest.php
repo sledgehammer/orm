@@ -4,13 +4,16 @@
  * Test de functionaliteit van de SimpleRecord en RepositorySQLBackend.
  */
 
-namespace Sledgehammer\Orm;
+namespace SledgehammerTests\Orm;
 
 use Exception;
 use PDO;
 use Sledgehammer\Core\Collection;
 use Sledgehammer\Core\Database\Connection;
 use Sledgehammer\Orm\Backend\DatabaseRepositoryBackend;
+use Sledgehammer\Orm\HasManyPlaceholder;
+use Sledgehammer\Orm\Repository;
+use Sledgehammer\Orm\SimpleRecord;
 use SledgehammerTests\Core\DatabaseTestCase;
 
 class SimpleRecordTest extends DatabaseTestCase
