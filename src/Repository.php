@@ -477,14 +477,14 @@ class Repository extends Object
                 $this->objects[$model][$index]['junctions'][$property] = $junctions;
                 $ids = array_keys($junctions);
 
-                if (empty($hasMany['fields']) === false && count($hasMany['fields']) > 0) {
+                if (count($hasMany['fields']) > 0) {
                     $options['junction'] = array(
                         'model' => $model,
                         'index' => $index,
                         'property' => $property,
                         'reference' => $idProperty,
                         'fields' => $hasMany['fields'],
-                        'class' => (isset($hasMany['junctionClass']) ? $hasMany['junctionClass'] : Junction::class),
+                        'class' => $hasMany['junctionClass'],
                     );
                 }
                 if (count($ids) == 0) {
@@ -982,7 +982,7 @@ class Repository extends Object
                             foreach ($old as $key => $item) {
                                 if (in_array($item, $collection, true) === false) {
                                     if (!empty($hasMany['through']) && !empty($hasMany['fields'])) { // Can't compare Junctions using a identity check
-                                        $getJunctionId = PropertyPath::compile($hasManyConfig->properties[$hasMany['id']]);
+                                        $getJunctionId = PropertyPath::compile($hasManyIdPath);
                                         $oldId = $getJunctionId($item);
                                         foreach ($collection as $newItem) {
                                             $newId = $getJunctionId($newItem);
@@ -1210,6 +1210,17 @@ class Repository extends Object
                             $hasMany['belongsTo'] = PropertyPath::assemble($referencePath);
                             $config->hasMany[$property]['belongsTo'] = $hasMany['belongsTo']; // update config
                         }
+                    }
+                }
+                if (isset($hasMany['through'])) {
+                    if (array_key_exists('fields', $hasMany) === false) {
+                        $config->hasMany[$property]['fields'] = [];
+                    } elseif (array_key_exists('junctionClass', $hasMany) === false) {
+                        $config->hasMany[$property]['junctionClass'] = Junction::class;
+                    }
+                    $junctionConfig = @$this->junctions[$hasMany['through']];
+                    if (array_key_exists('idPath', $hasMany) === false && $junctionConfig) {
+//                        dump($junctionConfig);
                     }
                 }
                 // Remove invalid relations

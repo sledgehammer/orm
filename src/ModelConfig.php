@@ -47,17 +47,15 @@ class ModelConfig extends Object
     /**
      * Configuration of the belongsTo relation(s).
      *
-     * @var array array(
-     *            $property => array(
-     *            'reference' => $column,  // foreign_key: "product_id"
-     *            'model' => $modelName,   // The foreign model: "Product"
-     *            'id' => $idColumn,       // (optional) The id: "id"
-     *            ,)
-     *            $property => array(
-     *            'convert' => $column,  // column with data: array('id' => 1,  'name' => 'James Bond')
-     *            'model' => $modelName, // The model: "Hero"
-     *            )
-     *            )
+     * @var array [$property => [
+     *              'reference' => $column,  // foreign_key: "product_id"
+     *              'model' => $modelName,   // The foreign model: "Product"
+     *              'id' => $column,       // (optional) The id: "id"
+     *            ],
+     *            $property => [
+     *              'convert' => $column,  // column with data: array('id' => 1,  'name' => 'James Bond')
+     *              'model' => $modelName, // The model: "Hero"
+     *            ]]
      */
     public $belongsTo = [];
 
@@ -65,18 +63,18 @@ class ModelConfig extends Object
      * Configuration of the hasMany relation(s)
      * Contains both one-to-many and many-to-many relations.
      *
-     * @var array array(
-     *            $property => array(
+     * @var array [$property => [
      *            'model' => $modelName, // The foreign model: "Product"
      *            'reference' => $column, // foreign_key to this container instance.
+     *            'conditions' => [] // (optional) Additional extra (static) conditions
+     *  // For 1 to many:
      *            'belongsTo' => $propertyPath, // (optional) The belongsTo property in the related instances in a one-to-many relation that refers back to the container instance. Used in save() for implicitly setting the foreignkey value.
+     * // For many to many
      *            'through' => $junctionName, // (optional) The junction for many-to-many relations.
      *            'junctionClass' => $fullclassname, // (optional) The junctionClass to use (defaults to the Sledgehammer\Junction)
-     *            'fields' => array($column => $junctionProperty), // (optional) Mapping for the additional fields in a junction (many-to-many with fields)
+     *            'fields' => [$column => $junctionProperty], // (optional) Mapping for the additional fields in a junction (many-to-many with fields)
      *            'id' => $column, // (optional) foreign_key for the related model in the many-to-many table: "product_id"
-     *            'conditions' => [] // (optional) Additional extra (static) conditions
-     *            )
-     *            )
+     *   ]]
      */
     public $hasMany = [];
 
