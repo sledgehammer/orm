@@ -29,7 +29,7 @@ class Repository extends Object
      *
      * @var array
      */
-    protected $namespaces = array('', 'Sledgehammer\\');
+    protected $namespaces = [];
 
     /**
      * Registered models.
@@ -1246,17 +1246,9 @@ class Repository extends Object
                 $namespace = implode('\\', array_slice($parts, 1));
 
                 // Generate class
-                $uses = [];
-                $buildAlias = function ($fqcn) use (&$uses) {
-                    if (substr($fqcn, 0, 1) === '\\') {
-                        $fqcn = substr($fqcn, 1);
-                    }
-                    $parts = explode('\\', $fqcn);
-                    $alias = array_pop($parts);
-                    $uses[$fqcn] = $alias;
-                    return $alias;
-                };
-                $alias = $buildAlias(Object::class);
+                $use = '';
+                $aliases = [];
+                $alias = $this->buildAlias(Object::class, $aliases, $use);
                 $php = "\nclass ".$config->name." extends ".$alias."\n{\n";
                 foreach ($config->properties as $path) {
                     $parsedPath = PropertyPath::parse($path);
@@ -1266,7 +1258,7 @@ class Repository extends Object
                 foreach ($config->belongsTo as $path => $belongsTo) {
                     $parsedPath = PropertyPath::parse($path);
                     $belongsToConfig = $this->_getConfig($belongsTo['model']);
-                    $alias = $buildAlias($belongsToConfig->class);
+                    $alias = $this->buildAlias($belongsToConfig->class, $aliases, $use);
                     $property = $parsedPath[0][1];
                     $php .= "\n";
                     $php .= "    /**\n";
@@ -1278,8 +1270,8 @@ class Repository extends Object
                     $parsedPath = PropertyPath::parse($path);
                     $hasManyConfig = $this->_getConfig($hasMany['model']);
                     $property = $parsedPath[0][1];
-                    $aliasC = $buildAlias(Collection::class);
-                    $alias = $buildAlias($hasManyConfig->class);
+                    $aliasC = $this->buildAlias(Collection::class, $aliases, $use);
+                    $alias = $this->buildAlias($hasManyConfig->class, $aliases, $use);
                     $php .= "\n";
                     $php .= "    /**\n";
                     $php .= "     * @var ".$aliasC."|".$alias."[] A collection with the associated ".$hasManyConfig->plural."\n";
@@ -1287,12 +1279,7 @@ class Repository extends Object
                     $php .= "    public $".$property.";\n";
                 }
                 $php .= '}';
-                ksort($uses);
-                foreach ($uses as $use => $alias) {
-                    $php = "use ".$use.";\n".$php;
-                }
-                $php = "namespace ".$namespace.";\n\n".$php;
-                
+                $php = "namespace ".$namespace.";\n\n".$use.$php;
                 if (\Sledgehammer\ENVIRONMENT === 'development' && $namespace === 'Generated') {
                     // Write autoComplete helper
                     // @todo Only write file when needed, aka validate $this->autoComplete
@@ -1346,6 +1333,36 @@ class Repository extends Object
         }
         $config->backend = $behavior->identifier;
         $behavior->register($config);
+    }
+    /**
+     * Builds a uses array
+     *
+     * @param string $fqcn full qualified classname
+     * @param array $aliases array with the 
+     * @return string alias
+     */
+    private function buildAlias($fqcn, &$aliases, &$use) {
+        $fqcn = ltrim($fqcn, '\\');
+        if (array_key_exists($fqcn, $aliases)) { 
+            return $aliases[$fqcn];// Use the existing alias
+        }
+        $parts = explode('\\', $fqcn);
+        $alias = array_pop($parts);
+        if (in_array($alias, $aliases)) { // naming collision?
+            $alias = uniqid($alias);
+        }
+        $aliases[$fqcn] = $alias;
+        // rebuild use statements, alphabetically
+        $use = '';
+        foreach ($aliases as $_fqcn => $_alias) {
+            $parts = explode('\\', $_fqcn);
+            if ($_alias === array_pop($parts)) {
+                $use .= "use ".$_fqcn.";\n";
+            } else {
+                $use .= "use ".$_fqcn." as ".$_alias.";\n";
+            }
+        }
+        return $alias;
     }
 
     /**
@@ -1433,17 +1450,12 @@ class Repository extends Object
      */
     public function writeAutoCompleteHelper($filename, $class, $namespace = null)
     {
-        $php = "<?php\n";
-        $php .= "/**\n";
-        $php .= ' * '.$class." a generated AutoCompleteHelper\n";
-        $php .= " *\n";
-        $php .= " * @package ORM\n";
-        $php .= " */\n";
-        if ($namespace !== null) {
-            $php .= 'namespace '.$namespace.";\n";
-        }
-        $php .= 'class '.$class.' extends \\'.get_class($this)." {\n\n";
+        $use = '';
+        $aliases = [];
+        $this->buildAlias(Collection::class, $aliases, $use);
+        $php = "\nclass ".$class.' extends '.$this->buildAlias(get_class($this), $aliases, $use)." {\n\n";
         foreach ($this->configs as $model => $config) {
+            $alias = $this->buildAlias($config->class, $aliases, $use);
             $instanceVar = '$'.lcfirst($model);
             $php .= "    /**\n";
             $php .= "     * Retrieve an ".$model."\n";
@@ -1456,7 +1468,7 @@ class Repository extends Object
             $php .= "     *     2: Also the relations of the relations of the relation.\n";
             $php .= "     *     N: Etc.\n";
             $php .= "     *    true or -1: Load all relations of all relations.\n";
-            $php .= "     * @return ".$config->class."\n";
+            $php .= "     * @return ".$alias."\n";
             $php .= "     */\n";
             $php .= "    function get".$model.'($id, $options = []) {'."\n";
             $php .= "        return \$this->get('".$model."', \$id, \$options);\n";
@@ -1468,7 +1480,7 @@ class Repository extends Object
             $php .= "     * @param mixed \$conditions\n";
             $php .= "     * @param bool \$allowNone  When no match is found, return null instead of throwing an Exception.\n";
             $php .= "     * @param array \$options\n";
-            $php .= "     * @return ".$config->class."\n";
+            $php .= "     * @return ".$alias."\n";
             $php .= "     */\n";
             $php .= "    function one".$model.'($conditions, $allowNone = false, $options = []) {'."\n";
             $php .= "        return \$this->one('".$model."', \$conditions, \$allowNone, \$options);\n";
@@ -1486,7 +1498,7 @@ class Repository extends Object
             $php .= "     *     N: Etc.\n";
             $php .= "     *    true or -1: Load all relations of all relations.\n";
             $php .= "     *\n";
-            $php .= "     * @return Collection|".$config->class."\n";
+            $php .= "     * @return Collection|".$alias."[]\n";
             $php .= "     */\n";
             $php .= "    function all".$config->plural.'($conditions = null, $options = []) {'."\n";
             $php .= "        return \$this->all('".$model."', \$conditions, \$options);\n";
@@ -1495,7 +1507,7 @@ class Repository extends Object
             $php .= "    /**\n";
             $php .= "     * Store the ".$model."\n";
             $php .= "     *\n";
-            $php .= "     * @param ".$config->class.'  The '.$model." to be saved\n";
+            $php .= "     * @param ".$alias.'  The '.$model." to be saved\n";
             $php .= "     * @param array \$options {\n";
             $php .= "     *   'ignore_relations' => bool  true: Only save the instance,  false: Save all connected instances,\n";
             $php .= "     *   'add_unknown_instance' => bool, false: Reject unknown instances. (use \$repository->create())\n";
@@ -1511,7 +1523,7 @@ class Repository extends Object
             $php .= "     * Create an in-memory ".$model.", ready to be saved.\n";
             $php .= "     *\n";
             $php .= "     * @param array \$values (optional) Initial contents of the object \n";
-            $php .= "     * @return ".$config->class."\n";
+            $php .= "     * @return ".$alias."\n";
             $php .= "     */\n";
             $php .= "    function create".$model.'($values = []) {'."\n";
             $php .= "        return \$this->create('".$model."', \$values);\n";
@@ -1520,7 +1532,7 @@ class Repository extends Object
             $php .= "    /**\n";
             $php .= "     * Delete the ".$model."\n";
             $php .= "     *\n";
-            $php .= "     * @param ".$config->class.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
+            $php .= "     * @param ".$alias.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
             $php .= "     */\n";
             $php .= "    function delete".$model.'('.$instanceVar.') {'."\n";
             $php .= "        return \$this->delete('".$model."', ".$instanceVar.");\n";
@@ -1529,7 +1541,7 @@ class Repository extends Object
             $php .= "    /**\n";
             $php .= "     * Reload the ".$model."\n";
             $php .= "     *\n";
-            $php .= "     * @param ".$config->class.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
+            $php .= "     * @param ".$alias.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
             $php .= "     * @param array \$options  Additional options \n";
             $php .= "     */\n";
             $php .= "    function reload".$model.'('.$instanceVar.', $options = []) {'."\n";
@@ -1548,8 +1560,17 @@ class Repository extends Object
             }
         }
         $php .= '}';
-
-        return file_put_contents($filename, $php);
+        
+        $prefix = "<?php\n";
+        $prefix .= "/**\n";
+        $prefix .= ' * '.$class." a generated AutoCompleteHelper\n";
+        $prefix .= " *\n";
+        $prefix .= " */\n";
+        if ($namespace !== null) {
+            $prefix .= 'namespace '.$namespace.";\n\n";
+        }
+        
+        return file_put_contents($filename, $prefix.$use.$php);
     }
 
     /**
