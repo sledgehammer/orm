@@ -1261,10 +1261,14 @@ class Repository extends Object
                 $aliases = [];
                 $alias = $this->buildAlias(Object::class, $aliases, $use);
                 $php = "\nclass ".$config->name." extends ".$alias."\n{\n";
+                $properties = [];
                 foreach ($config->properties as $path) {
                     $parsedPath = PropertyPath::parse($path);
                     $property = $parsedPath[0][1];
-                    $php .= "    public $".$property.";\n";
+                    if (!in_array($property, $properties)) {
+                        $php .= "    public $".$property.";\n";
+                        $properties[] = $property;
+                    }
                 }
                 foreach ($config->belongsTo as $path => $belongsTo) {
                     $parsedPath = PropertyPath::parse($path);
@@ -1449,6 +1453,21 @@ class Repository extends Object
             }
         }
         throw new InfoException('Instance not bound to this repository"', $instance);
+    }
+    
+    /**
+     * Free object refercences from memory.
+     * @param string $model
+     * @param mixed $instance
+     */
+    public function free($model, $instance = null) {
+        if ($instance === null) {
+            unset($this->objects[$model]);
+            return;
+        }
+        $config = $this->_getConfig($model);
+        $id = $this->resolveIndex($instance, $config);
+        unset($this->objects[$model][$id]);
     }
 
     /**
