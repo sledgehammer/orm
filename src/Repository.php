@@ -118,6 +118,12 @@ class Repository extends Object
      * @var array
      */
     private $validated = [];
+    
+    /**
+     * Registered closures that configure the default repository.
+     * @var Closure[]
+     */
+    private static $lazyConfigurations = [];
 
     /**
      * Handle get$Model(), find$Model(), all$Models(), save$Model(), create$Model() and delete$Model() methods.
@@ -1348,6 +1354,33 @@ class Repository extends Object
         }
         $config->backend = $behavior->identifier;
         $behavior->register($config);
+    }
+    
+    /**
+     * Register closures that lazily configure the default repository.
+     * 
+     * @param Closure $closure A closure that received the repository as the first argument
+     */
+    public static function configureDefault($closure) {
+        if (\Sledgehammer\is_closure($closure) === false) {
+            throw new Exception('Closure expected as first argument');
+        }
+        if (static::$lazyConfigurations === false) { // default repository already initialized
+            $closure(Repository::instance());
+        } else {
+            static::$lazyConfigurations[] = $closure;
+        }
+    }
+    
+    protected static function defaultInstance()
+    {
+        $repo = new Repository();
+        Repository::$instances['default'] = $repo;
+        foreach (static::$lazyConfigurations as $configure) {
+            $configure($repo);
+        }
+        static::$lazyConfigurations = false;
+        return $repo;
     }
     /**
      * Builds a uses array
