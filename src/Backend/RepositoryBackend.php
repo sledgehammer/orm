@@ -133,6 +133,9 @@ abstract class RepositoryBackend extends Object
      */
     public function renameProperty($model, $from, $to)
     {
+        if (empty($this->configs[$model])) {
+            throw new Exception('Unable to rename property, model "'.$model.'" not found');
+        }
         $config = $this->configs[$model];
         if (in_array($to, $config->getPropertyNames())) {
             notice('Overwriting existing property "'.$to.'"');
@@ -187,6 +190,9 @@ abstract class RepositoryBackend extends Object
      */
     public function skipProperty($model, $property)
     {
+        if (empty($this->configs[$model])) {
+            throw new Exception('Unable to skip property, model "'.$model.'" not found');
+        }
         $config = $this->configs[$model];
         $column = array_search($property, $config->properties);
         unset($config->defaults[$property]);
