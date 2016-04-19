@@ -11,13 +11,9 @@
     },
     "autoload": {
         "psr-4": {
-            "Sledgehammer\\Orm\\": "src/"
+            "Sledgehammer\\Orm\\": "src/",
+            "SledgehammerTests\\Orm\\": "tests"
         },
         "files": ["src/functions.php"]
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "SledgehammerTests\\Orm\\": "tests"
-        }
     }
 }

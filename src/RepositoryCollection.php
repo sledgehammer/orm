@@ -85,7 +85,7 @@ class RepositoryCollection extends Collection
             return parent::select($selector, $selectKey);
         }
         if ($selectKey !== false && $selectKey !== null) {
-            if (empty($this->options['mapping'][$selectKey])) { // Key not in the mapping array?
+            if (\Sledgehammer\is_closure($selectKey) || empty($this->options['mapping'][$selectKey])) { // Key not in the mapping array?
                 return parent::select($selector, $selectKey);
             }
             if ($this->hasReadFilter($selectKey)) { // Key requires a readFilter?
