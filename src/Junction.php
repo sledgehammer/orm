@@ -69,9 +69,9 @@ class Junction extends Object
 
             return;
         }
-        $properties = reflect_properties($this->instance);
+        $properties = \Sledgehammer\reflect_properties($this->instance);
         $properties['public'] = array_merge($properties['public'], $this->fields);
-        warning('Property "'.$property.'" doesn\'t exist in a '.get_class($this).' ('.get_class($this->instance).') object', build_properties_hint($properties));
+        warning('Property "'.$property.'" doesn\'t exist in a '.get_class($this).' ('.get_class($this->instance).') object', \Sledgehammer\build_properties_hint($properties));
     }
 
     /**
