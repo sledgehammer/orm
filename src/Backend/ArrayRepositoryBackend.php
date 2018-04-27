@@ -26,9 +26,9 @@ class ArrayRepositoryBackend extends RepositoryBackend
     public function __construct($config, $items)
     {
         $this->configs[$config->name] = $config;
-        $config->backendConfig = array(
+        $config->backendConfig = [
             'indexed' => (count($config->id) === 0),
-        );
+        ];
         reset($items);
         $row = current($items);
         if ($row !== null) { // The $items array is NOT empty
@@ -41,7 +41,7 @@ class ArrayRepositoryBackend extends RepositoryBackend
                 $config->properties = array_combine($columns, $columns);
             }
             if (count($config->id) === 0 && array_key_exists('id', $row) === false) { // 'id' field detected in the first row?
-                $config->id = array('id');
+                $config->id = ['id'];
                 $config->backendConfig['indexed'] = true;
                 foreach (array_keys($items) as $index) {
                     $items[$index]['id'] = $index;
@@ -55,7 +55,7 @@ class ArrayRepositoryBackend extends RepositoryBackend
                 $config->backendConfig['indexed'] = true;
                 $indexField = $config->id[0];
                 $config->backendConfig['key'] = $indexField;
-                $clone = array();
+                $clone = [];
                 foreach ($items as $row) {
                     $key = PropertyPath::get($indexField, $row);
                     $clone[$key] = $row;

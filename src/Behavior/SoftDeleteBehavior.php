@@ -57,16 +57,16 @@ class SoftDeleteBehavior extends ModelBehavior
      */
     public function all($config)
     {
-        return parent::all($config)->where(array(
+        return parent::all($config)->where([
                     $this->path => 0,
-        ));
+        ]);
     }
 
     public function related($config, $reference, $id)
     {
-        return parent::related($config, $reference, $id)->where(array(
+        return parent::related($config, $reference, $id)->where([
                     $this->path => 0,
-        ));
+        ]);
     }
 
     /**

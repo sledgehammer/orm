@@ -101,7 +101,8 @@ class RepositoryCollection extends Collection
             }
             // Bypass Repository and return the resultset directly from the backend-collection.
             return $this->data->select($this->options['mapping'][$selector], $selectKeyMapped);
-        } elseif (is_array($selector)) {
+        }
+        if (is_array($selector)) {
             $selectorMapped = [];
             foreach ($selector as $to => $from) {
                 if (empty($this->options['mapping'][$from])) { // Field not in the mapping array?
@@ -147,7 +148,7 @@ class RepositoryCollection extends Collection
                 if (($path !== 0 || $logicalOperator === false) && isset($this->options['mapping'][$column])) {
                     $convertCondition = true;
                     if (isset($this->options['writeFilters'][$column])) {
-                        if (in_array($columnOperator, array('', '==', '!='))) {
+                        if (in_array($columnOperator, ['', '==', '!='])) {
                             $value = filter($value, $this->options['writeFilters'][$column]);
                         } else {
                             $convertCondition = false; // operation can't work reliably with filters
@@ -166,7 +167,8 @@ class RepositoryCollection extends Collection
                 }
 
                 return $collection->where($conditions); // Apply the remaining conditions
-            } elseif (count($conditions) === $minimum) { // An empty array was given as $conditions?
+            }
+            if (count($conditions) === $minimum) { // An empty array was given as $conditions?
                 return new self(clone $this->data, $this->model, $this->repository, $this->options);
             }
         }

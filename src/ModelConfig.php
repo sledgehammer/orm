@@ -2,12 +2,12 @@
 
 namespace Sledgehammer\Orm;
 
-use Sledgehammer\Core\Object;
+use Sledgehammer\Core\Base;
 
 /**
  * Model configuration class, a formal definition of a Repository model.
  */
-class ModelConfig extends Object
+class ModelConfig extends Base
 {
     /**
      * The name of the model.

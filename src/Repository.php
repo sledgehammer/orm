@@ -5,7 +5,7 @@ namespace Sledgehammer\Orm;
 use Exception;
 use Sledgehammer\Core\Collection;
 use Sledgehammer\Core\InfoException;
-use Sledgehammer\Core\Object;
+use Sledgehammer\Core\Base;
 use Sledgehammer\Core\PropertyPath;
 use Sledgehammer\Core\Singleton;
 use Sledgehammer\Orm\Backend\RepositoryBackend;
@@ -21,7 +21,7 @@ use Traversable;
  *
  * @method \Generated\DefaultRepository|Repository instance(string $id)
  */
-class Repository extends Object
+class Repository extends Base
 {
     use Singleton;
     /**
@@ -143,7 +143,7 @@ class Repository extends Object
                 if (count($arguments) == 1) {
                     $usePlural = true;
                     $arguments[] = null;
-                    $arguments[] = array('all' => true);
+                    $arguments[] = ['all' => true];
                 } elseif (count($arguments) == 2 && is_array($arguments[1]) && isset($this->plurals[$arguments[0]]) && $this->plurals[$arguments[0]] != $matches[2]) {
                     // reloadPlural($options)
                     $arguments[0] = $this->plurals[$arguments[0]];
@@ -162,7 +162,7 @@ class Repository extends Object
                 }
             }
 
-            return call_user_func_array(array($this, $method), $arguments);
+            return call_user_func_array([$this, $method], $arguments);
         }
 
         return parent::__call($method, $arguments);
@@ -190,15 +190,15 @@ class Repository extends Object
         if (isset($this->objects[$model][$index])) {
             $instance = $this->objects[$model][$index]['instance'];
         } else {
-            $this->objects[$model][$index] = array(
+            $this->objects[$model][$index] = [
                 'state' => 'retrieving',
                 'instance' => null,
                 'data' => null,
-            );
+            ];
             try {
                 $data = $this->_getBackend($config->backend)->get($id, $config->backendConfig);
                 if (!is_array($data) && !is_object($data)) {
-                    throw new InfoException('Invalid response from backend: "'.$config->backend.'"', array('Response' => $data));
+                    throw new InfoException('Invalid response from backend: "'.$config->backend.'"', ['Response' => $data]);
                 }
             } catch (Exception $e) {
                 unset($this->objects[$model][$index]);
@@ -368,11 +368,11 @@ class Repository extends Object
             // @todo validate $data against $object['data']
             $instance = $object['instance'];
         } else {
-            $this->objects[$model][$index] = array(
+            $this->objects[$model][$index] = [
                 'state' => 'retrieved',
                 'instance' => null,
                 'data' => $data,
-            );
+            ];
             $instance = $this->convertToInstance($data, $config, $index);
             $this->objects[$model][$index]['instance'] = $instance;
         }
@@ -452,7 +452,7 @@ class Repository extends Object
             if ($belongsTo['useIndex']) {
                 return $instance->$property = $this->get($belongsTo['model'], $referencedId, $options);
             }
-            $instances = $this->all($belongsTo['model'])->where(array($belongsTo['id'] => $referencedId));
+            $instances = $this->all($belongsTo['model'])->where([$belongsTo['id'] => $referencedId]);
             if (count($instances) != 1) {
                 throw new InfoException('Multiple instances found for key "'.$referencedId.'" for belongsTo '.$model.'->belongsTo['.$property.'] references to non-id field: "'.$belongsTo['id'].'"');
             }
@@ -484,19 +484,19 @@ class Repository extends Object
                 $ids = array_keys($junctions);
 
                 if (count($hasMany['fields']) > 0) {
-                    $options['junction'] = array(
+                    $options['junction'] = [
                         'model' => $model,
                         'index' => $index,
                         'property' => $property,
                         'reference' => $idProperty,
                         'fields' => $hasMany['fields'],
                         'class' => $hasMany['junctionClass'],
-                    );
+                    ];
                 }
                 if (count($ids) == 0) {
                     $related = new Collection([]);
                 } else {
-                    $related = $hasManyBackend->all($hasManyConfig->backendConfig)->where(array($hasManyConfig->id[0].' IN' => $ids));
+                    $related = $hasManyBackend->all($hasManyConfig->backendConfig)->where([$hasManyConfig->id[0].' IN' => $ids]);
                 }
             }
 
@@ -582,7 +582,7 @@ class Repository extends Object
             if (is_array($mixed)) {
                 $data = $mixed;
             } else {
-                $data = array($config->id[0] => $mixed); // convert the id to array-notation
+                $data = [$config->id[0] => $mixed]; // convert the id to array-notation
             }
         } elseif ($object['state'] == 'new') { // The instance isn't stored in the backend and only exists in-memory?
             throw new Exception('Removing instance failed, the instance isn\'t stored in the backend');
@@ -667,16 +667,16 @@ class Repository extends Object
         } elseif (is_array($mixed)) {
             $id = $mixed;
         } else {
-            $id = array($config->id[0] => $mixed);
+            $id = [$config->id[0] => $mixed];
         }
         if (array_value($options, 'discard_changes') !== true) {
             // Check changes
             $data = $this->convertToData($this->objects[$model][$index]['instance'], $config);
             if ($data !== $this->objects[$model][$index]['data']) {
-                throw new InfoException('Reloading failed, instance has pending changes', array(
-            'changed in instance' => array_diff_assoc($data, $this->objects[$model][$index]['data']),
-            'backend values' => array_diff_assoc($this->objects[$model][$index]['data'], $data),
-                ));
+                throw new InfoException('Reloading failed, instance has pending changes', [
+                    'changed in instance' => array_diff_assoc($data, $this->objects[$model][$index]['data']),
+                    'backend values' => array_diff_assoc($this->objects[$model][$index]['data'], $data),
+                ]);
             }
         }
         $data = $this->_getBackend($config->backend)->get($id, $config->backendConfig);
@@ -713,7 +713,7 @@ class Repository extends Object
                 $belongsToIndex = $this->resolveIndex($relation['default']);
                 $value = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
                 if ($value === null) {
-                    $value = new BelongsToPlaceholder($this->ref().'/'.$config->name.'/'.$path, $instance, array($relation['id'] => $relation['default']));
+                    $value = new BelongsToPlaceholder($this->ref().'/'.$config->name.'/'.$path, $instance, [$relation['id'] => $relation['default']]);
                 }
                 PropertyPath::set($path, $value, $instance);
             } else {
@@ -726,11 +726,11 @@ class Repository extends Object
                 PropertyPath::set($path, new Collection($value), $instance);
             }
         }
-        $this->objects[$model][$index] = array(
+        $this->objects[$model][$index] = [
             'state' => 'new',
             'instance' => $instance,
             'data' => null,
-        );
+        ];
         $this->created[$model][$index] = $instance;
         $this->_triggerEvent($instance, 'create', $instance, ['repository' => $this->ref(), 'model' => $config->name], $this);
 
@@ -854,7 +854,7 @@ class Repository extends Object
                     if ($old === null && $previousState != 'new' && is_array($collection)) { // Is the property replaced, before the placeholder was replaced?
                         // Load the previous situation
                         $oldValue = $instance->$property;
-                        $old = $this->resolveProperty($instance, $property, array('model' => $model, 'reload' => true))->toArray();
+                        $old = $this->resolveProperty($instance, $property, ['model' => $model, 'reload' => true])->toArray();
                         $instance->$property = $oldValue;
                     }
                     if (isset($hasMany['collection']['valueField'])) {
@@ -902,7 +902,7 @@ class Repository extends Object
                                 $oldJunctions = [];
                             } else {
                                 $oldValue = $instance->$property;
-                                $old = $this->resolveProperty($instance, $property, array('model' => $model, 'reload' => true))->toArray();
+                                $old = $this->resolveProperty($instance, $property, ['model' => $model, 'reload' => true])->toArray();
                                 $instance->$property = $oldValue;
                                 $object = $this->objects[$model][$index];
                                 $oldJunctions = $object['junctions'][$property];
@@ -916,10 +916,10 @@ class Repository extends Object
                         foreach ($collection as $key => $item) {
                             $hasManyId = PropertyPath::get($hasManyIdPath, $item);
                             $oldJunction = @$oldJunctions[$hasManyId];
-                            $junction = array(
+                            $junction = [
                                 $hasMany['reference'] => $id,
                                 $hasMany['id'] => $hasManyId,
-                            );
+                            ];
                             if ($item instanceof Junction) {
                                 PropertyPath::map($item, $junction, $hasMany['fields']);
                             }
@@ -1002,10 +1002,10 @@ class Repository extends Object
                                             $this->delete($hasMany['model'], $item); // Delete the related model
                                         } else {
                                             // Delete the junction (many-to-many)
-                                            $data = array(
+                                            $data = [
                                                 $hasMany['reference'] => PropertyPath::get($config->properties[$config->id[0]], $instance),
                                                 $hasMany['id'] => PropertyPath::get($hasManyIdPath, $item),
-                                            );
+                                            ];
                                             $junctionConfig = $this->junctions[$hasMany['through']];
                                             $junctionBackend = $this->_getBackend($junctionConfig->backend);
                                             $junctionBackend->delete($data, $junctionConfig->backendConfig);
@@ -1118,7 +1118,7 @@ class Repository extends Object
             $config = $this->configs[$backendConfig->name];
             if (count($config->id) === 0) {
                 if (isset($config->properties['id'])) { // No id set, but the column 'id' exists?
-                    $config->id = array('id');
+                    $config->id = ['id'];
                 } else {
                     warning('Invalid config: '.$config->name.'->id is not configured and could not detect an "id" element');
                 }
@@ -1182,7 +1182,7 @@ class Repository extends Object
                 }
                 // @todo Add collectionMapping for "convert" relations?
                 if (empty($this->configs[$belongsTo['model']])) {
-                    //					$validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] "'.$belongsTo['model'].'" isn\'t registered';
+                    // $validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] "'.$belongsTo['model'].'" isn\'t registered';
                 }
 
                 // Remove invalid relations
@@ -1209,9 +1209,9 @@ class Repository extends Object
                     } else {
                         // Infer the belongsTo path based on the model and reference path.
                         $hasManyConfig = $this->configs[$hasMany['model']];
-                        $idProperty = array(
+                        $idProperty = [
                             array_value(array_pop($referencePath), 1),
-                        );
+                        ];
                         if ($idProperty == $hasManyConfig->id) {
                             $hasMany['belongsTo'] = PropertyPath::assemble($referencePath);
                             $config->hasMany[$property]['belongsTo'] = $hasMany['belongsTo']; // update config
@@ -1265,7 +1265,7 @@ class Repository extends Object
                 // Generate class
                 $use = '';
                 $aliases = [];
-                $alias = $this->buildAlias(Object::class, $aliases, $use);
+                $alias = $this->buildAlias(Base::class, $aliases, $use);
                 $php = "\nclass ".$config->name." extends ".$alias."\n{\n";
                 $properties = [];
                 foreach ($config->properties as $path) {
@@ -1322,10 +1322,10 @@ class Repository extends Object
             }
             // Validate AutoCompleteHelper
             foreach ($backend->configs as $config) {
-                $autoComplete = array(
+                $autoComplete = [
                     'class' => $config->class,
                     'properties' => implode(', ', $config->properties),
-                );
+                ];
                 if (empty($this->autoComplete[$config->name]) || $this->autoComplete[$config->name] != $autoComplete) {
                     $this->autoComplete[$config->name] = $autoComplete;
                     \Sledgehammer\mkdirs(\Sledgehammer\TMP_DIR.'AutoComplete');
@@ -1358,10 +1358,11 @@ class Repository extends Object
     
     /**
      * Register closures that lazily configure the default repository.
-     * 
+     *
      * @param Closure $closure A closure that received the repository as the first argument
      */
-    public static function configureDefault($closure) {
+    public static function configureDefault($closure)
+    {
         if (\Sledgehammer\is_closure($closure) === false) {
             throw new Exception('Closure expected as first argument');
         }
@@ -1386,12 +1387,13 @@ class Repository extends Object
      * Builds a uses array
      *
      * @param string $fqcn full qualified classname
-     * @param array $aliases array with the 
+     * @param array $aliases array with the
      * @return string alias
      */
-    private function buildAlias($fqcn, &$aliases, &$use) {
+    private function buildAlias($fqcn, &$aliases, &$use)
+    {
         $fqcn = ltrim($fqcn, '\\');
-        if (array_key_exists($fqcn, $aliases)) { 
+        if (array_key_exists($fqcn, $aliases)) {
             return $aliases[$fqcn];// Use the existing alias
         }
         $parts = explode('\\', $fqcn);
@@ -1493,7 +1495,8 @@ class Repository extends Object
      * @param string $model
      * @param mixed $instance
      */
-    public function free($model, $instance = null) {
+    public function free($model, $instance = null)
+    {
         if ($instance === null) {
             unset($this->objects[$model]);
             return;
@@ -1670,18 +1673,18 @@ class Repository extends Object
             $paths = array_merge($config->properties, $config->ignoreProperties, array_keys($config->belongsTo), array_keys($config->hasMany));
             foreach ($paths as $path) {
                 $tokens = PropertyPath::parse($path);
-                if (in_array($tokens[0][0], array(PropertyPath::TYPE_ANY, PropertyPath::TYPE_ELEMENT))) {
+                if (in_array($tokens[0][0], [PropertyPath::TYPE_ANY, PropertyPath::TYPE_ELEMENT])) {
                     unset($properties[$tokens[0][1]]);
                 }
             }
             if (count($properties) !== 0) {
-                $causes = array(
+                $causes = [
                     '1. The column is missing in the backend/database.',
                     '2. The relation/foreign key is missing in the backend/database.',
                     '3. The column has diffent name than the property. Set the ModelConfig->properties[columname] = propertyname.',
                     '4. The property should be ignored by the repository. Add the property to the ModelConfig->ignoreProperties.',
                     '5. The relation couldn\'t be detected. Add an entry to ModelConfig->hasMany or ModelConfig->belongsTo.',
-                );
+                ];
                 throw new InfoException('Unexpected property: '.\Sledgehammer\quoted_human_implode(' and ', array_keys($properties)).' in '.$config->class.' class for "'.$config->name.'"', '<b>Possible causes:</b><br />'.implode('<br />', $causes));
             }
             $this->validated[$config->name] = true;
@@ -1715,9 +1718,9 @@ class Repository extends Object
                     if ($belongsToInstance !== null) {
                         $instance->$property = $belongsToInstance;
                     } else {
-                        $fields = array(
+                        $fields = [
                             $relation['id'] => $belongsToId,
-                        );
+                        ];
                         $instance->$property = new BelongsToPlaceholder($this->ref().'/'.$config->name.'/'.$property, $instance, $fields);
                     }
                 }
@@ -1842,7 +1845,7 @@ class Repository extends Object
         if ($config !== null) {
             return $config;
         }
-        throw new InfoException('Unknown model: "'.$model.'"', array('Available models' => implode(array_keys($this->configs), ', ')));
+        throw new InfoException('Unknown model: "'.$model.'"', ['Available models' => implode(array_keys($this->configs), ', ')]);
     }
 
     /**

@@ -3,12 +3,12 @@
 namespace Sledgehammer\Orm;
 
 use Iterator;
-use Sledgehammer\Core\Object;
+use Sledgehammer\Core\Base;
 
 /**
  * Helper class for the RepositoryCollection, which converts data to the mode instances when needed.
  */
-class RepositoryCollectionIterator extends Object implements Iterator
+class RepositoryCollectionIterator extends Base implements Iterator
 {
     /**
      * @var Iterator

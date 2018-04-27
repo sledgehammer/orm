@@ -7,7 +7,7 @@ use Countable;
 use Exception;
 use IteratorAggregate;
 use Sledgehammer\Core\Collection;
-use Sledgehammer\Core\Object;
+use Sledgehammer\Core\Base;
 use Sledgehammer\Core\PropertyPath;
 use stdClass;
 
@@ -15,7 +15,7 @@ use stdClass;
  * This Placeholder facilitates lazy loading of hasMany relations.
  * A HasManyPlaceholder object behaves like an Collection containing all related objects from the repository, but only retrieves the objects on-access or on-change.
  */
-class HasManyPlaceholder extends Object implements ArrayAccess, IteratorAggregate, Countable
+class HasManyPlaceholder extends Base implements ArrayAccess, IteratorAggregate, Countable
 {
     /**
      * @var string|Collection Initialy a reference "repository/model/property", but will be replaced with the referenced Collection
@@ -37,7 +37,7 @@ class HasManyPlaceholder extends Object implements ArrayAccess, IteratorAggregat
     {
         $this->replacePlaceholder();
 
-        return call_user_func_array(array($this->__placeholder, $method), $args);
+        return call_user_func_array([$this->__placeholder, $method], $args);
     }
 
     public function __clone()
@@ -113,6 +113,6 @@ class HasManyPlaceholder extends Object implements ArrayAccess, IteratorAggregat
             return;
         }
         $repo = Repository::instance($repositoryId);
-        $this->__placeholder = $repo->resolveProperty($this->__container, $property, array('model' => $model));
+        $this->__placeholder = $repo->resolveProperty($this->__container, $property, ['model' => $model]);
     }
 }

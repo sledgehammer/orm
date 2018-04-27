@@ -19,7 +19,7 @@ class RepositoryTester extends Repository
 
     public function validateObjects()
     {
-        $validStates = array('new', 'retrieved', 'saved', 'deleted');
+        $validStates = ['new', 'retrieved', 'saved', 'deleted'];
         foreach ($this->objects as $model => $objects) {
             foreach ($objects as $index => $object) {
                 if (in_array($object['state'], $validStates) == false) {

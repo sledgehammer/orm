@@ -2,16 +2,16 @@
 
 namespace Sledgehammer\Orm;
 
-use Sledgehammer\Core\Object;
+use Sledgehammer\Core\Base;
 
 /**
  * The Inflector transforms words from singular to plural and from plural to singular.
  *
  * Original code from php-activerecord @link http://www.phpactiverecord.org/ who copied it from RoR's ActiveRecord @link http://api.rubyonrails.org/classes/ActiveSupport/Inflector.html
  */
-class Inflector extends Object
+class Inflector extends Base
 {
-    public static $plural = array(
+    public static $plural = [
         '/(quiz)$/i' => '$1zes',
         '/^(ox)$/i' => '$1en',
         '/([m|l])ouse$/i' => '$1ice',
@@ -31,8 +31,8 @@ class Inflector extends Object
         '/(us)$/i' => '$1es',
         '/s$/i' => 's',
         '/$/' => 's',
-    );
-    public static $singular = array(
+    ];
+    public static $singular = [
         '/(quiz)zes$/i' => '$1',
         '/(matr)ices$/i' => '$1ix',
         '/(vert|ind)ices$/i' => '$1ex',
@@ -61,8 +61,8 @@ class Inflector extends Object
         '/(corpse)s$/i' => '$1',
         '/(us)es$/i' => '$1',
         '/s$/i' => '',
-    );
-    public static $irregular = array(
+    ];
+    public static $irregular = [
         'move' => 'moves',
         'foot' => 'feet',
         'goose' => 'geese',
@@ -71,8 +71,8 @@ class Inflector extends Object
         'man' => 'men',
         'tooth' => 'teeth',
         'person' => 'people',
-    );
-    public static $uncountable = array(
+    ];
+    public static $uncountable = [
         'sheep',
         'fish',
         'deer',
@@ -82,7 +82,7 @@ class Inflector extends Object
         'rice',
         'information',
         'equipment',
-    );
+    ];
 
     /**
      * Special characters, which are not allowed in class or variable names.
@@ -98,7 +98,7 @@ class Inflector extends Object
      *
      * @var array
      */
-    public static $reservedKeywords = array(
+    public static $reservedKeywords = [
         // PHP Keywords
         '__halt_compiler',
         'abstract',
@@ -174,7 +174,7 @@ class Inflector extends Object
         '__method__',
         '__namespace__',
         '__trait__',
-    );
+    ];
 
     /**
      * Returns the plural form of the word in the string.
@@ -256,10 +256,10 @@ class Inflector extends Object
      */
     public static function modelize($name, $options = [])
     {
-        $defaults = array(
+        $defaults = [
             'prefix' => '',
             'singularizeLast' => false,
-        );
+        ];
         $options = array_merge($defaults, $options);
         if ($options['prefix'] != '' && substr($name, 0, strlen($options['prefix'])) == $options['prefix']) {
             $name = substr($name, strlen($options['prefix'])); // Strip prefix

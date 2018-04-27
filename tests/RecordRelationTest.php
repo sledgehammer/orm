@@ -40,7 +40,7 @@ class RecordRelationTest extends DatabaseTestCase
     {
         $db->import(dirname(__FILE__).'/rebuild_test_database.'.$db->getAttribute(PDO::ATTR_DRIVER_NAME).'.sql', $error);
         $repo = new Repository();
-        $backend = new DatabaseRepositoryBackend(array($this->dbLink));
+        $backend = new DatabaseRepositoryBackend([$this->dbLink]);
         $repo->registerBackend($backend);
         Repository::$instances[__CLASS__] = $repo;
     }
@@ -48,12 +48,12 @@ class RecordRelationTest extends DatabaseTestCase
     public function test_hasMany_iterator()
     {
         $customer = Repository::instance(__CLASS__)->getCustomer(1);
-//		$this->assertQueryCount(2, 'Geen queries bij het defineren van een relatie'); // Verwacht een SELECT & DESCRIBE
-//		$this->assertQueryCount(2, 'Geen queries voor het opvragen van de relatie');
+        //		$this->assertQueryCount(2, 'Geen queries bij het defineren van een relatie'); // Verwacht een SELECT & DESCRIBE
+        //		$this->assertQueryCount(2, 'Geen queries voor het opvragen van de relatie');
 
         $this->assertEquals(count($customer->orders), 1);
 
-//		$this->assertQueryCount(4, 'Zodra de gegevens nodig zijn de DECRIBE & SELECT uitvoeren');
+        //		$this->assertQueryCount(4, 'Zodra de gegevens nodig zijn de DECRIBE & SELECT uitvoeren');
         $this->assertLastQuery('SELECT * FROM orders WHERE customer_id = 1');
         $related = $customer->orders;
 
@@ -61,8 +61,8 @@ class RecordRelationTest extends DatabaseTestCase
             //			$this->assertEquals($id, 1); // no longer the default (array != dictionany in json, etc)
             $this->assertEquals($orders->product, 'Kop koffie');
         }
-        $customer->orders[] = Repository::instance(__CLASS__)->createOrder(array('product' => 'New product', 'id' => 5));
-//		$array = iterator_to_array($customer->orders); // no longer an iterator (incompatible with poco)
+        $customer->orders[] = Repository::instance(__CLASS__)->createOrder(['product' => 'New product', 'id' => 5]);
+        //		$array = iterator_to_array($customer->orders); // no longer an iterator (incompatible with poco)
 //		$this->assertEquals(value($array[5]->product), 'New product', 'The iterator should include the "additions"'); // no longer able to set the key based on id (it's  just an array)
     }
 
@@ -73,22 +73,22 @@ class RecordRelationTest extends DatabaseTestCase
         $this->assertEquals($order->product, 'Walter PPK 9mm');
         $customer->orders[0]->product = 'Magnum';
         $this->assertEquals($customer->orders[0]->product, 'Magnum', 'Remember changes');
-//		$customer->orders[0] = $order; // after clone a order is no longer connected to the repository
-//		$this->assertEquals($order->product, 'Walter PPK 9mm');
+        //		$customer->orders[0] = $order; // after clone a order is no longer connected to the repository
+        //		$this->assertEquals($order->product, 'Walter PPK 9mm');
         // Relation errors are no longer detected on-access, its just an array
-//		try {
-//			$customer->orders[2] = $order;
-//			$this->fail('Setting a relation with an ID that doesn\'t match should throw an Exception');
-//		} catch (\Exception $e) {
-//			$this->assertEquals($e->getMessage(), 'Key: "3" doesn\'t match the keyColumn: "2"');
+        //		try {
+        //			$customer->orders[2] = $order;
+        //			$this->fail('Setting a relation with an ID that doesn\'t match should throw an Exception');
+        //		} catch (\Exception $e) {
+        //			$this->assertEquals($e->getMessage(), 'Key: "3" doesn\'t match the keyColumn: "2"');
 //       	}
-//		if (count($customer->orders) != 2) {
-//			$this->fail('Sanity check failed');
-//		}
+        //		if (count($customer->orders) != 2) {
+        //			$this->fail('Sanity check failed');
+        //		}
 
-        $customer->orders[] = Repository::instance(__CLASS__)->createOrder(array('product' => 'New product')); // Product zonder ID
-        $customer->orders[] = Repository::instance(__CLASS__)->createOrder(array('id' => 7, 'product' => 'Wodka Martini'));
-//		$this->assertEquals($customer->orders[7]->product, 'Wodka Martini'); // No longer has key based on ID, is just an array
+        $customer->orders[] = Repository::instance(__CLASS__)->createOrder(['product' => 'New product']); // Product zonder ID
+        $customer->orders[] = Repository::instance(__CLASS__)->createOrder(['id' => 7, 'product' => 'Wodka Martini']);
+        //		$this->assertEquals($customer->orders[7]->product, 'Wodka Martini'); // No longer has key based on ID, is just an array
         $this->assertEquals(count($customer->orders), 4, 'There should be 4 items in the relation');
         Repository::instance(__CLASS__)->saveCustomer($customer);
         $this->assertQuery("INSERT INTO orders (customer_id, id, product) VALUES (2, 7, 'Wodka Martini')"); // The "id" comes after the "customer_id" because the belongsTo are mapped before the normal properties
@@ -103,10 +103,10 @@ class RecordRelationTest extends DatabaseTestCase
     {
         $customer = Repository::instance(__CLASS__)->getCustomer(2, true);
         $products = $customer->orders->select('product', 'id')->toArray();
-        $this->assertEquals($products, array(
+        $this->assertEquals($products, [
             2 => 'Walter PPK 9mm',
             3 => 'Spycam',
-        ));
+        ]);
         $this->assertEquals($products[2], 'Walter PPK 9mm');
         $this->assertTrue(isset($products[2]));
         $this->assertFalse(isset($products[5]));
@@ -145,7 +145,7 @@ class RecordRelationTest extends DatabaseTestCase
         $repo->saveCustomer($bob);
         $this->assertLastQuery('DELETE FROM memberships WHERE customer_id = 1 AND group_id = 1');
         $this->assertCount(0, $bob->groups);
-        $bob->groups[] = $repo->createGroup(array('title' => 'Movie fanatic'));
+        $bob->groups[] = $repo->createGroup(['title' => 'Movie fanatic']);
         $repo->saveCustomer($bob);
         $this->assertLastQuery('INSERT INTO memberships (customer_id, group_id) VALUES (1, 4)');
         $this->assertQuery("INSERT INTO groups (title) VALUES ('Movie fanatic')");
@@ -203,7 +203,7 @@ class RecordRelationTest extends DatabaseTestCase
     public function test_many_to_many_relation_with_mapped_fields()
     {
         $repo = new Repository();
-        $backend = new DatabaseRepositoryBackend(array($this->dbLink));
+        $backend = new DatabaseRepositoryBackend([$this->dbLink]);
         $repo->registerBackend($backend);
         $backend->configs['Customer']->hasMany['ratings']['fields']['rating'] = 'groupRating';
 
@@ -249,7 +249,7 @@ class RecordRelationTest extends DatabaseTestCase
         return parent::assertQueryCount($this->queryCountAfterInspectDatabase + $expectedCount, $message);
     }
 
-//	function test_custom_relation() {
+    //	function test_custom_relation() {
 //		$hasMany = array('products' => new RecordRelation('orders', 'customer_id', array(
 //			'dbLink' => $this->dbLink,
 //			'valueProperty' => 'product',

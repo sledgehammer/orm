@@ -3,14 +3,14 @@
 namespace Sledgehammer\Orm\Backend;
 
 use Exception;
-use Sledgehammer\Core\Object;
+use Sledgehammer\Core\Base;
 use Sledgehammer\Orm\ModelConfig;
 use Traversable;
 
 /**
  * The minimal interface for a (read-only) Repository Backend.
  */
-abstract class RepositoryBackend extends Object
+abstract class RepositoryBackend extends Base
 {
     /**
      * @var string
@@ -57,7 +57,7 @@ abstract class RepositoryBackend extends Object
      */
     public function related($config, $reference, $id)
     {
-        return $this->all($config)->where(array($reference => $id));
+        return $this->all($config)->where([$reference => $id]);
     }
 
     /**

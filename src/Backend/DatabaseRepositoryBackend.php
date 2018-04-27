@@ -440,13 +440,13 @@ class DatabaseRepositoryBackend extends RepositoryBackend
         $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
         if ($driver == 'mysql') {
             return $this->getSchemaMySql($db, $prefix);
-        } elseif ($driver == 'sqlite') {
-            return $this->getSchemaSqlite($db, $prefix);
-        } else {
-            warning('PDO driver: "'.$driver.'" not supported');
-
-            return false;
         }
+        if ($driver == 'sqlite') {
+            return $this->getSchemaSqlite($db, $prefix);
+        }
+        warning('PDO driver: "'.$driver.'" not supported');
+
+        return false;
     }
 
     /**
@@ -499,10 +499,10 @@ class DatabaseRepositoryBackend extends RepositoryBackend
                         $part = $parts[$i];
 
                         switch (strtoupper($part)) {
-                            case 'NOT_NULL';
+                            case 'NOT_NULL':
                                 $columnConfig['null'] = false;
                                 break;
-                            case 'NULL';
+                            case 'NULL':
                                 $columnConfig['null'] = true;
                                 break;
 
@@ -525,7 +525,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend
                                     $config['columns'][$column]['default'] = substr($default, 1, -1); // remove quotes
                                 } else {
                                     switch ($default) {
-                                        case 'NULL';
+                                        case 'NULL':
                                             $default = null;
                                             break;
                                         case 'CURRENT_TIMESTAMP':
@@ -578,8 +578,8 @@ class DatabaseRepositoryBackend extends RepositoryBackend
                             break;
 
                         case 'KEY':
-                        case 'UNIQUE_KEY';
-                        case 'FULLTEXT_KEY';
+                        case 'UNIQUE_KEY':
+                        case 'FULLTEXT_KEY':
                             break; // Skip
 
                         case 'CONSTRAINT':

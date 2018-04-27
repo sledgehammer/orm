@@ -3,7 +3,7 @@
 namespace Sledgehammer\Orm;
 
 use Exception;
-use Sledgehammer\Core\Object;
+use Sledgehammer\Core\Base;
 use Sledgehammer\Core\PropertyPath;
 use stdClass;
 
@@ -13,7 +13,7 @@ use stdClass;
  *
  * @todo Implement ArrayAcces and Iterator interfaces. Which the target property might support.
  */
-class BelongsToPlaceholder extends Object
+class BelongsToPlaceholder extends Base
 {
     /**
      * @var array
@@ -57,7 +57,7 @@ class BelongsToPlaceholder extends Object
     {
         $this->__replacePlaceholder();
 
-        return call_user_func_array(array($this->__placeholder, $method), $arguments);
+        return call_user_func_array([$this->__placeholder, $method], $arguments);
     }
 
     public function __clone()
@@ -87,6 +87,6 @@ class BelongsToPlaceholder extends Object
             return;
         }
         $repo = Repository::instance($repositoryId);
-        $this->__placeholder = $repo->resolveProperty($this->__container, $property, array('model' => $model));
+        $this->__placeholder = $repo->resolveProperty($this->__container, $property, ['model' => $model]);
     }
 }

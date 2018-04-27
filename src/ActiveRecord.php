@@ -4,15 +4,15 @@ namespace Sledgehammer\Orm;
 
 use Exception;
 use Sledgehammer\Core\Collection;
-use Sledgehammer\Core\Object;
-use Sledgehammer\Core\Observable;
+use Sledgehammer\Core\Base;
+use Sledgehammer\Core\EventEmitter;
 
 /**
  * An ActiveRecord frontend for the Repository.
  */
-abstract class ActiveRecord extends Object
+abstract class ActiveRecord extends Base
 {
-    use Observable;
+    use EventEmitter;
     /**
      * The model in the repository, usually the same as the classname.
      *
@@ -43,14 +43,14 @@ abstract class ActiveRecord extends Object
      *
      * @var array
      */
-    protected $events = array(
+    protected $events = [
         'create' => [], // When a new instance is created (with initial data), but commited to the backend.
         'load' => [], // After the data from the backend is injected into the ActiveRecord.
         'saving' => [], // Before the data is sent to the backend
         'saved' => [], // After the data is sent to the backend
         'deleting' => [], // Before the delete operation is sent to the backend
         'deleted' => [], // When the Record is deleted
-    );
+    ];
 
     /**
      * Use the repostory or static functions to create an instance.
@@ -198,9 +198,8 @@ abstract class ActiveRecord extends Object
             notice('A deleted Record has no properties');
 
             return;
-        } else {
-            return parent::__get($property);
         }
+        return parent::__get($property);
     }
 
     public function __set($property, $value)
@@ -233,12 +232,11 @@ abstract class ActiveRecord extends Object
         $properties = get_class_vars($class);
         if ($properties['_model'] !== null) {
             return $properties['_model'];
-        } else {
-            // Detect modelname based on the classname
-            $parts = explode('\\', $class);
-
-            return array_pop($parts);
         }
+        // Detect modelname based on the classname
+        $parts = explode('\\', $class);
+
+        return array_pop($parts);
     }
 
     /**

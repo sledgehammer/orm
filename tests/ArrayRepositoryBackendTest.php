@@ -46,21 +46,21 @@ class ArrayRepositoryBackendTest extends TestCase
     {
         ErrorHandler::enable();
         $repo = $this->getRepo();
-        $neo = $repo->createActor(array('name' => 'Keanu Reeves'));
+        $neo = $repo->createActor(['name' => 'Keanu Reeves']);
         $repo->saveActor($neo);
         $this->assertSame(2, $neo->id);
     }
 
     private function getRepo()
     {
-        $backend = new ArrayRepositoryBackend(new ModelConfig('Actor'), array(
-            array(
+        $backend = new ArrayRepositoryBackend(new ModelConfig('Actor'), [
+            [
                 'name' => 'Roger Moore',
-            ),
-            array(
+            ],
+            [
                 'name' => 'Arnold Schwarzenegger',
-            ),
-        ));
+            ],
+        ]);
         $repo = new Repository();
         $repo->registerBackend($backend);
 

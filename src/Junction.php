@@ -2,13 +2,13 @@
 
 namespace Sledgehammer\Orm;
 
-use Sledgehammer\Core\Object;
+use Sledgehammer\Core\Base;
 
 /**
  * A entry in a many-to-many relation where the link/bridge table has additional fields.
  * Behaves as the linked object, but with additional properties.
  */
-class Junction extends Object
+class Junction extends Base
 {
     /**
      * The object this junction links to.
@@ -108,6 +108,6 @@ class Junction extends Object
      */
     public function __call($method, $arguments)
     {
-        return call_user_func_array(array($this->instance, $method), $arguments);
+        return call_user_func_array([$this->instance, $method], $arguments);
     }
 }

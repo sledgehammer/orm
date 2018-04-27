@@ -15,7 +15,6 @@ use SledgehammerTests\Core\DatabaseTestCase;
  */
 class DatabaseRepositoryBackendTest extends DatabaseTestCase
 {
-
     protected $skipRebuildDatabase = true;
 
     /**
@@ -23,7 +22,7 @@ class DatabaseRepositoryBackendTest extends DatabaseTestCase
      */
     private $backend;
 
-    function testConfigs()
+    public function testConfigs()
     {
         $configs = new Collection($this->backend->configs);
         $actual = $configs->orderBy('name')->select('name', null)->toArray();
@@ -31,7 +30,7 @@ class DatabaseRepositoryBackendTest extends DatabaseTestCase
         $this->assertEquals($expected, $actual);
     }
 
-    function testJunctions()
+    public function testJunctions()
     {
         $junctions = new Collection($this->backend->junctions);
         $actual = $junctions->orderBy('name')->select('name', null)->toArray();
@@ -39,7 +38,7 @@ class DatabaseRepositoryBackendTest extends DatabaseTestCase
         $this->assertEquals($expected, $actual);
     }
 
-    function testOrder()
+    public function testOrder()
     {
         $config = $this->backend->configs['Order'];
         $this->assertEquals(['id'], $config->id, 'The primary key of the record is just the "id" column');
@@ -51,7 +50,7 @@ class DatabaseRepositoryBackendTest extends DatabaseTestCase
         $this->assertEquals('id', $belongsToCustomer['id'], 'The column of the id in the customers table');
     }
 
-    function testGroup()
+    public function testGroup()
     {
         $config = $this->backend->configs['Group'];
         $this->assertCount(0, $config->belongsTo);
@@ -73,7 +72,7 @@ class DatabaseRepositoryBackendTest extends DatabaseTestCase
         $this->assertEquals(['rating' => 'rating'], $manyRatings['fields'], 'The junction table has the rating as additional fields');
     }
 
-    function testCustomer()
+    public function testCustomer()
     {
         $config = $this->backend->configs['Customer'];
         $this->assertCount(0, $config->belongsTo);
@@ -108,7 +107,6 @@ class DatabaseRepositoryBackendTest extends DatabaseTestCase
     public function fillDatabase($db)
     {
         $db->import(dirname(__FILE__) . '/rebuild_test_database.' . $db->getAttribute(PDO::ATTR_DRIVER_NAME) . '.sql', $error);
-        $this->backend = new DatabaseRepositoryBackend(array($this->dbLink));
+        $this->backend = new DatabaseRepositoryBackend([$this->dbLink]);
     }
-
 }
