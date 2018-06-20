@@ -24,6 +24,14 @@ use Traversable;
 class Repository extends Base
 {
     use Singleton;
+
+    /**
+     * Write php files for editor autocompletion.
+     * must end with DIRECTORY_SEPARATOR
+     * @var string|false
+     */
+    public static $autoCompleteFolder = false;
+
     /**
      * Registered namespaces that are searched for a classname that matches the model->name.
      *
@@ -34,7 +42,7 @@ class Repository extends Base
     /**
      * Registered models.
      *
-     * @var array|ModelConfig array(model => config)
+     * @var array|ModelConfig [model => config]
      */
     protected $configs = [];
 
@@ -55,7 +63,7 @@ class Repository extends Base
     /**
      * Mapping of plural notation to singular.
      *
-     * @var array array($plural =>)
+     * @var array [$plural => $singular]
      */
     protected $plurals = [];
 
@@ -91,7 +99,7 @@ class Repository extends Base
     /**
      * Used to speedup the execution RepostoryCollection->where() statements. (allows db WHERE statements).
      *
-     * @var array array($model => array($propertyPath =>))
+     * @var array [$model => [$propertyPath =>]]
      */
     private $collectionMappings = [];
 
@@ -1301,18 +1309,17 @@ class Repository extends Base
                 }
                 $php .= '}';
                 $php = "namespace ".$namespace.";\n\n".$use.$php;
-                if (\Sledgehammer\ENVIRONMENT === 'development' && $namespace === 'Generated') {
+                if (self::$autoCompleteFolder && $namespace === 'Generated') {
                     // Write autoComplete helper
                     // @todo Only write file when needed, aka validate $this->autoComplete
-                    \Sledgehammer\mkdirs(\Sledgehammer\TMP_DIR.'AutoComplete');
-                    file_put_contents(\Sledgehammer\TMP_DIR.'AutoComplete/'.$config->name.'.php', "<?php\n\n".$php."\n");
+                    file_put_contents(self::$autoCompleteFolder.$config->name.'.php', "<?php\n\n".$php."\n");
                 }
                 eval($php);
             }
         }
         // Pass 6: Generate or update the AutoComplete Helper for the default repository?
-        if (\Sledgehammer\ENVIRONMENT == 'development' && isset(self::$instances['default']) && self::$instances['default'] === $this) {
-            $autoCompleteFile = \Sledgehammer\TMP_DIR.'AutoComplete/repository.ini';
+        if (self::$autoCompleteFolder && isset(self::$instances['default']) && self::$instances['default'] === $this) {
+            $autoCompleteFile = self::$autoCompleteFolder.'repository.ini';
             if ($this->autoComplete === null) {
                 if (file_exists($autoCompleteFile)) {
                     $this->autoComplete = parse_ini_file($autoCompleteFile, true);
@@ -1321,6 +1328,7 @@ class Repository extends Base
                 }
             }
             // Validate AutoCompleteHelper
+            $outdated = false;
             foreach ($backend->configs as $config) {
                 $autoComplete = [
                     'class' => $config->class,
@@ -1328,10 +1336,12 @@ class Repository extends Base
                 ];
                 if (empty($this->autoComplete[$config->name]) || $this->autoComplete[$config->name] != $autoComplete) {
                     $this->autoComplete[$config->name] = $autoComplete;
-                    \Sledgehammer\mkdirs(\Sledgehammer\TMP_DIR.'AutoComplete');
-                    \Sledgehammer\write_ini_file($autoCompleteFile, $this->autoComplete, 'Repository AutoComplete config');
-                    $this->writeAutoCompleteHelper(\Sledgehammer\TMP_DIR.'AutoComplete/DefaultRepository.php', 'DefaultRepository', 'Generated');
+                    $outdated = true;
                 }
+            }
+            if ($outdated) {
+                \Sledgehammer\write_ini_file($autoCompleteFile, $this->autoComplete, 'Repository AutoComplete config');
+                $this->writeAutoCompleteHelper(self::$autoCompleteFolder.'DefaultRepository.php');
             }
         }
     }
@@ -1514,12 +1524,13 @@ class Repository extends Base
      * @param string $class     The classname of the genereted class
      * @param string $namespace (optional) The namespace of the generated class
      */
-    public function writeAutoCompleteHelper($filename, $class, $namespace = null)
+    public function writeAutoCompleteHelper($filename, $class = 'DefaultRepository', $namespace = 'Generated')
     {
         $use = '';
         $aliases = [];
         $this->buildAlias(Collection::class, $aliases, $use);
-        $php = "\nclass ".$class.' extends '.$this->buildAlias(get_class($this), $aliases, $use)." {\n\n";
+        $php = "\nclass ".$class.' extends '.$this->buildAlias(get_class($this), $aliases, $use)."\n";
+        $php .= "{\n";
         foreach ($this->configs as $model => $config) {
             $alias = $this->buildAlias($config->class, $aliases, $use);
             $instanceVar = '$'.lcfirst($model);
@@ -1536,7 +1547,8 @@ class Repository extends Base
             $php .= "     *    true or -1: Load all relations of all relations.\n";
             $php .= "     * @return ".$alias."\n";
             $php .= "     */\n";
-            $php .= "    function get".$model.'($id, $options = []) {'."\n";
+            $php .= "    public function get".$model.'($id, $options = [])'."\n";
+            $php .= "    {\n";
             $php .= "        return \$this->get('".$model."', \$id, \$options);\n";
             $php .= "    }\n";
 
@@ -1548,7 +1560,8 @@ class Repository extends Base
             $php .= "     * @param array \$options\n";
             $php .= "     * @return ".$alias."\n";
             $php .= "     */\n";
-            $php .= "    function one".$model.'($conditions, $allowNone = false, $options = []) {'."\n";
+            $php .= "    public function one".$model.'($conditions, $allowNone = false, $options = [])'."\n";
+            $php .= "    {\n";
             $php .= "        return \$this->one('".$model."', \$conditions, \$allowNone, \$options);\n";
             $php .= "    }\n";
 
@@ -1566,7 +1579,8 @@ class Repository extends Base
             $php .= "     *\n";
             $php .= "     * @return Collection|".$alias."[]\n";
             $php .= "     */\n";
-            $php .= "    function all".$config->plural.'($conditions = null, $options = []) {'."\n";
+            $php .= "    public function all".$config->plural.'($conditions = null, $options = [])'."\n";
+            $php .= "    {\n";
             $php .= "        return \$this->all('".$model."', \$conditions, \$options);\n";
             $php .= "    }\n";
 
@@ -1581,7 +1595,8 @@ class Repository extends Base
             $php .= "     *   'keep_missing_related_instances' => bool, false: Auto deletes removed instances\n";
             $php .= "     * }\n";
             $php .= "     */\n";
-            $php .= "    function save".$model.'('.$instanceVar.', $options = []) {'."\n";
+            $php .= "    public function save".$model.'('.$instanceVar.', $options = [])'."\n";
+            $php .= "    {\n";
             $php .= "        return \$this->save('".$model."', ".$instanceVar.", \$options);\n";
             $php .= "    }\n";
 
@@ -1591,7 +1606,8 @@ class Repository extends Base
             $php .= "     * @param array \$values (optional) Initial contents of the object \n";
             $php .= "     * @return ".$alias."\n";
             $php .= "     */\n";
-            $php .= "    function create".$model.'($values = []) {'."\n";
+            $php .= "    public function create".$model.'($values = [])'."\n";
+            $php .= "    {\n";
             $php .= "        return \$this->create('".$model."', \$values);\n";
             $php .= "    }\n";
 
@@ -1600,7 +1616,8 @@ class Repository extends Base
             $php .= "     *\n";
             $php .= "     * @param ".$alias.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
             $php .= "     */\n";
-            $php .= "    function delete".$model.'('.$instanceVar.') {'."\n";
+            $php .= "    public function delete".$model.'('.$instanceVar.')'."\n";
+            $php .= "    {\n";
             $php .= "        return \$this->delete('".$model."', ".$instanceVar.");\n";
             $php .= "    }\n";
 
@@ -1610,7 +1627,8 @@ class Repository extends Base
             $php .= "     * @param ".$alias.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
             $php .= "     * @param array \$options  Additional options \n";
             $php .= "     */\n";
-            $php .= "    function reload".$model.'('.$instanceVar.', $options = []) {'."\n";
+            $php .= "    public function reload".$model.'('.$instanceVar.', $options = [])'."\n";
+            $php .= "    {\n";
             $php .= "        return \$this->reload('".$model."', ".$instanceVar.");\n";
             $php .= "    }\n";
 
@@ -1618,9 +1636,10 @@ class Repository extends Base
                 $php .= "    /**\n";
                 $php .= "     * Reload all ".$config->plural."\n";
                 $php .= "     *\n";
-                $php .= "     * @param array \$options  Additional options \n";
+                $php .= "     * @param array \$options  Additional options\n";
                 $php .= "     */\n";
-                $php .= "    function reload".$config->plural.'() {'."\n";
+                $php .= "    public function reload".$config->plural.'()'."\n";
+                $php .= "    {\n";
                 $php .= "        return \$this->reload('".$model."', null, array('all' => true));\n";
                 $php .= "    }\n";
             }

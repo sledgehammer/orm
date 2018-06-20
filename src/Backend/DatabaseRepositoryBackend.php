@@ -63,7 +63,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend
     {
         // Pass 1: Retrieve and parse schema information
         $db = Connection::instance($dbLink);
-        if (self::$cacheTimeout === false) {
+        if (static::$cacheTimeout === false) {
             $schema = $this->getSchema($db, $tablePrefix);
         } else {
             $cacheIdentifier = $dbLink.' '.$tablePrefix.' ';
@@ -71,7 +71,7 @@ class DatabaseRepositoryBackend extends RepositoryBackend
                 $cacheIdentifier .= $db->logger->entries[0][0]; // Add the connect statement to the identifier.
             }
             $backend = $this;
-            $schema = \Sledgehammer\cache('DatabaseRepositoryBackend['.md5($cacheIdentifier).']', self::$cacheTimeout, function () use ($backend, $db, $tablePrefix) {
+            $schema = \Sledgehammer\cache('DatabaseRepositoryBackend['.md5($cacheIdentifier).']', static::$cacheTimeout, function () use ($backend, $db, $tablePrefix) {
                 return $backend->getSchema($db, $tablePrefix);
             });
         }
@@ -506,7 +506,8 @@ class DatabaseRepositoryBackend extends RepositoryBackend
                                 $columnConfig['null'] = true;
                                 break;
 
-                            case 'AUTO_INCREMENT': break;
+                            case 'AUTO_INCREMENT':
+                                break;
 
                             case 'DEFAULT':
                                 $default = '';

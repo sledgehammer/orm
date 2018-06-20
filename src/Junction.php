@@ -3,12 +3,13 @@
 namespace Sledgehammer\Orm;
 
 use Sledgehammer\Core\Base;
+use ArrayAccess;
 
 /**
  * A entry in a many-to-many relation where the link/bridge table has additional fields.
  * Behaves as the linked object, but with additional properties.
  */
-class Junction extends Base
+class Junction extends Base implements ArrayAccess
 {
     /**
      * The object this junction links to.
@@ -109,5 +110,35 @@ class Junction extends Base
     public function __call($method, $arguments)
     {
         return call_user_func_array([$this->instance, $method], $arguments);
+    }
+    public function offsetExists($index)
+    {
+        if ($this->instance instanceof ArrayAccess) {
+            return $this->instance->offsetExists($index);
+        }
+        trigger_error('Cannot use object of type '.get_class($this->instance).' as array', E_USER_ERROR);
+    }
+
+    public function offsetGet($index)
+    {
+        if ($this->instance instanceof ArrayAccess) {
+            return $this->instance->offsetGet($index);
+        }
+        trigger_error('Cannot use object of type '.get_class($this->instance).' as array', E_USER_ERROR);
+    }
+
+    public function offsetSet($index, $value)
+    {
+        if ($this->instance instanceof ArrayAccess) {
+            return $this->instance->offsetSet($index, $value);
+        }
+        trigger_error('Cannot use object of type '.get_class($this->instance).' as array', E_USER_ERROR);
+    }
+    public function offsetUnset($index)
+    {
+        if ($this->instance instanceof ArrayAccess) {
+            return $this->instance->offsetUnset($index);
+        }
+        trigger_error('Cannot use object of type '.get_class($this->instance).' as array', E_USER_ERROR);
     }
 }
