@@ -11,6 +11,8 @@
       "Sledgehammer\\Orm\\": "src/",
       "SledgehammerTests\\Orm\\": "tests"
     },
-    "files": ["src/functions.php"]
+    "files": [
+      "src/functions.php"
+    ]
   }
 }
