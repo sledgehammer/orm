@@ -511,8 +511,12 @@ class DatabaseRepositoryBackend extends RepositoryBackend
 
                             case 'DEFAULT':
                                 $default = '';
-                                while ($part = $parts[$i + 1]) {
+                                while (true) {
                                     ++$i;
+                                    if (array_key_exists($i, $parts) === false) {
+                                        break;
+                                    }
+                                    $part = $parts[$i];
                                     $default .= $part;
                                     if (substr($default, 0, 1) != "'") { // Not a quoted string value?
                                         break; // end for loop
@@ -529,11 +533,18 @@ class DatabaseRepositoryBackend extends RepositoryBackend
                                         case 'NULL':
                                             $default = null;
                                             break;
+                                        case 'current_timestamp()':
                                         case 'CURRENT_TIMESTAMP':
                                             $default = null;
                                             break;
                                         default:
-                                            notice('Unknown default "'.$default.'" in "'.$line.'"');
+                                            if (preg_match('/^[0-9]+$/', $default)) {
+                                                $default = (int) $default;
+                                            } elseif (preg_match('/^[0-9]*\.[0-9+]+$/', $default)) {
+                                                $default = (float) $default;
+                                            } else {
+                                                notice('Unknown default "'.$default.'" in "'.$line.'"');
+                                            }
                                             break;
                                     }
                                     $config['columns'][$column]['default'] = $default;
