@@ -4,6 +4,7 @@ namespace Sledgehammer\Orm;
 
 use ArrayIterator;
 use Exception;
+use Iterator;
 use IteratorAggregate;
 use Sledgehammer\Core\Collection;
 use Traversable;
@@ -63,7 +64,7 @@ class RepositoryCollection extends Collection
         parent::__construct($collection);
     }
 
-    public function getIterator()
+    public function getIterator(): Iterator
     {
         if ($this->isConverted) {
             return parent::getIterator();
@@ -138,9 +139,9 @@ class RepositoryCollection extends Collection
                 $convertedConditions[0] = $logicalOperator;
             }
             foreach ($conditions as $path => $value) {
-                if (preg_match('/^(.*) ('.\Sledgehammer\COMPARE_OPERATORS.')$/', $path, $match)) {
+                if (preg_match('/^(.*) (' . \Sledgehammer\COMPARE_OPERATORS . ')$/', $path, $match)) {
                     $column = $match[1];
-                    $columnOperator = ' '.$match[2];
+                    $columnOperator = ' ' . $match[2];
                 } else {
                     $column = $path;
                     $columnOperator = '';
@@ -155,7 +156,7 @@ class RepositoryCollection extends Collection
                         }
                     }
                     if ($convertCondition) {
-                        $convertedConditions[$this->options['mapping'][$column].$columnOperator] = $value;
+                        $convertedConditions[$this->options['mapping'][$column] . $columnOperator] = $value;
                         unset($conditions[$path]);
                     }
                 }
@@ -215,10 +216,8 @@ class RepositoryCollection extends Collection
     /**
      * Return the number of elements in the collection.
      * count($collection).
-     *
-     * @return int
      */
-    public function count()
+    public function count(): int
     {
         return count($this->data);
     }

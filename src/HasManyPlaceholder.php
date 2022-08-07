@@ -5,6 +5,7 @@ namespace Sledgehammer\Orm;
 use ArrayAccess;
 use Countable;
 use Exception;
+use Iterator;
 use IteratorAggregate;
 use Sledgehammer\Core\Collection;
 use Sledgehammer\Core\Base;
@@ -47,36 +48,34 @@ class HasManyPlaceholder extends Base implements ArrayAccess, IteratorAggregate,
 
     // @todo: mimic array errors and behavior on propery access and method invocation
     // Array access
-    public function offsetExists($offset)
+    public function offsetExists($offset): bool
     {
         $this->replacePlaceholder();
 
         return $this->__placeholder->offsetExists($offset);
     }
 
-    public function offsetGet($offset)
+    public function offsetGet($offset): mixed
     {
         $this->replacePlaceholder();
 
         return $this->__placeholder->offsetGet($offset);
     }
 
-    public function offsetSet($offset, $value)
+    public function offsetSet($offset, $value): void
     {
         $this->replacePlaceholder();
-
-        return $this->__placeholder->offsetSet($offset, $value);
+        $this->__placeholder->offsetSet($offset, $value);
     }
 
-    public function offsetUnset($offset)
+    public function offsetUnset($offset): void
     {
         $this->replacePlaceholder();
-
-        return $this->__placeholder->offsetUnset($offset);
+        $this->__placeholder->offsetUnset($offset);
     }
 
     // IteratorAggregate
-    public function getIterator()
+    public function getIterator(): Iterator
     {
         $this->replacePlaceholder();
 
@@ -84,7 +83,7 @@ class HasManyPlaceholder extends Base implements ArrayAccess, IteratorAggregate,
     }
 
     // Countable
-    public function count()
+    public function count(): int
     {
         $this->replacePlaceholder();
 

@@ -1,4 +1,4 @@
-<phpunit bootstrap="vendor/autoload.php"
+<phpunit bootstrap="vendor/sledgehammer/core/tests/bootstrap.php"
          colors="true"
          convertErrorsToExceptions="true"
          convertNoticesToExceptions="true"

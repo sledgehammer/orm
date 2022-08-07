@@ -4,7 +4,6 @@ namespace SledgehammerTests\Orm;
 
 use Exception;
 use PDO;
-use PHPUnit\Framework\Error\Warning;
 use Sledgehammer\Core\Collection;
 use Sledgehammer\Core\Database\Connection;
 use Sledgehammer\Core\Base;
@@ -39,7 +38,7 @@ class RepositoryTest extends DatabaseTestCase
         }
     }
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         if (count(Repository::$instances)) {
@@ -52,10 +51,10 @@ class RepositoryTest extends DatabaseTestCase
      */
     public function fillDatabase($db)
     {
-        $db->import(dirname(__FILE__).'/rebuild_test_database.'.$db->getAttribute(PDO::ATTR_DRIVER_NAME).'.sql', $error);
+        $db->import(dirname(__FILE__) . '/rebuild_test_database.' . $db->getAttribute(PDO::ATTR_DRIVER_NAME) . '.sql', $error);
     }
 
-    public function tearDown()
+    public function tearDown(): void
     {
         parent::tearDown();
         Repository::$instances = $this->applicationRepositories;
@@ -209,7 +208,7 @@ class RepositoryTest extends DatabaseTestCase
         $this->assertEquals([
             'Bob Fanger',
             'James Bond',
-                ], $names);
+        ], $names);
         $this->assertLastQuery('SELECT name FROM customers');
         $this->assertRelativeQueryCount(2, 'Bypass repository for additional performance');
         $struct = $repo->allCustomers()->select(['name', 'occupation'], 'id')->toArray();
@@ -341,7 +340,7 @@ class RepositoryTest extends DatabaseTestCase
             // @todo check if the message indicated the id-change
         }
         $repo->validate();
-        $order2->customer->id = '2'; // restore customer object
+        $order2->customer->id = 2; // restore customer object
         $repo->saveOrder($order2); // The belongTo is autoloaded, but unchanged
         $this->assertRelativeQueryCount(4, 'Saving an unmodified instance shouldn\'t generate a query');
 
@@ -354,7 +353,7 @@ class RepositoryTest extends DatabaseTestCase
         $this->assertQuery("UPDATE orders SET product = 'Walther PPK' WHERE id = 2");
         $this->assertQuery("INSERT INTO orders (customer_id, product) VALUES (2, 'Scuba gear')");
         $this->assertQuery('DELETE FROM orders WHERE id = 3');
-        $this->assertEquals($c2->orders[2]->id, '4', 'The id of the instance should be the "lastInsertId()"');
+        $this->assertEquals($c2->orders[2]->id, 4, 'The id of the instance should be the "lastInsertId()"');
     }
 
     public function testReloadWildcard()
@@ -392,10 +391,10 @@ class RepositoryTest extends DatabaseTestCase
     {
         $repoBase = new Repository();
         $repoBase->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
-        $filename = \Sledgehammer\TMP_DIR.'Test_AutoCompleteRepository.php';
+        $filename = \Sledgehammer\Core\Framework::tmp() . 'Test_AutoCompleteRepository.php';
         $class = 'AutoCompleteTestRepository';
         $namespace = 'SledgehammerTests\Orm';
-        $fqcn = '\\'.$namespace.'\\'.$class;
+        $fqcn = '\\' . $namespace . '\\' . $class;
         $repoBase->writeAutoCompleteHelper($filename, $class, $namespace);
         include $filename;
         $methods = array_diff(\Sledgehammer\get_public_methods($fqcn), \Sledgehammer\get_public_methods(Repository::class));
@@ -444,7 +443,7 @@ class RepositoryTest extends DatabaseTestCase
 
     public function testMissingProperties()
     {
-        $php = 'class CustomerMissingAProperty extends '.Base::class.' {';
+        $php = 'class CustomerMissingAProperty extends ' . Base::class . ' {';
         $php .= 'public $id;';
         $php .= 'public $name;';
         // $php .= 'public $occupation;'; the missing property
@@ -467,7 +466,7 @@ class RepositoryTest extends DatabaseTestCase
 
     public function testMissingColumn()
     {
-        $php = 'class CustomerWithAnExtraProperty extends '.Base::class.' {';
+        $php = 'class CustomerWithAnExtraProperty extends ' . Base::class . ' {';
         $php .= 'public $id;';
         $php .= 'public $name;';
         $php .= 'public $occupation;';
@@ -495,9 +494,9 @@ class RepositoryTest extends DatabaseTestCase
         $repo->registerBackend(new DatabaseRepositoryBackend($this->dbLink));
         $c1 = $repo->getCustomer(1);
         $jsonDeep = json_encode($repo->export('Customer', $c1, true));
-        $this->assertEquals('{"id":"1","name":"Bob Fanger","occupation":"Software ontwikkelaar","orders":[{"id":"1","product":"Kop koffie"}],"groups":[{"id":"1","title":"Hacker"}],"ratings":[{"id":"1","title":"Hacker","rating":"5"}]}', $jsonDeep);
+        $this->assertEquals('{"id":1,"name":"Bob Fanger","occupation":"Software ontwikkelaar","orders":[{"id":1,"product":"Kop koffie"}],"groups":[{"id":1,"title":"Hacker"}],"ratings":[{"id":1,"title":"Hacker","rating":5}]}', $jsonDeep);
         $jsonShallow = json_encode($repo->export('Customer', $c1, 0));
-        $this->assertEquals('{"id":"1","name":"Bob Fanger","occupation":"Software ontwikkelaar"}', $jsonShallow);
+        $this->assertEquals('{"id":1,"name":"Bob Fanger","occupation":"Software ontwikkelaar"}', $jsonShallow);
     }
 
     public function testCreateWithDefaults()

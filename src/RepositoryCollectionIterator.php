@@ -37,29 +37,29 @@ class RepositoryCollectionIterator extends Base implements Iterator
         $this->model = $model;
     }
 
-    public function current()
+    public function current(): mixed
     {
         $repo = Repository::instance($this->repository);
 
         return $repo->convert($this->model, $this->iterator->current());
     }
 
-    public function key()
+    public function key(): mixed
     {
         return $this->iterator->key();
     }
 
-    public function next()
+    public function next(): void
     {
-        return $this->iterator->next();
+        $this->iterator->next();
     }
 
-    public function rewind()
+    public function rewind(): void
     {
-        return $this->iterator->rewind();
+        $this->iterator->rewind();
     }
 
-    public function valid()
+    public function valid(): bool
     {
         return $this->iterator->valid();
     }

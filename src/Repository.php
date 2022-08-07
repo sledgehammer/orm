@@ -126,7 +126,7 @@ class Repository extends Base
      * @var array
      */
     private $validated = [];
-    
+
     /**
      * Registered closures that configure the default repository.
      * @var Closure[]
@@ -165,7 +165,7 @@ class Repository extends Base
                     $arguments[0] = $this->plurals[$arguments[0]];
                 } else {
                     if (isset($this->configs[$arguments[0]])) {
-                        warning('Use plural form "'.array_search($arguments[0], $this->plurals).'"');
+                        warning('Use plural form "' . array_search($arguments[0], $this->plurals) . '"');
                     }
                 }
             }
@@ -206,7 +206,7 @@ class Repository extends Base
             try {
                 $data = $this->_getBackend($config->backend)->get($id, $config->backendConfig);
                 if (!is_array($data) && !is_object($data)) {
-                    throw new InfoException('Invalid response from backend: "'.$config->backend.'"', ['Response' => $data]);
+                    throw new InfoException('Invalid response from backend: "' . $config->backend . '"', ['Response' => $data]);
                 }
             } catch (Exception $e) {
                 unset($this->objects[$model][$index]);
@@ -215,7 +215,7 @@ class Repository extends Base
             $indexFromData = $this->resolveIndex($data, $config);
             if ($index != $indexFromData) {
                 unset($this->objects[$model][$index]); // cleanup invalid entry
-                throw new Exception('The $id parameter doesn\'t match the retrieved data. '.$index.' != '.$indexFromData);
+                throw new Exception('The $id parameter doesn\'t match the retrieved data. ' . $index . ' != ' . $indexFromData);
             }
             $this->objects[$model][$index]['data'] = $data;
             $this->objects[$model][$index]['state'] = 'retrieved';
@@ -253,14 +253,14 @@ class Repository extends Base
                 $instance = $item;
                 $first = false;
             } else {
-                throw new InfoException('More than 1 "'.$model.'" model matches the conditions', $conditions);
+                throw new InfoException('More than 1 "' . $model . '" model matches the conditions', $conditions);
             }
         }
         if ($first) {
             if ($allowNone) {
                 return;
             }
-            throw new InfoException('No "'.$model.'" model found that matches the conditions', $conditions);
+            throw new InfoException('No "' . $model . '" model found that matches the conditions', $conditions);
         }
 
         return $instance;
@@ -462,7 +462,7 @@ class Repository extends Base
             }
             $instances = $this->all($belongsTo['model'])->where([$belongsTo['id'] => $referencedId]);
             if (count($instances) != 1) {
-                throw new InfoException('Multiple instances found for key "'.$referencedId.'" for belongsTo '.$model.'->belongsTo['.$property.'] references to non-id field: "'.$belongsTo['id'].'"');
+                throw new InfoException('Multiple instances found for key "' . $referencedId . '" for belongsTo ' . $model . '->belongsTo[' . $property . '] references to non-id field: "' . $belongsTo['id'] . '"');
             }
 
             return $instance->$property = $instances[0];
@@ -504,7 +504,7 @@ class Repository extends Base
                 if (count($ids) == 0) {
                     $related = new Collection([]);
                 } else {
-                    $related = $hasManyBackend->all($hasManyConfig->backendConfig)->where([$hasManyConfig->id[0].' IN' => $ids]);
+                    $related = $hasManyBackend->all($hasManyConfig->backendConfig)->where([$hasManyConfig->id[0] . ' IN' => $ids]);
                 }
             }
 
@@ -517,7 +517,7 @@ class Repository extends Base
             $this->objects[$model][$index]['hadMany'][$property] = $collection->toArray(); // Add a items for change detection
             return $instance->$property = $collection;
         }
-        throw new Exception('No association found for  '.$model.'->'.$property);
+        throw new Exception('No association found for  ' . $model . '->' . $property);
     }
 
     /**
@@ -721,7 +721,7 @@ class Repository extends Base
                 $belongsToIndex = $this->resolveIndex($relation['default']);
                 $value = @$this->objects[$relation['model']][$belongsToIndex]['instance'];
                 if ($value === null) {
-                    $value = new BelongsToPlaceholder($this->ref().'/'.$config->name.'/'.$path, $instance, [$relation['id'] => $relation['default']]);
+                    $value = new BelongsToPlaceholder($this->ref() . '/' . $config->name . '/' . $path, $instance, [$relation['id'] => $relation['default']]);
                 }
                 PropertyPath::set($path, $value, $instance);
             } else {
@@ -783,12 +783,12 @@ class Repository extends Base
             }
             $resolvedModel = $this->resolveModel($instance);
             if ($model !== $resolvedModel) {
-                throw new Exception('Can\'t save an "'.$resolvedModel.'" as an "'.$model.'"');
+                throw new Exception('Can\'t save an "' . $resolvedModel . '" as an "' . $model . '"');
             }
             // id/index change-detection
             foreach ($this->objects[$model] as $object) {
                 if ($object['instance'] === $instance) {
-                    throw new Exception('Change rejected, the index changed from '.$this->resolveIndex($object['data'], $config).' to '.$index);
+                    throw new Exception('Change rejected, the index changed from ' . $this->resolveIndex($object['data'], $config) . ' to ' . $index);
                 }
             }
             throw new Exception('The instance is not bound to this Repository');
@@ -854,7 +854,7 @@ class Repository extends Base
                         $collection = iterator_to_array($collection);
                     }
                     if ($collection === null) {
-                        notice('Expecting an array for property "'.$property.'"');
+                        notice('Expecting an array for property "' . $property . '"');
                         $collection = [];
                     }
                     // Determine old situation
@@ -880,14 +880,14 @@ class Repository extends Base
                                 if ($item instanceof BelongsToPlaceholder) {
                                     $replacedItem = $this->resolveInstance($item, $this->_getConfig($hasMany['model']));
                                     if ($replacedItem->$belongsToProperty !== $instance) {
-                                        throw new Exception('Invalid placeholder in "'.$model.'->'.$property.'"');
+                                        throw new Exception('Invalid placeholder in "' . $model . '->' . $property . '"');
                                     }
                                     $collection[$key] = $replacedItem;
                                     $item = $replacedItem;
                                 }
                                 $this->save($hasMany['model'], $item, $relationSaveOptions);
                             } elseif ($item !== array_value($old, $key)) {
-                                warning('Unable to save the change "'.$item.'" in '.$config->name.'->'.$property.'['.$key.']');
+                                warning('Unable to save the change "' . $item . '" in ' . $config->name . '->' . $property . '[' . $key . ']');
                             }
                         }
                     } elseif (isset($hasMany['through'])) { // Many to Many?
@@ -991,7 +991,7 @@ class Repository extends Base
                         // Delete items that are no longer in the relation
                         if ($old !== null) {
                             if ($collection === null && count($old) > 0) {
-                                notice('Unexpected value: null for property "'.$property.'", expecting an array or Iterator');
+                                notice('Unexpected value: null for property "' . $property . '", expecting an array or Iterator');
                             }
                             foreach ($old as $key => $item) {
                                 if (in_array($item, $collection, true) === false) {
@@ -1046,7 +1046,7 @@ class Repository extends Base
                                             }
                                         }
                                     } else {
-                                        warning('Unable to remove item['.$key.']: "'.$item.'" from '.$config->name.'->'.$property);
+                                        warning('Unable to remove item[' . $key . ']: "' . $item . '" from ' . $config->name . '->' . $property);
                                     }
                                 }
                             }
@@ -1096,12 +1096,12 @@ class Repository extends Base
             throw new Exception('RepositoryBackend->identifier is required');
         }
         if (count($backend->configs) === 0) {
-            notice(get_class($backend).': "'.$backend->identifier.'" doesn\'t have any ModelConfigs');
+            notice(get_class($backend) . ': "' . $backend->identifier . '" doesn\'t have any ModelConfigs');
 
             return;
         }
         if (isset($this->backends[$backend->identifier])) {
-            throw new Exception('RepositoryBackend "'.$backend->identifier.'" already registered');
+            throw new Exception('RepositoryBackend "' . $backend->identifier . '" already registered');
         }
         $this->backends[$backend->identifier] = $backend;
         // Pass 1: Register configs
@@ -1117,7 +1117,7 @@ class Repository extends Base
                 $junction->backend = $backend->identifier;
             }
             if (isset($this->junctions[$junction->name])) {
-                notice('overwriting junction '.$junction->name);
+                notice('overwriting junction ' . $junction->name);
             }
             $this->junctions[$junction->name] = $junction;
         }
@@ -1128,7 +1128,7 @@ class Repository extends Base
                 if (isset($config->properties['id'])) { // No id set, but the column 'id' exists?
                     $config->id = ['id'];
                 } else {
-                    warning('Invalid config: '.$config->name.'->id is not configured and could not detect an "id" element');
+                    warning('Invalid config: ' . $config->name . '->id is not configured and could not detect an "id" element');
                 }
             }
         }
@@ -1136,31 +1136,31 @@ class Repository extends Base
         foreach ($backend->configs as $backendConfig) {
             $config = $this->configs[$backendConfig->name];
             if (count($config->properties) === 0) {
-                warning('Invalid config: '.$config->name.'->properties array is not configured');
+                warning('Invalid config: ' . $config->name . '->properties array is not configured');
             }
             foreach ($config->id as $idIndex => $idColumn) {
                 if (isset($config->properties[$idColumn])) {
                     $idProperty = $config->properties[$idColumn];
                 } else {
-                    warning('Invalid config: '.$config->name.'->id['.$idIndex.']: "'.$idColumn.'" isn\'t mapped as a property');
+                    warning('Invalid config: ' . $config->name . '->id[' . $idIndex . ']: "' . $idColumn . '" isn\'t mapped as a property');
                 }
             }
             foreach ($config->belongsTo as $property => $belongsTo) {
                 $validationError = false;
                 if (is_array($belongsTo) === false) {
-                    $validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] should be an array';
+                    $validationError = 'Invalid config: ' . $config->name . '->belongsTo[' . $property . '] should be an array';
                 }
                 if (empty($belongsTo['model'])) {
-                    $validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set';
+                    $validationError = 'Invalid config: ' . $config->name . '->belongsTo[' . $property . '][model] not set';
                 } elseif (empty($belongsTo['reference']) && empty($belongsTo['convert'])) {
-                    $validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] is missing a [reference] or [convert] element';
+                    $validationError = 'Invalid config: ' . $config->name . '->belongsTo[' . $property . '] is missing a [reference] or [convert] element';
                 } elseif (isset($belongsTo['convert']) && isset($belongsTo['reference'])) {
-                    $validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'] can\'t contain both a [reference] and a [convert] element';
+                    $validationError = 'Invalid config: ' . $config->name . '->belongsTo[' . $property . '] can\'t contain both a [reference] and a [convert] element';
                 }
                 if (isset($belongsTo['reference'])) {
                     if (empty($belongsTo['id'])) { // id not set, but (target)model is configured?
                         if (empty($this->configs[$belongsTo['model']])) {
-                            $validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] couldn\'t be inferred, because model "'.$belongsTo['model'].'" isn\'t registered';
+                            $validationError = 'Invalid config: ' . $config->name . '->belongsTo[' . $property . '][id] couldn\'t be inferred, because model "' . $belongsTo['model'] . '" isn\'t registered';
                         } else {
                             $belongsToConfig = $this->_getConfig($belongsTo['model']);
                             // Infer/Assume that the id is the ID from the model
@@ -1168,13 +1168,13 @@ class Repository extends Base
                                 $belongsTo['id'] = current($belongsToConfig->id);
                                 $config->belongsTo[$property]['id'] = $belongsTo['id']; // Update config
                             } else {
-                                $validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][id] not set and can\'t be inferred (for a complex key)';
+                                $validationError = 'Invalid config: ' . $config->name . '->belongsTo[' . $property . '][id] not set and can\'t be inferred (for a complex key)';
                             }
                         }
                     }
                     if (isset($belongsTo['reference']) && isset($belongsTo['useIndex']) == false) {
                         if (empty($this->configs[$belongsTo['model']])) {
-                            $validationError = 'Invalid config: '.$config->name.'->belongsTo['.$property.'][useIndex] couldn\'t be inferred, because model "'.$belongsTo['model'].'" isn\'t registered';
+                            $validationError = 'Invalid config: ' . $config->name . '->belongsTo[' . $property . '][useIndex] couldn\'t be inferred, because model "' . $belongsTo['model'] . '" isn\'t registered';
                         } else {
                             $belongsToConfig = $this->_getConfig($belongsTo['model']);
                             // Is the foreign key is linked to the model id
@@ -1184,8 +1184,8 @@ class Repository extends Base
                     }
                     if (isset($belongsTo['id'])) {
                         // Add foreign key to the collection mapping
-                        $this->collectionMappings[$config->name][$property.'->'.$belongsToConfig->properties[$belongsTo['id']]] = $belongsTo['reference'];
-                        $this->collectionMappings[$config->name][$property.'.'.$belongsToConfig->properties[$belongsTo['id']]] = $belongsTo['reference'];
+                        $this->collectionMappings[$config->name][$property . '->' . $belongsToConfig->properties[$belongsTo['id']]] = $belongsTo['reference'];
+                        $this->collectionMappings[$config->name][$property . '.' . $belongsToConfig->properties[$belongsTo['id']]] = $belongsTo['reference'];
                     }
                 }
                 // @todo Add collectionMapping for "convert" relations?
@@ -1202,18 +1202,18 @@ class Repository extends Base
             foreach ($config->hasMany as $property => $hasMany) {
                 $validationError = false;
                 if (empty($hasMany['model'])) {
-                    $validationError = 'Invalid config: '.$config->name.'->hasMany['.$property.'][model] not set';
+                    $validationError = 'Invalid config: ' . $config->name . '->hasMany[' . $property . '][model] not set';
                 } elseif (isset($hasMany['convert'])) {
                     // no additional fields are needed.
                 } elseif (empty($hasMany['reference'])) {
                     // @todo Infer property (lookup belongsTo)
-                    $validationError = 'Invalid hasMany: '.$config->name.'->hasMany['.$property.'][reference] not set';
+                    $validationError = 'Invalid hasMany: ' . $config->name . '->hasMany[' . $property . '][reference] not set';
                 } elseif (isset($hasMany['reference']) && empty($hasMany['belongsTo'])) {
                     $referencePath = PropertyPath::parse($hasMany['reference']);
                     if (count($referencePath) == 1) {
                         // The foreign key is linked directly
                     } elseif (empty($this->configs[$hasMany['model']])) {
-                        $validationError = 'Invalid config: '.$config->name.'->hasMany['.$property.'][belongsTo] couldn\'t be inferred, because model "'.$hasMany['model'].'" isn\'t registered';
+                        $validationError = 'Invalid config: ' . $config->name . '->hasMany[' . $property . '][belongsTo] couldn\'t be inferred, because model "' . $hasMany['model'] . '" isn\'t registered';
                     } else {
                         // Infer the belongsTo path based on the model and reference path.
                         $hasManyConfig = $this->configs[$hasMany['model']];
@@ -1234,7 +1234,7 @@ class Repository extends Base
                     }
                     $junctionConfig = @$this->junctions[$hasMany['through']];
                     if (array_key_exists('idPath', $hasMany) === false && $junctionConfig) {
-//                        dump($junctionConfig);
+                        //                        dump($junctionConfig);
                     }
                 }
                 // Remove invalid relations
@@ -1246,16 +1246,16 @@ class Repository extends Base
             // Validate read & write filters
             foreach ($config->readFilters as $column => $filter) {
                 if (empty($config->properties[$column])) {
-                    notice('Invalid config: '.$config->name.'->readFilters['.$column.'] isn\'t mapped as property', $filter);
+                    notice('Invalid config: ' . $config->name . '->readFilters[' . $column . '] isn\'t mapped as property', $filter);
                 }
             }
             foreach ($config->writeFilters as $column => $filter) {
                 if (empty($config->properties[$column])) {
-                    notice('Invalid config: '.$config->name.'->writeFilters['.$column.'] isn\'t mapped as property', $filter);
+                    notice('Invalid config: ' . $config->name . '->writeFilters[' . $column . '] isn\'t mapped as property', $filter);
                 }
             }
         }
-        
+
         // Pass 5: Generate classes based on properties when no class is detected/found.
         foreach ($backend->configs as $config) {
             if (substr($config->class, 0, 11) !== '\\Generated\\') {
@@ -1263,7 +1263,7 @@ class Repository extends Base
             } else {
                 $this->validated[$config->name] = true; // Generated classes are valid by design.
                 if (class_exists($config->class, false)) {
-                    notice('Skipped generating class: "'.$config->class.'", a class with the same name exists');
+                    notice('Skipped generating class: "' . $config->class . '", a class with the same name exists');
                     continue;
                 }
                 $parts = explode('\\', $config->class);
@@ -1274,13 +1274,13 @@ class Repository extends Base
                 $use = '';
                 $aliases = [];
                 $alias = $this->buildAlias(Base::class, $aliases, $use);
-                $php = "\nclass ".$config->name." extends ".$alias."\n{\n";
+                $php = "\nclass " . $config->name . " extends " . $alias . "\n{\n";
                 $properties = [];
                 foreach ($config->properties as $path) {
                     $parsedPath = PropertyPath::parse($path);
                     $property = $parsedPath[0][1];
                     if (!in_array($property, $properties)) {
-                        $php .= "    public $".$property.";\n";
+                        $php .= "    public $" . $property . ";\n";
                         $properties[] = $property;
                     }
                 }
@@ -1291,9 +1291,9 @@ class Repository extends Base
                     $property = $parsedPath[0][1];
                     $php .= "\n";
                     $php .= "    /**\n";
-                    $php .= "     * @var ".$alias.' The associated '.$belongsToConfig->name."\n";
+                    $php .= "     * @var " . $alias . ' The associated ' . $belongsToConfig->name . "\n";
                     $php .= "     */\n";
-                    $php .= "    public $".$property.";\n";
+                    $php .= "    public $" . $property . ";\n";
                 }
                 foreach ($config->hasMany as $path => $hasMany) {
                     $parsedPath = PropertyPath::parse($path);
@@ -1303,23 +1303,23 @@ class Repository extends Base
                     $alias = $this->buildAlias($hasManyConfig->class, $aliases, $use);
                     $php .= "\n";
                     $php .= "    /**\n";
-                    $php .= "     * @var ".$aliasC."|".$alias."[] A collection with the associated ".$hasManyConfig->plural."\n";
+                    $php .= "     * @var " . $aliasC . "|" . $alias . "[] A collection with the associated " . $hasManyConfig->plural . "\n";
                     $php .= "     */\n";
-                    $php .= "    public $".$property.";\n";
+                    $php .= "    public $" . $property . ";\n";
                 }
                 $php .= '}';
-                $php = "namespace ".$namespace.";\n\n".$use.$php;
+                $php = "namespace " . $namespace . ";\n\n" . $use . $php;
                 if (self::$autoCompleteFolder && $namespace === 'Generated') {
                     // Write autoComplete helper
                     // @todo Only write file when needed, aka validate $this->autoComplete
-                    file_put_contents(self::$autoCompleteFolder.$config->name.'.php', "<?php\n\n".$php."\n");
+                    file_put_contents(self::$autoCompleteFolder . $config->name . '.php', "<?php\n\n" . $php . "\n");
                 }
                 eval($php);
             }
         }
         // Pass 6: Generate or update the AutoComplete Helper for the default repository?
         if (self::$autoCompleteFolder && isset(self::$instances['default']) && self::$instances['default'] === $this) {
-            $autoCompleteFile = self::$autoCompleteFolder.'repository.ini';
+            $autoCompleteFile = self::$autoCompleteFolder . 'repository.ini';
             if ($this->autoComplete === null) {
                 if (file_exists($autoCompleteFile)) {
                     $this->autoComplete = parse_ini_file($autoCompleteFile, true);
@@ -1341,7 +1341,7 @@ class Repository extends Base
             }
             if ($outdated) {
                 \Sledgehammer\write_ini_file($autoCompleteFile, $this->autoComplete, 'Repository AutoComplete config');
-                $this->writeAutoCompleteHelper(self::$autoCompleteFolder.'DefaultRepository.php');
+                $this->writeAutoCompleteHelper(self::$autoCompleteFolder . 'DefaultRepository.php');
             }
         }
     }
@@ -1365,7 +1365,7 @@ class Repository extends Base
         $config->backend = $behavior->identifier;
         $behavior->register($config);
     }
-    
+
     /**
      * Register closures that lazily configure the default repository.
      *
@@ -1382,7 +1382,7 @@ class Repository extends Base
             static::$lazyConfigurations[] = $closure;
         }
     }
-    
+
     protected static function defaultInstance()
     {
         $repo = new Repository();
@@ -1404,7 +1404,7 @@ class Repository extends Base
     {
         $fqcn = ltrim($fqcn, '\\');
         if (array_key_exists($fqcn, $aliases)) {
-            return $aliases[$fqcn];// Use the existing alias
+            return $aliases[$fqcn]; // Use the existing alias
         }
         $parts = explode('\\', $fqcn);
         $alias = array_pop($parts);
@@ -1417,9 +1417,9 @@ class Repository extends Base
         foreach ($aliases as $_fqcn => $_alias) {
             $parts = explode('\\', $_fqcn);
             if ($_alias === array_pop($parts)) {
-                $use .= "use ".$_fqcn.";\n";
+                $use .= "use " . $_fqcn . ";\n";
             } else {
-                $use .= "use ".$_fqcn." as ".$_alias.";\n";
+                $use .= "use " . $_fqcn . " as " . $_alias . ";\n";
             }
         }
         return $alias;
@@ -1489,7 +1489,7 @@ class Repository extends Base
         }
         $class = get_class($instance);
         foreach ($this->configs as $model => $config) {
-            if ($config->class === '\\'.$class) {
+            if ($config->class === '\\' . $class) {
                 foreach ($this->objects[$model] as $object) {
                     if ($object['instance'] === $instance) {
                         return $model;
@@ -1499,7 +1499,7 @@ class Repository extends Base
         }
         throw new InfoException('Instance not bound to this repository"', $instance);
     }
-    
+
     /**
      * Free object refercences from memory.
      * @param string $model
@@ -1529,15 +1529,15 @@ class Repository extends Base
         $use = '';
         $aliases = [];
         $this->buildAlias(Collection::class, $aliases, $use);
-        $php = "\nclass ".$class.' extends '.$this->buildAlias(get_class($this), $aliases, $use)."\n";
+        $php = "\nclass " . $class . ' extends ' . $this->buildAlias(get_class($this), $aliases, $use) . "\n";
         $php .= "{\n";
         foreach ($this->configs as $model => $config) {
             $alias = $this->buildAlias($config->class, $aliases, $use);
-            $instanceVar = '$'.lcfirst($model);
+            $instanceVar = '$' . lcfirst($model);
             $php .= "    /**\n";
-            $php .= "     * Retrieve an ".$model."\n";
+            $php .= "     * Retrieve an " . $model . "\n";
             $php .= "     *\n";
-            $php .= "     * @param mixed \$id  The ".$model." ID\n";
+            $php .= "     * @param mixed \$id  The " . $model . " ID\n";
             $php .= "     * @param array \$options\n";
             $php .= "     *  'preload' => int  The preload recursion level.\n";
             $php .= "     *     false or 0: Only the the relation.\n";
@@ -1545,28 +1545,28 @@ class Repository extends Base
             $php .= "     *     2: Also the relations of the relations of the relation.\n";
             $php .= "     *     N: Etc.\n";
             $php .= "     *    true or -1: Load all relations of all relations.\n";
-            $php .= "     * @return ".$alias."\n";
+            $php .= "     * @return " . $alias . "\n";
             $php .= "     */\n";
-            $php .= "    public function get".$model.'($id, $options = [])'."\n";
+            $php .= "    public function get" . $model . '($id, $options = [])' . "\n";
             $php .= "    {\n";
-            $php .= "        return \$this->get('".$model."', \$id, \$options);\n";
+            $php .= "        return \$this->get('" . $model . "', \$id, \$options);\n";
             $php .= "    }\n";
 
             $php .= "    /**\n";
-            $php .= "     * Retrieve one ".$model." based on criteria\n";
+            $php .= "     * Retrieve one " . $model . " based on criteria\n";
             $php .= "     *\n";
             $php .= "     * @param mixed \$conditions\n";
             $php .= "     * @param bool \$allowNone  When no match is found, return null instead of throwing an Exception.\n";
             $php .= "     * @param array \$options\n";
-            $php .= "     * @return ".$alias."\n";
+            $php .= "     * @return " . $alias . "\n";
             $php .= "     */\n";
-            $php .= "    public function one".$model.'($conditions, $allowNone = false, $options = [])'."\n";
+            $php .= "    public function one" . $model . '($conditions, $allowNone = false, $options = [])' . "\n";
             $php .= "    {\n";
-            $php .= "        return \$this->one('".$model."', \$conditions, \$allowNone, \$options);\n";
+            $php .= "        return \$this->one('" . $model . "', \$conditions, \$allowNone, \$options);\n";
             $php .= "    }\n";
 
             $php .= "    /**\n";
-            $php .= "     * Retrieve all ".$config->plural."\n";
+            $php .= "     * Retrieve all " . $config->plural . "\n";
             $php .= "     *\n";
             $php .= "     * @param mixed \$conditions\n";
             $php .= "     * @param array \$options\n";
@@ -1577,17 +1577,17 @@ class Repository extends Base
             $php .= "     *     N: Etc.\n";
             $php .= "     *    true or -1: Load all relations of all relations.\n";
             $php .= "     *\n";
-            $php .= "     * @return Collection|".$alias."[]\n";
+            $php .= "     * @return Collection|" . $alias . "[]\n";
             $php .= "     */\n";
-            $php .= "    public function all".$config->plural.'($conditions = null, $options = [])'."\n";
+            $php .= "    public function all" . $config->plural . '($conditions = null, $options = [])' . "\n";
             $php .= "    {\n";
-            $php .= "        return \$this->all('".$model."', \$conditions, \$options);\n";
+            $php .= "        return \$this->all('" . $model . "', \$conditions, \$options);\n";
             $php .= "    }\n";
 
             $php .= "    /**\n";
-            $php .= "     * Store the ".$model."\n";
+            $php .= "     * Store the " . $model . "\n";
             $php .= "     *\n";
-            $php .= "     * @param ".$alias.'  The '.$model." to be saved\n";
+            $php .= "     * @param " . $alias . '  The ' . $model . " to be saved\n";
             $php .= "     * @param array \$options {\n";
             $php .= "     *   'ignore_relations' => bool  true: Only save the instance,  false: Save all connected instances,\n";
             $php .= "     *   'add_unknown_instance' => bool, false: Reject unknown instances. (use \$repository->create())\n";
@@ -1595,67 +1595,67 @@ class Repository extends Base
             $php .= "     *   'keep_missing_related_instances' => bool, false: Auto deletes removed instances\n";
             $php .= "     * }\n";
             $php .= "     */\n";
-            $php .= "    public function save".$model.'('.$instanceVar.', $options = [])'."\n";
+            $php .= "    public function save" . $model . '(' . $instanceVar . ', $options = [])' . "\n";
             $php .= "    {\n";
-            $php .= "        return \$this->save('".$model."', ".$instanceVar.", \$options);\n";
+            $php .= "        return \$this->save('" . $model . "', " . $instanceVar . ", \$options);\n";
             $php .= "    }\n";
 
             $php .= "    /**\n";
-            $php .= "     * Create an in-memory ".$model.", ready to be saved.\n";
+            $php .= "     * Create an in-memory " . $model . ", ready to be saved.\n";
             $php .= "     *\n";
             $php .= "     * @param array \$values (optional) Initial contents of the object \n";
-            $php .= "     * @return ".$alias."\n";
+            $php .= "     * @return " . $alias . "\n";
             $php .= "     */\n";
-            $php .= "    public function create".$model.'($values = [])'."\n";
+            $php .= "    public function create" . $model . '($values = [])' . "\n";
             $php .= "    {\n";
-            $php .= "        return \$this->create('".$model."', \$values);\n";
+            $php .= "        return \$this->create('" . $model . "', \$values);\n";
             $php .= "    }\n";
 
             $php .= "    /**\n";
-            $php .= "     * Delete the ".$model."\n";
+            $php .= "     * Delete the " . $model . "\n";
             $php .= "     *\n";
-            $php .= "     * @param ".$alias.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
+            $php .= "     * @param " . $alias . '|mixed ' . $instanceVar . '  An ' . $model . ' or the ' . $model . " ID\n";
             $php .= "     */\n";
-            $php .= "    public function delete".$model.'('.$instanceVar.')'."\n";
+            $php .= "    public function delete" . $model . '(' . $instanceVar . ')' . "\n";
             $php .= "    {\n";
-            $php .= "        return \$this->delete('".$model."', ".$instanceVar.");\n";
+            $php .= "        return \$this->delete('" . $model . "', " . $instanceVar . ");\n";
             $php .= "    }\n";
 
             $php .= "    /**\n";
-            $php .= "     * Reload the ".$model."\n";
+            $php .= "     * Reload the " . $model . "\n";
             $php .= "     *\n";
-            $php .= "     * @param ".$alias.'|mixed '.$instanceVar.'  An '.$model.' or the '.$model." ID\n";
+            $php .= "     * @param " . $alias . '|mixed ' . $instanceVar . '  An ' . $model . ' or the ' . $model . " ID\n";
             $php .= "     * @param array \$options  Additional options \n";
             $php .= "     */\n";
-            $php .= "    public function reload".$model.'('.$instanceVar.', $options = [])'."\n";
+            $php .= "    public function reload" . $model . '(' . $instanceVar . ', $options = [])' . "\n";
             $php .= "    {\n";
-            $php .= "        return \$this->reload('".$model."', ".$instanceVar.");\n";
+            $php .= "        return \$this->reload('" . $model . "', " . $instanceVar . ");\n";
             $php .= "    }\n";
 
             if ($config->plural !== $config->name) {
                 $php .= "    /**\n";
-                $php .= "     * Reload all ".$config->plural."\n";
+                $php .= "     * Reload all " . $config->plural . "\n";
                 $php .= "     *\n";
                 $php .= "     * @param array \$options  Additional options\n";
                 $php .= "     */\n";
-                $php .= "    public function reload".$config->plural.'()'."\n";
+                $php .= "    public function reload" . $config->plural . '()' . "\n";
                 $php .= "    {\n";
-                $php .= "        return \$this->reload('".$model."', null, array('all' => true));\n";
+                $php .= "        return \$this->reload('" . $model . "', null, array('all' => true));\n";
                 $php .= "    }\n";
             }
         }
         $php .= '}';
-        
+
         $prefix = "<?php\n";
         $prefix .= "/**\n";
-        $prefix .= ' * '.$class." a generated AutoCompleteHelper\n";
+        $prefix .= ' * ' . $class . " a generated AutoCompleteHelper\n";
         $prefix .= " *\n";
         $prefix .= " */\n";
         if ($namespace !== null) {
-            $prefix .= 'namespace '.$namespace.";\n\n";
+            $prefix .= 'namespace ' . $namespace . ";\n\n";
         }
-        
-        return file_put_contents($filename, $prefix.$use.$php);
+
+        return file_put_contents($filename, $prefix . $use . $php);
     }
 
     /**
@@ -1673,7 +1673,7 @@ class Repository extends Base
         if ($index === null) {
             $index = $this->resolveIndex($data, $config);
         } elseif (empty($this->objects[$config->name][$index])) {
-            throw new Exception('Invalid index: "'.$index.'" for '.$config->name);
+            throw new Exception('Invalid index: "' . $index . '" for ' . $config->name);
         }
         if ($reload) {
             $instance = $this->objects[$config->name][$index]['instance'];
@@ -1704,7 +1704,7 @@ class Repository extends Base
                     '4. The property should be ignored by the repository. Add the property to the ModelConfig->ignoreProperties.',
                     '5. The relation couldn\'t be detected. Add an entry to ModelConfig->hasMany or ModelConfig->belongsTo.',
                 ];
-                throw new InfoException('Unexpected property: '.\Sledgehammer\quoted_human_implode(' and ', array_keys($properties)).' in '.$config->class.' class for "'.$config->name.'"', '<b>Possible causes:</b><br />'.implode('<br />', $causes));
+                throw new InfoException('Unexpected property: ' . \Sledgehammer\quoted_human_implode(' and ', array_keys($properties)) . ' in ' . $config->class . ' class for "' . $config->name . '"', '<b>Possible causes:</b><br />' . implode('<br />', $causes));
             }
             $this->validated[$config->name] = true;
         }
@@ -1726,7 +1726,7 @@ class Repository extends Base
                     PropertyPath::set($property, null, $instance);
                 } else {
                     if (empty($relation['model'])) { // No model given?
-                        throw new Exception('Invalid config: '.$config->name.'->belongsTo['.$property.'][model] not set');
+                        throw new Exception('Invalid config: ' . $config->name . '->belongsTo[' . $property . '][model] not set');
                     }
                     if ($relation['useIndex']) {
                         $belongsToIndex = $this->resolveIndex($belongsToId);
@@ -1740,7 +1740,7 @@ class Repository extends Base
                         $fields = [
                             $relation['id'] => $belongsToId,
                         ];
-                        $instance->$property = new BelongsToPlaceholder($this->ref().'/'.$config->name.'/'.$property, $instance, $fields);
+                        $instance->$property = new BelongsToPlaceholder($this->ref() . '/' . $config->name . '/' . $property, $instance, $fields);
                     }
                 }
             }
@@ -1750,7 +1750,7 @@ class Repository extends Base
                 $collection = new RepositoryCollection(PropertyPath::get($relation['convert'], $data), $relation['model'], $this->ref());
                 PropertyPath::set($property, $collection, $instance);
             } else {
-                $instance->$property = new HasManyPlaceholder($this->ref().'/'.$config->name.'/'.$property, $instance);
+                $instance->$property = new HasManyPlaceholder($this->ref() . '/' . $config->name . '/' . $property, $instance);
             }
         }
         $this->_triggerEvent($instance, 'load', $instance, ['repository' => $this->ref(), 'model' => $config->name], $this);
@@ -1801,13 +1801,13 @@ class Repository extends Base
     protected function registerModel($config)
     {
         if (isset($this->configs[$config->name])) {
-            warning('Overwriting model: "'.$config->name.'"'); // @todo? Allow overwritting models? or throw Exception?
+            warning('Overwriting model: "' . $config->name . '"'); // @todo? Allow overwritting models? or throw Exception?
         }
         $this->collectionMappings[$config->name] = array_flip($config->properties); // Add properties to the collectionMapping
         if ($config->class === null) { // Detect class
             $config->class = false; // fallback to a generated class
             foreach ($this->namespaces as $namespace) {
-                $class = $namespace.$config->name;
+                $class = $namespace . $config->name;
                 if (class_exists($class)) { // Is the class known?
                     $config->class = $class;
                     break;
@@ -1816,13 +1816,13 @@ class Repository extends Base
         }
         if ($config->class === false) { // Should registerBackand generate a class?
             if (empty(self::$instances['default']) || self::$instances['default'] !== $this) {
-                $config->class = '\\Generated\\'.$this->ref().'\\'.$config->name; // Multiple Repositories have multiple namespaces
+                $config->class = '\\Generated\\' . $this->ref() . '\\' . $config->name; // Multiple Repositories have multiple namespaces
             } else {
-                $config->class = '\\Generated\\'.$config->name;
+                $config->class = '\\Generated\\' . $config->name;
             }
         }
         if (substr($config->class, 0, 1) !== '\\') {
-            $config->class = '\\'.$config->class;
+            $config->class = '\\' . $config->class;
         }
         if ($config->plural === null) {
             $config->plural = Inflector::pluralize($config->name);
@@ -1830,7 +1830,7 @@ class Repository extends Base
         $this->configs[$config->name] = $config;
         $this->created[$config->name] = [];
         if (isset($this->plurals[$config->plural])) {
-            warning('Overwriting plural['.$config->plural.'] "'.$this->plurals[$config->plural].'" with "'.$config->name.'"');
+            warning('Overwriting plural[' . $config->plural . '] "' . $this->plurals[$config->plural] . '" with "' . $config->name . '"');
         }
         $this->plurals[$config->plural] = $config->name;
     }
@@ -1848,7 +1848,7 @@ class Repository extends Base
         if ($backendObject !== null) {
             return $backendObject;
         }
-        throw new Exception('Backend "'.$backend.'" not registered');
+        throw new Exception('Backend "' . $backend . '" not registered');
     }
 
     /**
@@ -1864,7 +1864,7 @@ class Repository extends Base
         if ($config !== null) {
             return $config;
         }
-        throw new InfoException('Unknown model: "'.$model.'"', ['Available models' => implode(array_keys($this->configs), ', ')]);
+        throw new InfoException('Unknown model: "' . $model . '"', ['Available models' => implode(', ', array_keys($this->configs))]);
     }
 
     /**
@@ -1878,7 +1878,7 @@ class Repository extends Base
     protected function resolveIndex($from, $config = null)
     {
         if ((is_string($from) && $from != '') || is_int($from)) {
-            return '{'.$from.'}';
+            return '{' . $from . '}';
         }
         $key = false;
         if (isset($config->id) && count($config->id) == 1) {
@@ -1891,9 +1891,9 @@ class Repository extends Base
                 }
                 $index = PropertyPath::get($key, $from);
                 if ($index !== null) {
-                    return '{'.$index.'}';
+                    return '{' . $index . '}';
                 }
-                throw new Exception('Failed to resolve index, missing key: "'.$key.'"');
+                throw new Exception('Failed to resolve index, missing key: "' . $key . '"');
             }
             if (is_array($config->id)) {
                 if (count($config->id) == 1) {
@@ -1901,19 +1901,19 @@ class Repository extends Base
                     if (isset($from[$key])) {
                         return $this->resolveIndex($from[$key]);
                     }
-                    throw new Exception('Failed to resolve index, missing key: "'.$key.'"');
+                    throw new Exception('Failed to resolve index, missing key: "' . $key . '"');
                 }
                 $index = '{';
                 foreach ($config->id as $field) {
                     if (isset($from[$field])) {
                         $value = $from[$field];
                         if ((is_string($value) && $value != '') || is_int($value)) {
-                            $index .= $field.':'.$value;
+                            $index .= $field . ':' . $value;
                         } else {
-                            throw new Exception('Failed to resolve index, invalid value for: "'.$field.'"');
+                            throw new Exception('Failed to resolve index, invalid value for: "' . $field . '"');
                         }
                     } else {
-                        throw new Exception('Failed to resolve index, missing key: "'.$key.'"');
+                        throw new Exception('Failed to resolve index, missing key: "' . $key . '"');
                     }
                 }
                 $index .= '}';
@@ -1924,7 +1924,7 @@ class Repository extends Base
         if (is_object($from)) {
             if ($key !== false) {
                 if (empty($config->properties[$key])) {
-                    throw new Exception('ModelConfig->id is not mapped to the instances. Add ModelConfig->properties[name] = "'.$key.'"');
+                    throw new Exception('ModelConfig->id is not mapped to the instances. Add ModelConfig->properties[name] = "' . $key . '"');
                 }
                 $id = PropertyPath::get($config->properties[$key], $from);
                 if ($id === null) { // Id value not set?
@@ -1933,7 +1933,7 @@ class Repository extends Base
                             return $index;
                         }
                     }
-                    throw new InfoException('Failed to resolve index, missing property: "'.$key.'"', $from);
+                    throw new InfoException('Failed to resolve index, missing property: "' . $key . '"', $from);
                 }
 
                 return $this->resolveIndex($id);
@@ -1970,7 +1970,7 @@ class Repository extends Base
         }
         $index = $this->resolveIndex($wrapper, $config);
         if (empty($this->objects[$config->name][$index]['instance'])) {
-            throw new Exception('Placeholder "'.$model.' '.$index.'" not loaded');
+            throw new Exception('Placeholder "' . $model . ' ' . $index . '" not loaded');
         }
         $instance = $this->objects[$config->name][$index]['instance'];
         foreach (get_object_vars($instance) as $property => $value) {

@@ -57,7 +57,7 @@ class Junction extends Base implements ArrayAccess
     {
         if (property_exists($this->instance, $property)) {
             if (array_key_exists($property, $this->fields)) {
-                notice('Property "'.$property.'" is ambiguous. It\'s available in both the instance as the junction fields.', "To modify the mapping of the junction field change the value of \$ModelConfig->hasMany[\$relation]['fields']['".$property."']");
+                notice('Property "' . $property . '" is ambiguous. It\'s available in both the instance as the junction fields.', "To modify the mapping of the junction field change the value of \$ModelConfig->hasMany[\$relation]['fields']['" . $property . "']");
             }
 
             return $this->instance->$property;
@@ -72,7 +72,7 @@ class Junction extends Base implements ArrayAccess
         }
         $properties = \Sledgehammer\reflect_properties($this->instance);
         $properties['public'] = array_merge($properties['public'], $this->fields);
-        warning('Property "'.$property.'" doesn\'t exist in a '.get_class($this).' ('.get_class($this->instance).') object', \Sledgehammer\build_properties_hint($properties));
+        warning('Property "' . $property . '" doesn\'t exist in a ' . get_class($this) . ' (' . get_class($this->instance) . ') object', \Sledgehammer\build_properties_hint($properties));
     }
 
     /**
@@ -85,7 +85,7 @@ class Junction extends Base implements ArrayAccess
     {
         if (property_exists($this->instance, $property)) {
             if (array_key_exists($property, $this->fields)) {
-                notice('Property "'.$property.'" is ambiguous. It\'s available in both the instance as the junction fields.', "To modify the mapping of the junction field change the value of \$ModelConfig->hasMany[\$relation]['fields']['".$property."']");
+                notice('Property "' . $property . '" is ambiguous. It\'s available in both the instance as the junction fields.', "To modify the mapping of the junction field change the value of \$ModelConfig->hasMany[\$relation]['fields']['" . $property . "']");
             }
             $this->instance->$property = $value;
 
@@ -111,34 +111,36 @@ class Junction extends Base implements ArrayAccess
     {
         return call_user_func_array([$this->instance, $method], $arguments);
     }
-    public function offsetExists($index)
+    public function offsetExists($index): bool
     {
         if ($this->instance instanceof ArrayAccess) {
             return $this->instance->offsetExists($index);
         }
-        trigger_error('Cannot use object of type '.get_class($this->instance).' as array', E_USER_ERROR);
+        trigger_error('Cannot use object of type ' . get_class($this->instance) . ' as array', E_USER_ERROR);
     }
 
-    public function offsetGet($index)
+    public function offsetGet($index): mixed
     {
         if ($this->instance instanceof ArrayAccess) {
             return $this->instance->offsetGet($index);
         }
-        trigger_error('Cannot use object of type '.get_class($this->instance).' as array', E_USER_ERROR);
+        trigger_error('Cannot use object of type ' . get_class($this->instance) . ' as array', E_USER_ERROR);
     }
 
-    public function offsetSet($index, $value)
+    public function offsetSet($index, $value): void
     {
         if ($this->instance instanceof ArrayAccess) {
-            return $this->instance->offsetSet($index, $value);
+            $this->instance->offsetSet($index, $value);
+            return;
         }
-        trigger_error('Cannot use object of type '.get_class($this->instance).' as array', E_USER_ERROR);
+        trigger_error('Cannot use object of type ' . get_class($this->instance) . ' as array', E_USER_ERROR);
     }
-    public function offsetUnset($index)
+    public function offsetUnset($index): void
     {
         if ($this->instance instanceof ArrayAccess) {
-            return $this->instance->offsetUnset($index);
+            $this->instance->offsetUnset($index);
+            return;
         }
-        trigger_error('Cannot use object of type '.get_class($this->instance).' as array', E_USER_ERROR);
+        trigger_error('Cannot use object of type ' . get_class($this->instance) . ' as array', E_USER_ERROR);
     }
 }
